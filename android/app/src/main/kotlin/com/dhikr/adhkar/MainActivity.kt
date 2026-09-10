@@ -12,7 +12,9 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : AudioServiceActivity() {
     private val CHANNEL = "com.dhikr.adhkar/permissions"
+    private val WIDGET_CHANNEL = "com.dhikr.adhkar/widget"
     private var permissionChannel: MethodChannel? = null
+    private var widgetChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -123,6 +125,31 @@ class MainActivity : AudioServiceActivity() {
                         }
                     } else {
                         result.success(true)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Widget channel: save prayer data + trigger widget update
+        widgetChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL)
+        widgetChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "updateWidget" -> {
+                    try {
+                        val args = call.arguments as? Map<*, *> ?: emptyMap<String, Any>()
+                        val prefs = getSharedPreferences(PrayerWidgetProvider.PREFS, Context.MODE_PRIVATE)
+                        val editor = prefs.edit()
+                        for ((key, value) in args) {
+                            if (key is String && value != null) {
+                                editor.putString(key, value.toString())
+                            }
+                        }
+                        editor.apply()
+                        PrayerWidgetProvider.updateAll(this)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("WIDGET_ERROR", e.message, null)
                     }
                 }
                 else -> result.notImplemented()

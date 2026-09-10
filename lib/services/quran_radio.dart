@@ -108,7 +108,7 @@ class QuranRadioService {
         _showNotification();
       } else if (s == PlayerState.stopped) {
         _playing = false;
-        _hideNotification();
+        if (_userStopped) _hideNotification();
       }
     });
 
@@ -135,8 +135,8 @@ class QuranRadioService {
         androidNotificationChannelId: 'com.dhikr.adhkar.radio.channel',
         androidNotificationChannelName: 'دُرَّةُ الْمُؤْمِن',
         androidNotificationChannelDescription: 'تشغيل البث المباشر في الخلفية',
-        androidNotificationOngoing: true,
-        androidStopForegroundOnPause: true,
+        androidNotificationOngoing: false,
+        androidStopForegroundOnPause: false,
         androidNotificationIcon: 'mipmap/ic_launcher',
         notificationColor: Color(0xFF0F2E23),
       ),

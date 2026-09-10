@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 
 import 'app.dart';
 import 'data/content_validation.dart';
-import 'services/home_widget_service.dart';
 import 'services/prayer_alert_service.dart';
 import 'services/storage.dart';
 import 'state/app_state.dart';
@@ -63,11 +62,6 @@ Future<void> main() async {
       );
     } catch (_) {}
   }
-
-  // Prime initial Home Screen Widget content
-  try {
-    await HomeWidgetService.instance.syncDefaultDhikr();
-  } catch (_) {}
 
   runApp(DhikrApp(appState: appState));
 }

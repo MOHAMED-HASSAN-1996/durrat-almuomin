@@ -66,11 +66,10 @@
         </receiver>
 
         <!-- Home Screen Widget Provider -->
-        <receiver android:name="com.dhikr.adhkar.DhikrAppWidgetProvider"
+        <receiver android:name="com.dhikr.adhkar.PrayerWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="android.appwidget.action.APPWIDGET_ENABLED" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

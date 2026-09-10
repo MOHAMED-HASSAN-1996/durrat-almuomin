@@ -57,7 +57,6 @@ dependencies:
   web: ^1.1.1
   xml: ^7.0.1
   audio_service: ^0.18.19
-  home_widget: ^0.9.4
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
 dev_dependencies:
