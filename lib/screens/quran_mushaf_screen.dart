@@ -31,9 +31,8 @@ class QuranMushafScreen extends StatefulWidget {
 
 class _QuranMushafScreenState extends State<QuranMushafScreen> {
   late PageController _horizontalPageController;
-  late PageController _verticalPageController;
   late final ValueNotifier<int> _currentPageNotifier;
-  bool _isVerticalMode = false;
+  bool _isLandscape = false;
   MushafThemeMode _themeMode = MushafThemeMode.cream;
   bool _isReady = false;
   int? _savedBookmarkPage;
@@ -45,7 +44,6 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
     final startPage = (widget.initialPage ?? 1).clamp(1, 604);
     _currentPageNotifier = ValueNotifier<int>(startPage);
     _horizontalPageController = PageController(initialPage: startPage - 1);
-    _verticalPageController = PageController(initialPage: startPage - 1);
 
     _initStartingPage();
   }
@@ -59,9 +57,7 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
         final p = (lastRead['page'] as int? ?? 1).clamp(1, 604);
         _currentPageNotifier.value = p;
         _horizontalPageController.dispose();
-        _verticalPageController.dispose();
         _horizontalPageController = PageController(initialPage: p - 1);
-        _verticalPageController = PageController(initialPage: p - 1);
       }
     }
     _saveProgress(_currentPageNotifier.value);
@@ -72,8 +68,13 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
 
   @override
   void dispose() {
+    if (_isLandscape) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+    }
     _horizontalPageController.dispose();
-    _verticalPageController.dispose();
     _currentPageNotifier.dispose();
     super.dispose();
   }
@@ -90,31 +91,26 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
   void _jumpToPage(int page) {
     final clamped = page.clamp(1, 604);
     _currentPageNotifier.value = clamped;
-    if (_isVerticalMode) {
-      if (_verticalPageController.hasClients) {
-        _verticalPageController.jumpToPage(clamped - 1);
-      }
-    } else {
-      if (_horizontalPageController.hasClients) {
-        _horizontalPageController.jumpToPage(clamped - 1);
-      }
+    if (_horizontalPageController.hasClients) {
+      _horizontalPageController.jumpToPage(clamped - 1);
     }
     _saveProgress(clamped);
   }
 
-  void _toggleReadingMode() {
+  void _toggleLandscape() {
     HapticFeedback.selectionClick();
-    final curPage = _currentPageNotifier.value;
-    setState(() {
-      _isVerticalMode = !_isVerticalMode;
-      if (_isVerticalMode) {
-        _verticalPageController.dispose();
-        _verticalPageController = PageController(initialPage: curPage - 1);
-      } else {
-        _horizontalPageController.dispose();
-        _horizontalPageController = PageController(initialPage: curPage - 1);
-      }
-    });
+    setState(() => _isLandscape = !_isLandscape);
+    if (_isLandscape) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    } else {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+    }
   }
 
   void _setTheme(MushafThemeMode mode) {
@@ -163,12 +159,15 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
   }
 
   QcfThemeData _buildQcfTheme({
-    required double verseHeight,
+    required bool isPortrait,
     required double headerWidth,
   }) {
-    final double vNumHeight = (verseHeight * 0.72).clamp(1.10, 1.28);
-    const double basmalaSize = 18.0;
-    const double headerSize = 22.0;
+    final double hPadding = isPortrait ? 12.0 : 20.0;
+    final double vPadding = isPortrait ? 10.0 : 6.0;
+    final double vHeight = isPortrait ? 2.2 : 4.0;
+    final double vNumHeight = isPortrait ? 1.35 : 1.35;
+    const double basmalaSize = 24.0;
+    const double headerSize = 29.0;
 
     switch (_themeMode) {
       case MushafThemeMode.cream:
@@ -178,10 +177,10 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           verseNumberColor: const Color(0xFF8B4513),
           headerTextColor: const Color(0xFF1B241E),
           basmalaColor: const Color(0xFF1B241E),
-          verseHeight: verseHeight,
+          verseHeight: vHeight,
           verseNumberHeight: vNumHeight,
-          horizontalPadding: 2.0,
-          verticalPadding: 0.0,
+          horizontalPadding: hPadding,
+          verticalPadding: vPadding,
           basmalaFontSizeSmall: basmalaSize,
           headerFontSizeSmall: headerSize,
           headerWidthSmall: headerWidth,
@@ -193,10 +192,10 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           verseNumberColor: const Color(0xFF6D4C41),
           headerTextColor: const Color(0xFF3E2723),
           basmalaColor: const Color(0xFF3E2723),
-          verseHeight: verseHeight,
+          verseHeight: vHeight,
           verseNumberHeight: vNumHeight,
-          horizontalPadding: 2.0,
-          verticalPadding: 0.0,
+          horizontalPadding: hPadding,
+          verticalPadding: vPadding,
           basmalaFontSizeSmall: basmalaSize,
           headerFontSizeSmall: headerSize,
           headerWidthSmall: headerWidth,
@@ -214,10 +213,10 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
             0.0, 0.0, 0.0, 1.0, 0.0,
           ]),
           basmalaColor: const Color(0xFFEDEAE4),
-          verseHeight: verseHeight,
+          verseHeight: vHeight,
           verseNumberHeight: vNumHeight,
-          horizontalPadding: 2.0,
-          verticalPadding: 0.0,
+          horizontalPadding: hPadding,
+          verticalPadding: vPadding,
           basmalaFontSizeSmall: basmalaSize,
           headerFontSizeSmall: headerSize,
           headerWidthSmall: headerWidth,
@@ -321,46 +320,33 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final double availableW = constraints.maxWidth;
-                        final double availableH = constraints.maxHeight;
-                        final double spScale = (availableW / 430.0).clamp(0.85, 1.25);
-                        final double headerWidth = availableW.clamp(240.0, availableW);
-                        final double effectiveFontSize = 23.1 * spScale;
-                        final double targetLineHeightPx = (availableH / 15.0);
-                        final double dynamicVerseHeight = (targetLineHeightPx / effectiveFontSize).clamp(1.10, 1.75);
-                        final qcfTheme = _buildQcfTheme(verseHeight: dynamicVerseHeight, headerWidth: headerWidth);
-
-                        final pageWidget = _isVerticalMode
-                            ? PageView.builder(
-                                scrollDirection: Axis.vertical,
-                                controller: _verticalPageController,
-                                physics: const BouncingScrollPhysics(),
-                                itemCount: 604,
-                                onPageChanged: (index) {
-                                  _currentPageNotifier.value = index + 1;
-                                  _saveProgress(index + 1);
-                                },
-                                itemBuilder: (context, index) =>
-                                    QcfPage(pageNumber: index + 1, sp: spScale, h: 1.0, theme: qcfTheme),
-                              )
-                            : PageviewQuran(
-                                controller: _horizontalPageController,
-                                initialPageNumber: _currentPageNotifier.value,
-                                physics: const BouncingScrollPhysics(),
-                                sp: spScale,
-                                h: 1.0,
-                                theme: qcfTheme,
-                                onPageChanged: (page) {
-                                  _currentPageNotifier.value = page;
-                                  _saveProgress(page);
-                                },
-                              );
+                        final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+                        final double spScale = isPortrait
+                            ? (availableW / 390.0).clamp(0.92, 1.15)
+                            : 1.0;
+                        final double headerWidth = (availableW - 24.0).clamp(280.0, 372.0);
+                        final qcfTheme = _buildQcfTheme(
+                          isPortrait: isPortrait,
+                          headerWidth: headerWidth,
+                        );
 
                         return ScrollConfiguration(
                           behavior: const ScrollBehavior().copyWith(
                             physics: const ClampingScrollPhysics(),
                             scrollbars: false,
                           ),
-                          child: pageWidget,
+                          child: PageviewQuran(
+                            controller: _horizontalPageController,
+                            initialPageNumber: _currentPageNotifier.value,
+                            physics: const BouncingScrollPhysics(),
+                            sp: spScale,
+                            h: 1.0,
+                            theme: qcfTheme,
+                            onPageChanged: (page) {
+                              _currentPageNotifier.value = page;
+                              _saveProgress(page);
+                            },
+                          ),
                         );
                       },
                     ),
@@ -550,7 +536,7 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                                   ],
                                 ),
 
-                                // Display Mode (طريقة العرض : [ أفقي ])
+                                // Display Mode (طريقة العرض : [ أفقي / رأسي ])
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -567,7 +553,7 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                                     Material(
                                       color: Colors.transparent,
                                       child: InkWell(
-                                        onTap: _toggleReadingMode,
+                                        onTap: _toggleLandscape,
                                         borderRadius: BorderRadius.circular(10),
                                         child: AnimatedContainer(
                                           duration: const Duration(milliseconds: 200),
@@ -581,17 +567,17 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
-                                                _isVerticalMode
-                                                    ? Icons.swap_vert_rounded
-                                                    : Icons.swap_horiz_rounded,
+                                                _isLandscape
+                                                    ? Icons.stay_current_portrait_rounded
+                                                    : Icons.stay_current_landscape_rounded,
                                                 size: 16,
                                                 color: _accentColor,
                                               ),
                                               const SizedBox(width: 5),
                                               Text(
                                                 isAr
-                                                    ? (_isVerticalMode ? 'رأسي' : 'أفقي')
-                                                    : (_isVerticalMode ? 'Vertical' : 'Horizontal'),
+                                                    ? (_isLandscape ? 'رأسي' : 'أفقي')
+                                                    : (_isLandscape ? 'Portrait' : 'Landscape'),
                                                 style: TextStyle(
                                                   fontFamily: DhikrTheme.arabicFont,
                                                   fontSize: 12,

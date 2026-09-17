@@ -16,6 +16,7 @@ import '../services/prayer_times.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/nawafil_tracker_sheet.dart';
 
 class PrayerTimesScreen extends StatefulWidget {
   const PrayerTimesScreen({super.key});
@@ -2688,6 +2689,78 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                 ),
               );
             }).toList(),
+          ),
+          const SizedBox(height: 12),
+          // Nawafil Tracker Shortcut Button
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                NawafilTrackerSheet.show(context);
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: (dark ? DhikrColors.sage : DhikrColors.forest).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: (dark ? DhikrColors.sage : DhikrColors.forest).withValues(alpha: 0.22),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: (dark ? DhikrColors.sage : DhikrColors.forest).withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        LucideIcons.sparkles,
+                        size: 16,
+                        color: dark ? DhikrColors.sage : DhikrColors.forest,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isAr ? 'متابعة صلوات النوافل والسنن' : 'Nawafil & Sunnah Tracker',
+                            style: TextStyle(
+                              fontFamily: DhikrTheme.arabicFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+                            ),
+                          ),
+                          Text(
+                            isAr
+                                ? 'سُنن الفجر، الضحى، الرواتب، وقيام الليل والوتر'
+                                : 'Duha, Rawatib & Qiyam Witr Tracker',
+                            style: TextStyle(
+                              fontFamily: DhikrTheme.arabicFont,
+                              fontSize: 11,
+                              color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: dark ? DhikrColors.sage : DhikrColors.forest,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
