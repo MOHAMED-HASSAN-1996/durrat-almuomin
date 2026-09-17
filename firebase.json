@@ -1,0 +1,44 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "durrat-al-mumin",
+          "appId": "1:273977925686:android:a3de27f05afa905371b897",
+          "fileOutput": "android/app/google-services.json"
+        },
+        "buildConfigurations": {
+          ".": {
+            "projectId": "durrat-al-mumin",
+            "appId": "1:273977925686:android:a3de27f05afa905371b897",
+            "fileOutput": "android/app/google-services.json"
+          }
+        }
+      }
+    },
+    "dart": {
+      "lib/firebase_options.dart": {
+        "projectId": "durrat-al-mumin",
+        "configurations": {
+          "android": "1:273977925686:android:a3de27f05afa905371b897"
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "admin_dashboard",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "server.js",
+      "package*.json"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

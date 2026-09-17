@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Package and build artifacts
+*.apk
+*.aab
+*.zip
+*.bat
+.firebase/
+.freebuff/
+node_modules/
+screen_*.png
+store_screenshots/
+
