@@ -162,12 +162,12 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
     required double sp,
     required double h,
     required bool isPortrait,
+    required double headerW,
   }) {
-    final double hPadding = (isPortrait ? 12.0 : 24.0) * sp;
-    final double vPadding = (isPortrait ? 10.0 : 8.0) * h;
-    final double vHeight = isPortrait ? 2.2 : 3.8;
-    const double vNumHeight = 1.35;
-    final double headerW = (isPortrait ? 372.0 : 420.0) * sp;
+    final double hPadding = isPortrait ? 0.0 : 12.0;
+    final double vPadding = isPortrait ? 2.0 : 4.0;
+    final double vHeight = isPortrait ? 1.70 : 3.6;
+    const double vNumHeight = 1.22;
 
     switch (_themeMode) {
       case MushafThemeMode.cream:
@@ -181,8 +181,8 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           verseNumberHeight: vNumHeight,
           horizontalPadding: hPadding,
           verticalPadding: vPadding,
-          basmalaFontSizeSmall: 24.0,
-          headerFontSizeSmall: 29.0,
+          basmalaFontSizeSmall: 22.0,
+          headerFontSizeSmall: 26.0,
           headerWidthSmall: headerW,
         );
       case MushafThemeMode.sepia:
@@ -196,8 +196,8 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           verseNumberHeight: vNumHeight,
           horizontalPadding: hPadding,
           verticalPadding: vPadding,
-          basmalaFontSizeSmall: 24.0,
-          headerFontSizeSmall: 29.0,
+          basmalaFontSizeSmall: 22.0,
+          headerFontSizeSmall: 26.0,
           headerWidthSmall: headerW,
         );
       case MushafThemeMode.dark:
@@ -217,8 +217,8 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           verseNumberHeight: vNumHeight,
           horizontalPadding: hPadding,
           verticalPadding: vPadding,
-          basmalaFontSizeSmall: 24.0,
-          headerFontSizeSmall: 29.0,
+          basmalaFontSizeSmall: 22.0,
+          headerFontSizeSmall: 26.0,
           headerWidthSmall: headerW,
         );
     }
@@ -325,16 +325,18 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                         
                         // Reference standard device canvas for QCF Uthmanic font:
                         final double sp = isPortrait
-                            ? (availableW / 392.72727272727275)
-                            : (availableW / 800.7272727272727);
-                        final double h = isPortrait
-                            ? (availableH / 800.7272727272727)
-                            : (availableH / 392.72727272727275);
+                            ? (availableW / 414.0)
+                            : (availableW / 820.0);
+                        final double h = isPortrait ? 1.0 : 1.0;
+                        final double headerW = isPortrait
+                            ? availableW.clamp(280.0, availableW)
+                            : 420.0;
 
                         final qcfTheme = _buildQcfTheme(
                           sp: sp,
                           h: h,
                           isPortrait: isPortrait,
+                          headerW: headerW,
                         );
 
                         return MediaQuery(
