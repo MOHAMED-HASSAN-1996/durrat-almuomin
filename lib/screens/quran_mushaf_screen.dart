@@ -159,15 +159,15 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
   }
 
   QcfThemeData _buildQcfTheme({
+    required double sp,
+    required double h,
     required bool isPortrait,
-    required double headerWidth,
   }) {
-    final double hPadding = isPortrait ? 12.0 : 20.0;
-    final double vPadding = isPortrait ? 10.0 : 6.0;
-    final double vHeight = isPortrait ? 2.2 : 4.0;
-    final double vNumHeight = isPortrait ? 1.35 : 1.35;
-    const double basmalaSize = 24.0;
-    const double headerSize = 29.0;
+    final double hPadding = (isPortrait ? 12.0 : 24.0) * sp;
+    final double vPadding = (isPortrait ? 10.0 : 8.0) * h;
+    final double vHeight = isPortrait ? 2.2 : 3.8;
+    const double vNumHeight = 1.35;
+    final double headerW = (isPortrait ? 372.0 : 420.0) * sp;
 
     switch (_themeMode) {
       case MushafThemeMode.cream:
@@ -181,9 +181,9 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           verseNumberHeight: vNumHeight,
           horizontalPadding: hPadding,
           verticalPadding: vPadding,
-          basmalaFontSizeSmall: basmalaSize,
-          headerFontSizeSmall: headerSize,
-          headerWidthSmall: headerWidth,
+          basmalaFontSizeSmall: 24.0,
+          headerFontSizeSmall: 29.0,
+          headerWidthSmall: headerW,
         );
       case MushafThemeMode.sepia:
         return QcfThemeData(
@@ -196,9 +196,9 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           verseNumberHeight: vNumHeight,
           horizontalPadding: hPadding,
           verticalPadding: vPadding,
-          basmalaFontSizeSmall: basmalaSize,
-          headerFontSizeSmall: headerSize,
-          headerWidthSmall: headerWidth,
+          basmalaFontSizeSmall: 24.0,
+          headerFontSizeSmall: 29.0,
+          headerWidthSmall: headerW,
         );
       case MushafThemeMode.dark:
         return QcfThemeData(
@@ -217,9 +217,9 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           verseNumberHeight: vNumHeight,
           horizontalPadding: hPadding,
           verticalPadding: vPadding,
-          basmalaFontSizeSmall: basmalaSize,
-          headerFontSizeSmall: headerSize,
-          headerWidthSmall: headerWidth,
+          basmalaFontSizeSmall: 24.0,
+          headerFontSizeSmall: 29.0,
+          headerWidthSmall: headerW,
         );
     }
   }
@@ -309,7 +309,7 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
         backgroundColor: _pageBgColor,
         body: Stack(
           children: [
-            // ──── Fullscreen Mushaf Page (Edge-to-edge, zero inner padding) ────
+            // ──── Fullscreen Mushaf Page (Edge-to-edge, exact 15-line Medina geometry) ────
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
@@ -320,32 +320,44 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final double availableW = constraints.maxWidth;
+                        final double availableH = constraints.maxHeight;
                         final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-                        final double spScale = isPortrait
-                            ? (availableW / 390.0).clamp(0.92, 1.15)
-                            : 1.0;
-                        final double headerWidth = (availableW - 24.0).clamp(280.0, 372.0);
+                        
+                        // Reference standard device canvas for QCF Uthmanic font:
+                        final double sp = isPortrait
+                            ? (availableW / 392.72727272727275)
+                            : (availableW / 800.7272727272727);
+                        final double h = isPortrait
+                            ? (availableH / 800.7272727272727)
+                            : (availableH / 392.72727272727275);
+
                         final qcfTheme = _buildQcfTheme(
+                          sp: sp,
+                          h: h,
                           isPortrait: isPortrait,
-                          headerWidth: headerWidth,
                         );
 
-                        return ScrollConfiguration(
-                          behavior: const ScrollBehavior().copyWith(
-                            physics: const ClampingScrollPhysics(),
-                            scrollbars: false,
+                        return MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                            textScaler: TextScaler.noScaling,
                           ),
-                          child: PageviewQuran(
-                            controller: _horizontalPageController,
-                            initialPageNumber: _currentPageNotifier.value,
-                            physics: const BouncingScrollPhysics(),
-                            sp: spScale,
-                            h: 1.0,
-                            theme: qcfTheme,
-                            onPageChanged: (page) {
-                              _currentPageNotifier.value = page;
-                              _saveProgress(page);
-                            },
+                          child: ScrollConfiguration(
+                            behavior: const ScrollBehavior().copyWith(
+                              physics: const ClampingScrollPhysics(),
+                              scrollbars: false,
+                            ),
+                            child: PageviewQuran(
+                              controller: _horizontalPageController,
+                              initialPageNumber: _currentPageNotifier.value,
+                              physics: const BouncingScrollPhysics(),
+                              sp: sp,
+                              h: h,
+                              theme: qcfTheme,
+                              onPageChanged: (page) {
+                                _currentPageNotifier.value = page;
+                                _saveProgress(page);
+                              },
+                            ),
                           ),
                         );
                       },
