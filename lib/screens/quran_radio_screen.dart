@@ -284,6 +284,20 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
         _connecting = false;
         _station = _radio.stationName ?? _station;
       });
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'تعذر تشغيل الإذاعة — تأكد من اتصالك بالإنترنت',
+              style: TextStyle(fontFamily: DhikrTheme.arabicFont, fontSize: 14),
+              textDirection: TextDirection.rtl,
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(label: 'إعادة المحاولة', onPressed: _toggle),
+          ),
+        );
+      }
     }
   }
 
@@ -360,9 +374,35 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
           _station = name;
           _showList = false;
         });
+      } else if (mounted && !ok) {
+        // Play failed — show error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تعذر تشغيل هذه الإذاعة',
+              style: TextStyle(fontFamily: DhikrTheme.arabicFont, fontSize: 14),
+              textDirection: TextDirection.rtl,
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Play station error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تعذر تشغيل هذه الإذاعة',
+              style: TextStyle(fontFamily: DhikrTheme.arabicFont, fontSize: 14),
+              textDirection: TextDirection.rtl,
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {

@@ -23,8 +23,7 @@ class HomeHeroCard extends StatefulWidget {
 class _HomeHeroCardState extends State<HomeHeroCard> {
   Timer? _ticker;
   DateTime _now = DateTime.now();
-  String? _lastWidgetPrayer;
-  String? _lastWidgetTime;
+  String? _lastWidgetSignature;
 
   @override
   void initState() {
@@ -66,25 +65,42 @@ class _HomeHeroCardState extends State<HomeHeroCard> {
     final currentPrayerTime = _formatPrayerTime(nextTime, isAr);
 
     final fajrStr = _formatTimeOnly(prayerTimes.fajr, isAr);
+    final sunriseStr = _formatTimeOnly(prayerTimes.sunrise, isAr);
     final dhuhrStr = _formatTimeOnly(prayerTimes.dhuhr, isAr);
     final asrStr = _formatTimeOnly(prayerTimes.asr, isAr);
     final maghribStr = _formatTimeOnly(prayerTimes.maghrib, isAr);
     final ishaStr = _formatTimeOnly(prayerTimes.isha, isAr);
 
-    if (_lastWidgetPrayer != currentPrayerName ||
-        _lastWidgetTime != currentPrayerTime) {
-      _lastWidgetPrayer = currentPrayerName;
-      _lastWidgetTime = currentPrayerTime;
+    // Widget date payload (rendered as calligraphy + Eastern Arabic digits)
+    final widgetDayName = HijriDate.dayName(_now, true);
+    final (widgetHijriYear, widgetHijriMonth, widgetHijriDay) =
+        HijriDate.toHijri(_now);
+    final widgetHijriDate =
+        '${_toArabicDigits('$widgetHijriDay')} ${HijriDate.hijriMonths[widgetHijriMonth - 1]} ${_toArabicDigits('$widgetHijriYear')} هـ';
+    final widgetGregorianDate =
+        '$widgetDayName، ${_toArabicDigits('${_now.day}')} ${HijriDate.gregorianMonthsAr[_now.month - 1]} ${_toArabicDigits('${_now.year}')} م';
+
+    final widgetSignature =
+        '$currentPrayerName|$currentPrayerTime|$sunriseStr|$widgetHijriDate';
+    if (_lastWidgetSignature != widgetSignature) {
+      _lastWidgetSignature = widgetSignature;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         HomeWidgetService.instance.updateHomeWidget(
           nextPrayerName: currentPrayerName,
           nextPrayerTime: currentPrayerTime,
           nextPrayerKey: nextKey,
+          nextPrayerTimestamp: nextTime.millisecondsSinceEpoch,
           fajrTime: fajrStr,
+          sunriseTime: sunriseStr,
           dhuhrTime: dhuhrStr,
           asrTime: asrStr,
           maghribTime: maghribStr,
           ishaTime: ishaStr,
+          widgetDayCalligraphy: widgetDayName,
+          widgetHijriDate: widgetHijriDate,
+          widgetGregorianDate: widgetGregorianDate,
+          streakCount: streak,
+          prayerTasks: appState.todayPrayerTasks,
         );
       });
     }
@@ -552,6 +568,16 @@ class _HomeHeroCardState extends State<HomeHeroCard> {
     final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
     final m = dt.minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+
+  static const _easternDigits = '٠١٢٣٤٥٦٧٨٩';
+
+  /// Converts Western (0-9) digits in [input] to Eastern Arabic digits (٠-٩).
+  String _toArabicDigits(String input) {
+    return input.replaceAllMapped(RegExp(r'\d'), (m) {
+      final digit = int.parse(m.group(0)!);
+      return _easternDigits[digit];
+    });
   }
 }
 

@@ -65,7 +65,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Home Screen Widget Provider -->
+        <!-- Home Screen Widget Providers (Prayer Times + Tracker) -->
         <receiver android:name="com.dhikr.adhkar.PrayerWidgetProvider"
             android:exported="true">
             <intent-filter>
@@ -74,6 +74,15 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/dhikr_app_widget_info" />
+        </receiver>
+        <receiver android:name="com.dhikr.adhkar.PrayerTrackerWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dhikr_tracker_widget_info" />
         </receiver>
 
         <!-- Don't delete the meta-data below.

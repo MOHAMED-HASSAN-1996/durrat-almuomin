@@ -10,6 +10,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/strings.dart';
+import '../services/home_widget_service.dart';
 import '../services/prayer_alert_service.dart';
 import '../services/prayer_times.dart';
 import '../state/app_state.dart';
@@ -2627,6 +2628,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   onTap: () {
                     HapticFeedback.lightImpact();
                     appState.togglePrayerTask(p.$1);
+                    HomeWidgetService.instance.syncTracker();
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),

@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_tracker_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <!-- ═══ Header Row: Title & Streak Badge ═══ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_tracker_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/somarsans_bold"
+                android:gravity="start"
+                android:singleLine="true"
+                android:text="متابعة صلوات اليوم"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/widget_tracker_streak"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/widget_divider"
+                android:fontFamily="@font/somarsans_bold"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:singleLine="true"
+                android:text="🔥 1 يوم"
+                android:textColor="#FBBF24"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- ═══ 5 Prayers Columns ═══ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="8dp"
+            android:orientation="horizontal"
+            android:weightSum="5">
+
+            <!-- Fajr -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/widget_tracker_lbl_fajr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/somarsans_medium"
+                    android:text="الفجر"
+                    android:textColor="#D1D5DB"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/widget_tracker_status_fajr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="@font/somarsans_bold"
+                    android:text="✔"
+                    android:textColor="#10B981"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Dhuhr -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/widget_tracker_lbl_dhuhr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/somarsans_medium"
+                    android:text="الظهر"
+                    android:textColor="#D1D5DB"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/widget_tracker_status_dhuhr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="@font/somarsans_bold"
+                    android:text="✔"
+                    android:textColor="#10B981"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Asr -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/widget_tracker_lbl_asr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/somarsans_medium"
+                    android:text="العصر"
+                    android:textColor="#D1D5DB"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/widget_tracker_status_asr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="@font/somarsans_bold"
+                    android:text="3:15"
+                    android:textColor="#FBBF24"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- Maghrib -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/widget_tracker_lbl_maghrib"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/somarsans_medium"
+                    android:text="المغرب"
+                    android:textColor="#D1D5DB"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/widget_tracker_status_maghrib"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="@font/somarsans_bold"
+                    android:text="6:05"
+                    android:textColor="#9CA3AF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- Isha -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/widget_tracker_lbl_isha"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/somarsans_medium"
+                    android:text="العشاء"
+                    android:textColor="#D1D5DB"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/widget_tracker_status_isha"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="@font/somarsans_bold"
+                    android:text="7:30"
+                    android:textColor="#9CA3AF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- ═══ Progress Line ═══ -->
+        <ProgressBar
+            android:id="@+id/widget_tracker_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="6dp"
+            android:max="5"
+            android:progress="2"
+            android:progressDrawable="@drawable/widget_progress_bar" />
+
+        <!-- ═══ Summary / Next Prayer Countdown ═══ -->
+        <TextView
+            android:id="@+id/widget_tracker_summary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/somarsans_medium"
+            android:gravity="center"
+            android:singleLine="true"
+            android:text="أديت 2 من 5 صلوات اليوم • متبقي على العصر 45 دقيقة"
+            android:textColor="#E5E7EB"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
+</FrameLayout>
