@@ -38,13 +38,16 @@ class DhikrColors {
 class DhikrTheme {
   DhikrTheme._();
 
-  static const String arabicFont = 'ThmanyahSerifText';
+  static const String arabicFont = 'SomarSans';
+  static const String titleFont = 'SomarSans';
+  static const String bodyFont = 'SomarSans';
+  static const String thuluthFont = 'Thuluth';
 
   static ThemeData light() {
     final base = ThemeData(
       useMaterial3: true,
       fontFamily: arabicFont,
-      fontFamilyFallback: const [arabicFont, 'TheYearOfHandicrafts'],
+      fontFamilyFallback: const [arabicFont],
       colorScheme: ColorScheme.light(
         primary: DhikrColors.forest,
         onPrimary: Colors.white,

@@ -48,6 +48,19 @@ class AppState extends ChangeNotifier {
       _todayPrayerTasks.contains(prayerKey);
   int get completedPrayerTasksCount => _todayPrayerTasks.length;
 
+  // ── Nawafil Tasks ────────────────────────────────────────────────────────
+  final Set<String> _completedNawafilTasks = {};
+  int get completedNawafilTasksCount => _completedNawafilTasks.length;
+  bool isNawafilTaskCompleted(String keyId) => _completedNawafilTasks.contains(keyId);
+  Future<void> toggleNawafilTask(String keyId) async {
+    if (_completedNawafilTasks.contains(keyId)) {
+      _completedNawafilTasks.remove(keyId);
+    } else {
+      _completedNawafilTasks.add(keyId);
+    }
+    notifyListeners();
+  }
+
   int _streakCount = 1;
   int get streakCount => _streakCount;
 
@@ -160,6 +173,7 @@ class AppState extends ChangeNotifier {
     required String email,
     String phone = '',
     String authProvider = 'email',
+    String? photo,
   }) async {
     await _storage.saveUserProfile(
       name: name,
@@ -172,11 +186,18 @@ class AppState extends ChangeNotifier {
       'email': email,
       'phone': phone,
       'authProvider': authProvider,
+      if (photo != null) 'photo': photo,
     };
     notifyListeners();
   }
 
   Future<void> logoutUser() async {
+    await _storage.clearUserProfile();
+    _userProfile = null;
+    notifyListeners();
+  }
+
+  Future<void> deleteAccount() async {
     await _storage.clearUserProfile();
     _userProfile = null;
     notifyListeners();

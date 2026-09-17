@@ -10,13 +10,22 @@ import '../widgets/home_hero_card.dart';
 import 'anime_stories_screen.dart';
 import 'companions_screen.dart';
 import 'hadith_screen.dart';
+import 'hajj_umrah_screen.dart';
 import 'jawami_dhikr_screen.dart';
 import 'location_map_picker_screen.dart';
+import 'loved_ones_screen.dart';
+import 'nearest_mosques_screen.dart';
+import 'night_prayer_calculator_screen.dart';
 import 'prayer_commitment_screen.dart';
+import 'qibla_screen.dart';
 import 'quran_mushaf_screen.dart';
 import 'quran_radio_screen.dart';
+import 'sakan_screen.dart';
 import 'shaarawi_screen.dart';
 import 'soul_remedy_screen.dart';
+import 'sujud_sahw_screen.dart';
+import 'zakat_calculator_screen.dart';
+import '../widgets/nawafil_tracker_sheet.dart';
 
 /// The redesigned Home Screen — engineered in RonDesignLab's signature style:
 /// Ultra-curved glass cards (28-32px), subtle depth, atmospheric gradients,
@@ -303,17 +312,17 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SliverToBoxAdapter(child: SizedBox(height: 28)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
 
                   // ─────────────────────────────────────────────
-                  // 4. QUICK EXPLORE SERVICES (Title Only Cards)
+                  // 4. ISLAMIC KNOWLEDGE & SCIENCES (المعرفة والعلوم الشرعية)
                   // ─────────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
                       child: _buildSectionHeader(
                         context,
-                        title: isAr ? 'الكنوز والخدمات الإيمانية' : 'Spiritual Services',
+                        title: isAr ? 'المعرفة والعلوم الشرعية' : 'Islamic Knowledge',
                         dark: dark,
                       ),
                     ),
@@ -430,12 +439,312 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ],
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                  // ─────────────────────────────────────────────
+                  // 5. WORSHIP & SUPPLICATIONS (العبادات والمناجاة)
+                  // ─────────────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: _buildSectionHeader(
+                        context,
+                        title: isAr ? 'العبادات والمناجاة' : 'Worship & Supplications',
+                        dark: dark,
+                      ),
+                    ),
+                  ),
+
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          // Highlight Card: [ صلوات النوافل والسنن الرواتب ]
+                          _buildWideServiceCard(
+                            context: context,
+                            title: isAr ? 'صلوات النوافل والسنن الرواتب' : 'Nawafil & Sunnah Tracker',
+                            imageAsset: 'assets/images/clay_3d_after_prayer.png',
+                            icon: LucideIcons.sparkles,
+                            accentColor: const Color(0xFF059669),
+                            pastelLightStart: const Color(0xFFECFDF5),
+                            pastelLightEnd: const Color(0xFFA7F3D0),
+                            dark: dark,
+                            onTap: () => NawafilTrackerSheet.show(context),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Row 1: [ دعاء بظهر الغيب (دعوة الأحبة) | سجود السهو ]
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'دعاء بظهر الغيب' : 'Dua in Absentia',
+                                  titleLine2: isAr ? '(دعوة الأحبة)' : '(Loved Ones)',
+                                  imageAsset: 'assets/images/clay_3d_loved_ones.png',
+                                  icon: LucideIcons.heartHandshake,
+                                  accentColor: const Color(0xFFE11D48),
+                                  pastelLightStart: const Color(0xFFFFF1F2),
+                                  pastelLightEnd: const Color(0xFFFECDD3),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const LovedOnesScreen()),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'دليل سجود' : 'Sujud Sahw',
+                                  titleLine2: isAr ? 'السهو والأحكام' : 'Guide & Rules',
+                                  imageAsset: 'assets/images/tool_sujud_3d.png',
+                                  icon: LucideIcons.checkCheck,
+                                  accentColor: const Color(0xFF0D9488),
+                                  pastelLightStart: const Color(0xFFF0FDFA),
+                                  pastelLightEnd: const Color(0xFF99F6E4),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const SujudSahwScreen()),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Row 2: [ قيام الليل والثلث الأخير | سكن (أدعية السكينة) ]
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'قيام الليل' : 'Night Prayer',
+                                  titleLine2: isAr ? 'والثلث الأخير' : 'Last Third Calc',
+                                  imageAsset: 'assets/images/tool_night_3d.png',
+                                  icon: LucideIcons.moonStar,
+                                  accentColor: const Color(0xFF6366F1),
+                                  pastelLightStart: const Color(0xFFEEF2FF),
+                                  pastelLightEnd: const Color(0xFFC7D2FE),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const NightPrayerCalculatorScreen()),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'خريطة السَّكَن' : 'Sakan Map',
+                                  titleLine2: isAr ? 'والطمأنينة' : 'Peace & Solace',
+                                  imageAsset: 'assets/images/clay_3d_soul.png',
+                                  icon: LucideIcons.feather,
+                                  accentColor: const Color(0xFF10B981),
+                                  pastelLightStart: const Color(0xFFECFDF5),
+                                  pastelLightEnd: const Color(0xFFA7F3D0),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const SakanScreen()),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                  // ─────────────────────────────────────────────
+                  // 6. ZAKAT & CHARITIES (الزكاة والصدقات والأضاحي)
+                  // ─────────────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: _buildSectionHeader(
+                        context,
+                        title: isAr ? 'الزكاة والصدقات والأضاحي' : 'Zakat & Charities',
+                        dark: dark,
+                      ),
+                    ),
+                  ),
+
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          // Row 1: [ حاسبة الزكاة الذكية | حاسبة النصاب (ذهب وفضة) ]
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'حاسبة الزكاة' : 'Zakat Calculator',
+                                  titleLine2: isAr ? 'الشاملة الذكية' : 'Smart & Accurate',
+                                  imageAsset: 'assets/images/clay_3d_zakat_calc.png',
+                                  icon: LucideIcons.calculator,
+                                  accentColor: const Color(0xFF059669),
+                                  pastelLightStart: const Color(0xFFECFDF5),
+                                  pastelLightEnd: const Color(0xFFA7F3D0),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 0)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'حاسبة النصاب' : 'Nisab Calculator',
+                                  titleLine2: isAr ? '(ذهب وفضة)' : '(Gold & Silver)',
+                                  imageAsset: 'assets/images/clay_3d_nisab.png',
+                                  icon: LucideIcons.coins,
+                                  accentColor: const Color(0xFFD97706),
+                                  pastelLightStart: const Color(0xFFFFFBEB),
+                                  pastelLightEnd: const Color(0xFFFDE68A),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 1)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Row 2: [ مستحقو الزكاة | أحكام ومستحقو الأضاحي ]
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'مستحقو الزكاة' : 'Beneficiaries',
+                                  titleLine2: isAr ? 'المصارف الثمانية' : '8 Categories',
+                                  imageAsset: 'assets/images/clay_3d_zakat_beneficiaries.png',
+                                  icon: LucideIcons.usersRound,
+                                  accentColor: const Color(0xFF2563EB),
+                                  pastelLightStart: const Color(0xFFEFF6FF),
+                                  pastelLightEnd: const Color(0xFFBFDBFE),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 2)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'مستحقو الأضاحي' : 'Udhiyah Rules',
+                                  titleLine2: isAr ? 'وتوزيع الحصص' : '& Shares',
+                                  imageAsset: 'assets/images/clay_3d_udhiyah.png',
+                                  icon: LucideIcons.gift,
+                                  accentColor: const Color(0xFFDC2626),
+                                  pastelLightStart: const Color(0xFFFEF2F2),
+                                  pastelLightEnd: const Color(0xFFFECACA),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 3)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                  // ─────────────────────────────────────────────
+                  // 7. MUSLIM TOOLS & SERVICES (أدوات وخدمات المسلم)
+                  // ─────────────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: _buildSectionHeader(
+                        context,
+                        title: isAr ? 'أدوات وخدمات المسلم' : 'Muslim Tools',
+                        dark: dark,
+                      ),
+                    ),
+                  ),
+
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          // Trio Row: [ بوصلة القبلة | أقرب مسجد | مناسك الحج والعمرة ]
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTrioServiceCard(
+                                  context: context,
+                                  title: isAr ? 'بوصلة القبلة' : 'Qibla Compass',
+                                  imageAsset: 'assets/images/tool_qibla_3d.png',
+                                  icon: LucideIcons.compass,
+                                  accentColor: const Color(0xFF0284C7),
+                                  pastelLightStart: const Color(0xFFF0F9FF),
+                                  pastelLightEnd: const Color(0xFFBAE6FD),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const QiblaScreen()),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildTrioServiceCard(
+                                  context: context,
+                                  title: isAr ? 'أقرب مسجد' : 'Nearest Mosque',
+                                  imageAsset: 'assets/images/clay_3d_minaret.png',
+                                  icon: LucideIcons.mapPin,
+                                  accentColor: const Color(0xFF059669),
+                                  pastelLightStart: const Color(0xFFECFDF5),
+                                  pastelLightEnd: const Color(0xFFA7F3D0),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const NearestMosquesScreen()),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildTrioServiceCard(
+                                  context: context,
+                                  title: isAr ? 'الحج والعمرة' : 'Hajj & Umrah',
+                                  imageAsset: 'assets/images/tool_hajj_3d.png',
+                                  icon: LucideIcons.landmark,
+                                  accentColor: const Color(0xFFD97706),
+                                  pastelLightStart: const Color(0xFFFFFBEB),
+                                  pastelLightEnd: const Color(0xFFFDE68A),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const HajjUmrahScreen()),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 8),
 
                           // Wide Feature Card: Quran Live Radio (Title Only)
                           _buildWideServiceCard(
                             context: context,
-                            title: isAr ? 'إذاعة القرآن الكريم' : 'Cairo Quran Radio',
+                            title: isAr ? 'إذاعة القرآن الكريم — القاهرة' : 'Cairo Quran Live Radio',
                             imageAsset: 'assets/images/clay_3d_radio.png',
                             icon: LucideIcons.radio,
                             accentColor: const Color(0xFFE11D48),
@@ -448,14 +757,14 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
 
-                          // 2-Column: [ صيدلية الروح | الالتزام ]
+                          // 2-Column: [ صيدلية الروح | الالتزام بالصلاة ]
                           Row(
                             children: [
                               Expanded(
                                 child: _buildCompactServiceCard(
                                   context: context,
-                                  title: isAr ? 'صيدلية' : 'Soul Remedy',
-                                  titleLine2: isAr ? 'الروح' : null,
+                                  title: isAr ? 'صيدلية الروح' : 'Soul Remedy',
+                                  titleLine2: isAr ? 'أدعية لكل شعور' : 'Duas for feelings',
                                   imageAsset: 'assets/images/clay_3d_soul.png',
                                   icon: LucideIcons.heart,
                                   accentColor: const Color(0xFF10B981),
@@ -471,7 +780,8 @@ class HomeScreen extends StatelessWidget {
                               Expanded(
                                 child: _buildCompactServiceCard(
                                   context: context,
-                                  title: isAr ? 'الالتزام' : 'Commitment',
+                                  title: isAr ? 'الالتزام بالصلاة' : 'Prayer Tracking',
+                                  titleLine2: isAr ? 'متابعة الفرائض' : 'Obligatory tracker',
                                   imageAsset: 'assets/images/clay_3d_minaret.png',
                                   icon: LucideIcons.calendarCheck,
                                   accentColor: const Color(0xFF6366F1),
@@ -491,7 +801,7 @@ class HomeScreen extends StatelessWidget {
                   ),
 
                   // Bottom padding for navigation bar ensuring last cards are completely visible
-                  const SliverToBoxAdapter(child: SizedBox(height: 180)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 140)),
                 ],
               ),
             ),
@@ -937,16 +1247,19 @@ class HomeScreen extends StatelessWidget {
               pastelLightEnd: pastelLightEnd,
             ),
             const SizedBox(height: 8),
-            Text(
-              title,
-              maxLines: 1,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: DhikrTheme.arabicFont,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: dark ? Colors.white : DhikrColors.charcoal,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                title,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: DhikrTheme.arabicFont,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: dark ? Colors.white : DhikrColors.charcoal,
+                ),
               ),
             ),
           ],
@@ -973,7 +1286,7 @@ class HomeScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: dark ? const Color(0xFF10241E) : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -1000,51 +1313,63 @@ class HomeScreen extends StatelessWidget {
               icon: icon,
               accentColor: accentColor,
               dark: dark,
-              size: 60,
-              iconSize: 27,
+              size: 56,
+              iconSize: 26,
               pastelLightStart: pastelLightStart,
               pastelLightEnd: pastelLightEnd,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: titleLine2 != null
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: DhikrTheme.arabicFont,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: dark ? Colors.white : DhikrColors.charcoal,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: DhikrTheme.arabicFont,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: dark ? Colors.white : DhikrColors.charcoal,
+                            ),
                           ),
                         ),
-                        Text(
-                          titleLine2,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: DhikrTheme.arabicFont,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: dark ? Colors.white : DhikrColors.charcoal,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Text(
+                            titleLine2,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: DhikrTheme.arabicFont,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: dark ? const Color(0xFF9CA3AF) : DhikrColors.charcoalSoft,
+                            ),
                           ),
                         ),
                       ],
                     )
-                  : Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: DhikrTheme.arabicFont,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: dark ? Colors.white : DhikrColors.charcoal,
+                  : FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: DhikrTheme.arabicFont,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: dark ? Colors.white : DhikrColors.charcoal,
+                        ),
                       ),
                     ),
             ),

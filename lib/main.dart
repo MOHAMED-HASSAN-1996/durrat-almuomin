@@ -27,49 +27,38 @@ Future<void> main() async {
     print('DHIKR content validation issues:\n${validation.errors.join('\n')}');
   }
 
-  // Ensure ThmanyahSerifText font is explicitly loaded into the engine
-  try {
-    final fontLoader = FontLoader('ThmanyahSerifText');
-    fontLoader.addFont(rootBundle.load('assets/fonts/thmanyahseriftext/thmanyahseriftext-Regular.otf'));
-    fontLoader.addFont(rootBundle.load('assets/fonts/thmanyahseriftext/thmanyahseriftext-Medium.otf'));
-    fontLoader.addFont(rootBundle.load('assets/fonts/thmanyahseriftext/thmanyahseriftext-Bold.otf'));
-    await fontLoader.load();
-  } catch (_) {
-    // Falls back to pubspec declared asset fonts
-  }
-
   final storage = DhikrStorage();
   final appState = AppState(storage: storage);
   await appState.load();
 
-  // Initialize notifications & schedule upcoming 7 days of prayers in advance
-  if (!kIsWeb) {
-    try {
-      await PrayerAlertService.instance.init();
-      var savedLoc = storage.getSavedLocation();
-      // Auto-detect location if none saved
-      if (savedLoc == null) {
-        savedLoc = await _tryAutoLocate(storage);
-      }
-      final lat = (savedLoc?['lat'] as num?)?.toDouble() ?? 33.3152;
-      final lng = (savedLoc?['lng'] as num?)?.toDouble() ?? 44.3661;
-      final isAr = appState.language == AppLanguage.arabic;
-      // Unawaited background prime
-      PrayerAlertService.instance.scheduleUpcomingPrayers(
-        lat: lat,
-        lng: lng,
-        isArabic: isAr,
-        daysToSchedule: 7,
-      );
-    } catch (_) {}
-  }
-
-  // Prime initial Home Screen Widget content
-  try {
-    await HomeWidgetService.instance.syncDefaultDhikr();
-  } catch (_) {}
-
+  // Run app immediately
   runApp(DhikrApp(appState: appState));
+
+  // Initialize notifications & location & widgets in background
+  if (!kIsWeb) {
+    Future.microtask(() async {
+      try {
+        await PrayerAlertService.instance.init();
+        var savedLoc = storage.getSavedLocation();
+        if (savedLoc == null) {
+          savedLoc = await _tryAutoLocate(storage);
+        }
+        final lat = (savedLoc?['lat'] as num?)?.toDouble() ?? 33.3152;
+        final lng = (savedLoc?['lng'] as num?)?.toDouble() ?? 44.3661;
+        final isAr = appState.language == AppLanguage.arabic;
+        PrayerAlertService.instance.scheduleUpcomingPrayers(
+          lat: lat,
+          lng: lng,
+          isArabic: isAr,
+          daysToSchedule: 7,
+        );
+      } catch (_) {}
+
+      try {
+        await HomeWidgetService.instance.syncDefaultDhikr();
+      } catch (_) {}
+    });
+  }
 }
 
 Future<Map<String, dynamic>?> _tryAutoLocate(DhikrStorage storage) async {

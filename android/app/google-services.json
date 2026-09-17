@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "273977925686",
+    "project_id": "durrat-al-mumin",
+    "storage_bucket": "durrat-al-mumin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:273977925686:android:a3de27f05afa905371b897",
+        "android_client_info": {
+          "package_name": "com.dhikr.adhkar"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "273977925686-mo2uo4bo2r01uok5sd2l6ec55lnag99q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dhikr.adhkar",
+            "certificate_hash": "3bc8ae6cf0fe505a7f280da07fba15f1316bb474"
+          }
+        },
+        {
+          "client_id": "273977925686-95kek3141s432gsuqhj47gug8dql80id.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8pG1aDqlOm4Rhvf_9oqFfcPq205CkbT0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "273977925686-95kek3141s432gsuqhj47gug8dql80id.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

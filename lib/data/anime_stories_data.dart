@@ -54,6 +54,7 @@ class AnimeProphetStory {
   final String? customThumbnail;
   final bool isFeatured;
   final String? tag;
+  final bool isActive;
 
   // هيكلة السلاسل والحلقات
   final String? seriesId;
@@ -76,6 +77,7 @@ class AnimeProphetStory {
     this.customThumbnail,
     this.isFeatured = false,
     this.tag,
+    this.isActive = true,
     this.seriesId,
     this.seriesTitleAr,
     this.seriesTitleEn,

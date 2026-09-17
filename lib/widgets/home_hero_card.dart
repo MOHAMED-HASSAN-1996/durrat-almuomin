@@ -151,14 +151,26 @@ class _HomeHeroCardState extends State<HomeHeroCard> {
           borderRadius: BorderRadius.circular(12),
           child: Stack(
             children: [
-              // 1. Photographic Image Backdrop (Islamic Mosque & Night Sky)
+              // 1. Photographic Image Backdrop (changes dynamically per prayer time)
               Positioned.fill(
                 child: Image.asset(
-                  'assets/images/hero_card_bg.jpg',
+                  switch (nextKey) {
+                    'fajr' => 'assets/images/hero_fajr.png',
+                    'sunrise' => 'assets/images/hero_fajr.png',
+                    'dhuhr' => 'assets/images/hero_dhuhr.png',
+                    'asr' => 'assets/images/hero_asr.png',
+                    'maghrib' => 'assets/images/hero_maghrib.png',
+                    'isha' => 'assets/images/hero_isha.png',
+                    _ => 'assets/images/hero_card_bg.png',
+                  },
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                  errorBuilder: (context, error, stackTrace) => Image.asset(
+                    'assets/images/hero_card_bg.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, err, st) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
 
