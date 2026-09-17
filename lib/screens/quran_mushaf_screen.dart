@@ -33,13 +33,10 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
   late PageController _horizontalPageController;
   late PageController _verticalPageController;
   late final ValueNotifier<int> _currentPageNotifier;
-  late final TransformationController _transformationController;
   bool _isVerticalMode = false;
-  bool _isLandscape = false;
   MushafThemeMode _themeMode = MushafThemeMode.cream;
   bool _isReady = false;
   int? _savedBookmarkPage;
-  double _zoomScale = 1.0;
   bool _barsVisible = true;
 
   @override
@@ -49,13 +46,6 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
     _currentPageNotifier = ValueNotifier<int>(startPage);
     _horizontalPageController = PageController(initialPage: startPage - 1);
     _verticalPageController = PageController(initialPage: startPage - 1);
-    _transformationController = TransformationController();
-    _transformationController.addListener(() {
-      final s = _transformationController.value.getMaxScaleOnAxis();
-      if ((s - _zoomScale).abs() > 0.02 && mounted) {
-        setState(() => _zoomScale = s.clamp(1.0, 2.5));
-      }
-    });
 
     _initStartingPage();
   }
@@ -82,16 +72,9 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
 
   @override
   void dispose() {
-    if (_isLandscape) {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
-    }
     _horizontalPageController.dispose();
     _verticalPageController.dispose();
     _currentPageNotifier.dispose();
-    _transformationController.dispose();
     super.dispose();
   }
 
@@ -117,43 +100,6 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
       }
     }
     _saveProgress(clamped);
-    if (_zoomScale > 1.05) {
-      _resetZoom();
-    }
-  }
-
-  void _zoomIn() {
-    HapticFeedback.selectionClick();
-    final next = (_zoomScale + 0.15).clamp(1.0, 2.5);
-    setState(() => _zoomScale = next);
-    _applyZoom(next);
-  }
-
-  void _zoomOut() {
-    HapticFeedback.selectionClick();
-    final next = (_zoomScale - 0.15).clamp(1.0, 2.5);
-    setState(() => _zoomScale = next);
-    _applyZoom(next);
-  }
-
-  void _resetZoom() {
-    HapticFeedback.selectionClick();
-    setState(() => _zoomScale = 1.0);
-    _transformationController.value = Matrix4.identity();
-  }
-
-  void _applyZoom(double scale) {
-    if (scale <= 1.01) {
-      _transformationController.value = Matrix4.identity();
-      return;
-    }
-    final size = MediaQuery.sizeOf(context);
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final matrix = Matrix4.identity()
-      ..translate(cx * (1 - scale), cy * (1 - scale))
-      ..scale(scale);
-    _transformationController.value = matrix;
   }
 
   void _toggleReadingMode() {
@@ -169,22 +115,6 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
         _horizontalPageController = PageController(initialPage: curPage - 1);
       }
     });
-  }
-
-  void _toggleLandscape() {
-    HapticFeedback.selectionClick();
-    setState(() => _isLandscape = !_isLandscape);
-    if (_isLandscape) {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    } else {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
-    }
   }
 
   void _setTheme(MushafThemeMode mode) {
@@ -250,8 +180,8 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           basmalaColor: const Color(0xFF1B241E),
           verseHeight: verseHeight,
           verseNumberHeight: vNumHeight,
-          horizontalPadding: 16.0,
-          verticalPadding: 8.0,
+          horizontalPadding: 2.0,
+          verticalPadding: 0.0,
           basmalaFontSizeSmall: basmalaSize,
           headerFontSizeSmall: headerSize,
           headerWidthSmall: headerWidth,
@@ -265,8 +195,8 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           basmalaColor: const Color(0xFF3E2723),
           verseHeight: verseHeight,
           verseNumberHeight: vNumHeight,
-          horizontalPadding: 16.0,
-          verticalPadding: 8.0,
+          horizontalPadding: 2.0,
+          verticalPadding: 0.0,
           basmalaFontSizeSmall: basmalaSize,
           headerFontSizeSmall: headerSize,
           headerWidthSmall: headerWidth,
@@ -286,8 +216,8 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
           basmalaColor: const Color(0xFFEDEAE4),
           verseHeight: verseHeight,
           verseNumberHeight: vNumHeight,
-          horizontalPadding: 16.0,
-          verticalPadding: 8.0,
+          horizontalPadding: 2.0,
+          verticalPadding: 0.0,
           basmalaFontSizeSmall: basmalaSize,
           headerFontSizeSmall: headerSize,
           headerWidthSmall: headerWidth,
@@ -380,82 +310,59 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
         backgroundColor: _pageBgColor,
         body: Stack(
           children: [
-            // ──── Fullscreen Mushaf Page ────
+            // ──── Fullscreen Mushaf Page (Edge-to-edge, zero inner padding) ────
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: () => setState(() => _barsVisible = !_barsVisible),
                 child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: _pageBgColor,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDarkTheme ? 0.35 : 0.04),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
+                  child: Container(
+                    color: _pageBgColor,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final double availableW = constraints.maxWidth;
+                        final double availableH = constraints.maxHeight;
+                        final double spScale = (availableW / 430.0).clamp(0.85, 1.25);
+                        final double headerWidth = availableW.clamp(240.0, availableW);
+                        final double effectiveFontSize = 23.1 * spScale;
+                        final double targetLineHeightPx = (availableH / 15.0);
+                        final double dynamicVerseHeight = (targetLineHeightPx / effectiveFontSize).clamp(1.10, 1.75);
+                        final qcfTheme = _buildQcfTheme(verseHeight: dynamicVerseHeight, headerWidth: headerWidth);
+
+                        final pageWidget = _isVerticalMode
+                            ? PageView.builder(
+                                scrollDirection: Axis.vertical,
+                                controller: _verticalPageController,
+                                physics: const BouncingScrollPhysics(),
+                                itemCount: 604,
+                                onPageChanged: (index) {
+                                  _currentPageNotifier.value = index + 1;
+                                  _saveProgress(index + 1);
+                                },
+                                itemBuilder: (context, index) =>
+                                    QcfPage(pageNumber: index + 1, sp: spScale, h: 1.0, theme: qcfTheme),
+                              )
+                            : PageviewQuran(
+                                controller: _horizontalPageController,
+                                initialPageNumber: _currentPageNotifier.value,
+                                physics: const BouncingScrollPhysics(),
+                                sp: spScale,
+                                h: 1.0,
+                                theme: qcfTheme,
+                                onPageChanged: (page) {
+                                  _currentPageNotifier.value = page;
+                                  _saveProgress(page);
+                                },
+                              );
+
+                        return ScrollConfiguration(
+                          behavior: const ScrollBehavior().copyWith(
+                            physics: const ClampingScrollPhysics(),
+                            scrollbars: false,
                           ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final double availableW = constraints.maxWidth;
-                            final double availableH = constraints.maxHeight;
-                            final double spScale = (availableW / 430.0).clamp(0.85, 1.25);
-                            final double headerWidth = (availableW - 32.0).clamp(240.0, availableW);
-                            final double effectiveFontSize = 23.1 * spScale;
-                            final double targetLineHeightPx = (availableH / 15.0);
-                            final double dynamicVerseHeight = (targetLineHeightPx / effectiveFontSize).clamp(1.10, 1.75);
-                            final qcfTheme = _buildQcfTheme(verseHeight: dynamicVerseHeight, headerWidth: headerWidth);
-
-                            final pageWidget = _isVerticalMode
-                                ? PageView.builder(
-                                    scrollDirection: Axis.vertical,
-                                    controller: _verticalPageController,
-                                    physics: const BouncingScrollPhysics(),
-                                    itemCount: 604,
-                                    onPageChanged: (index) {
-                                      _currentPageNotifier.value = index + 1;
-                                      _saveProgress(index + 1);
-                                    },
-                                    itemBuilder: (context, index) =>
-                                        QcfPage(pageNumber: index + 1, sp: spScale, h: 1.0, theme: qcfTheme),
-                                  )
-                                : PageviewQuran(
-                                    controller: _horizontalPageController,
-                                    initialPageNumber: _currentPageNotifier.value,
-                                    physics: const BouncingScrollPhysics(),
-                                    sp: spScale,
-                                    h: 1.0,
-                                    theme: qcfTheme,
-                                    onPageChanged: (page) {
-                                      _currentPageNotifier.value = page;
-                                      _saveProgress(page);
-                                    },
-                                  );
-
-                            return InteractiveViewer(
-                              transformationController: _transformationController,
-                              minScale: 1.0,
-                              maxScale: 2.5,
-                              panEnabled: _zoomScale > 1.05,
-                              scaleEnabled: true,
-                              child: ScrollConfiguration(
-                                behavior: const ScrollBehavior().copyWith(
-                                  physics: const ClampingScrollPhysics(),
-                                  scrollbars: false,
-                                ),
-                                child: pageWidget,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                          child: pageWidget,
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -615,11 +522,11 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                             Divider(height: 1, color: _dividerColor.withValues(alpha: 0.5)),
                             const SizedBox(height: 8),
 
-                            // Row 2: Theme Swatches | Scroll Direction | Landscape | Zoom
+                            // Row 2: Theme Swatches & Display Mode Label + Button
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                // Theme swatches
+                                // Theme swatches (مظهر المصحف)
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -643,145 +550,61 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                                   ],
                                 ),
 
-                                // Scroll direction toggle (رأسي / أفقي)
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: _toggleReadingMode,
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: _accentColor.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: _accentColor.withValues(alpha: 0.35), width: 0.9),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            _isVerticalMode
-                                                ? Icons.swap_horiz_rounded
-                                                : Icons.swap_vert_rounded,
-                                            size: 16,
-                                            color: _accentColor,
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            isAr
-                                                ? (_isVerticalMode ? 'أفقي' : 'رأسي')
-                                                : (_isVerticalMode ? 'H' : 'V'),
-                                            style: TextStyle(
-                                              fontFamily: DhikrTheme.arabicFont,
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w800,
-                                              color: _accentColor,
-                                            ),
-                                          ),
-                                        ],
+                                // Display Mode (طريقة العرض : [ أفقي ])
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      isAr ? 'طريقة العرض :' : 'Display Mode:',
+                                      style: TextStyle(
+                                        fontFamily: DhikrTheme.arabicFont,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: _mutedTextColor,
                                       ),
                                     ),
-                                  ),
-                                ),
-
-                                // Landscape / Portrait toggle
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: _toggleLandscape,
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: _isLandscape
-                                            ? _accentColor.withValues(alpha: 0.22)
-                                            : _dividerColor.withValues(alpha: 0.18),
+                                    const SizedBox(width: 6),
+                                    Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: _toggleReadingMode,
                                         borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: _isLandscape
-                                              ? _accentColor.withValues(alpha: 0.55)
-                                              : _dividerColor.withValues(alpha: 0.45),
-                                          width: 0.9,
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: _accentColor.withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(color: _accentColor.withValues(alpha: 0.4), width: 1.0),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                _isVerticalMode
+                                                    ? Icons.swap_vert_rounded
+                                                    : Icons.swap_horiz_rounded,
+                                                size: 16,
+                                                color: _accentColor,
+                                              ),
+                                              const SizedBox(width: 5),
+                                              Text(
+                                                isAr
+                                                    ? (_isVerticalMode ? 'رأسي' : 'أفقي')
+                                                    : (_isVerticalMode ? 'Vertical' : 'Horizontal'),
+                                                style: TextStyle(
+                                                  fontFamily: DhikrTheme.arabicFont,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: _accentColor,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            _isLandscape
-                                                ? Icons.stay_current_portrait_rounded
-                                                : Icons.stay_current_landscape_rounded,
-                                            size: 16,
-                                            color: _isLandscape ? _accentColor : _mutedTextColor,
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            isAr
-                                                ? (_isLandscape ? 'عمودي' : 'أفقي')
-                                                : (_isLandscape ? 'Portrait' : 'Landscape'),
-                                            style: TextStyle(
-                                              fontFamily: DhikrTheme.arabicFont,
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w800,
-                                              color: _isLandscape ? _accentColor : _mutedTextColor,
-                                            ),
-                                          ),
-                                        ],
                                       ),
                                     ),
-                                  ),
-                                ),
-
-                                // Zoom controller
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: _dividerColor.withValues(alpha: 0.25),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: _dividerColor.withValues(alpha: 0.6), width: 0.8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      InkWell(
-                                        onTap: _zoomOut,
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: Container(
-                                          width: 26,
-                                          height: 26,
-                                          alignment: Alignment.center,
-                                          child: Icon(Icons.remove_rounded, size: 16, color: _textColor),
-                                        ),
-                                      ),
-                                      GestureDetector(
-                                        onTap: _resetZoom,
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                                          child: Text(
-                                            '${(_zoomScale * 100).round()}%',
-                                            style: TextStyle(
-                                              fontFamily: DhikrTheme.arabicFont,
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w800,
-                                              color: _textColor,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      InkWell(
-                                        onTap: _zoomIn,
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: Container(
-                                          width: 26,
-                                          height: 26,
-                                          alignment: Alignment.center,
-                                          child: Icon(Icons.add_rounded, size: 16, color: _textColor),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
