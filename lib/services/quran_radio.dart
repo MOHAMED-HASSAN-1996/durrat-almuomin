@@ -14,6 +14,10 @@ typedef RadioStation = ({int id, String name, String url, String category});
 void _notificationBackgroundHandler(NotificationResponse response) {
   if (response.actionId == 'stop_radio') {
     QuranRadioService.instance.stop();
+  } else if (response.actionId == 'next_station') {
+    QuranRadioService.instance.nextStation();
+  } else if (response.actionId == 'prev_station') {
+    QuranRadioService.instance.previousStation();
   }
 }
 
@@ -431,7 +435,13 @@ class QuranRadioService {
           ),
         ),
         onDidReceiveNotificationResponse: (r) async {
-          if (r.actionId == 'stop_radio') await stop();
+          if (r.actionId == 'stop_radio') {
+            await stop();
+          } else if (r.actionId == 'next_station') {
+            await nextStation();
+          } else if (r.actionId == 'prev_station') {
+            await previousStation();
+          }
         },
       );
       final android = _notif.resolvePlatformSpecificImplementation<
@@ -484,11 +494,20 @@ class QuranRadioService {
             ),
             actions: [
               const AndroidNotificationAction(
+                'prev_station',
+                '⏮ السابق',
+                showsUserInterface: false,
+              ),
+              const AndroidNotificationAction(
                 'stop_radio',
-                'إيقاف',
-                icon: DrawableResourceAndroidBitmap('@drawable/ic_notification_stop'),
+                '⏹ إيقاف',
                 showsUserInterface: false,
                 cancelNotification: true,
+              ),
+              const AndroidNotificationAction(
+                'next_station',
+                '⏭ التالي',
+                showsUserInterface: false,
               ),
             ],
             color: const Color(0xFF0F2E23),

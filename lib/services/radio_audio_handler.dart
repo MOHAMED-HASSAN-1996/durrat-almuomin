@@ -12,11 +12,17 @@ class RadioAudioHandler extends BaseAudioHandler {
       playbackState.add(
         PlaybackState(
           controls: [
+            MediaControl.skipToPrevious,
             if (isPlaying) MediaControl.pause else MediaControl.play,
+            MediaControl.skipToNext,
             MediaControl.stop,
           ],
-          systemActions: const {MediaAction.seek},
-          androidCompactActionIndices: const [0, 1],
+          systemActions: const {
+            MediaAction.seek,
+            MediaAction.skipToNext,
+            MediaAction.skipToPrevious,
+          },
+          androidCompactActionIndices: const [0, 1, 2],
           processingState: switch (state) {
             PlayerState.playing => AudioProcessingState.ready,
             PlayerState.paused => AudioProcessingState.ready,

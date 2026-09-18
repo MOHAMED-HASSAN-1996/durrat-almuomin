@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
 import 'auth_screen.dart';
 import 'about_app_screen.dart';
+import 'onboarding_screen.dart';
 import 'privacy_screen.dart';
 import 'profile_details_screen.dart';
 
@@ -196,6 +197,22 @@ class SettingsScreen extends StatelessWidget {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const AboutAppScreen(),
+                          ),
+                        );
+                      },
+                      dark: dark,
+                    ),
+                    const _SectionDivider(),
+                    _SettingsNavTile(
+                      icon: LucideIcons.sparkles,
+                      iconColor: const Color(0xFFD97706),
+                      title: isAr ? 'جولة في التطبيق (دليل البداية)' : 'App Tour & Onboarding',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => OnboardingScreen(
+                              onFinished: (_) => Navigator.of(context).pop(),
+                            ),
                           ),
                         );
                       },

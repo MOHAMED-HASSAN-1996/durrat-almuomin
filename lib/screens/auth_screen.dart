@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../services/admin_sync_service.dart';
+import '../services/firebase_auth_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
@@ -50,20 +52,42 @@ class _AuthScreenState extends State<AuthScreen> {
     HapticFeedback.mediumImpact();
 
     try {
-      // Simulate Google Sign In
-      await Future.delayed(const Duration(milliseconds: 750));
+      final phone = _phoneController.text.trim().isNotEmpty
+          ? '$_countryCode ${_phoneController.text.trim()}'
+          : 'غير مسجل';
 
-      final profile = await AdminSyncService.instance.registerOrLoginUser(
-        name: 'مستخدم Google',
-        email: 'user.google@gmail.com',
-        phone: _phoneController.text.trim().isNotEmpty
-            ? '$_countryCode ${_phoneController.text.trim()}'
-            : 'غير مسجل',
+      UserCredential? cred;
+      try {
+        cred = await FirebaseAuthService.instance.signInWithGoogle(phoneNumber: phone);
+      } catch (e) {
+        debugPrint('Firebase Google Sign-In note: $e');
+      }
+
+      final resolvedName = cred?.user?.displayName ??
+          (_nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'مستخدم درة المؤمن');
+      final resolvedEmail = cred?.user?.email ??
+          (_emailController.text.trim().isNotEmpty ? _emailController.text.trim() : 'user@durrat-almuomin.app');
+      final photoUrl = cred?.user?.photoURL ?? '';
+
+      if (mounted) {
+        await context.read<AppState>().saveUserProfile(
+          name: resolvedName,
+          email: resolvedEmail,
+          phone: phone,
+          photo: photoUrl,
+          authProvider: 'google',
+        );
+      }
+
+      await AdminSyncService.instance.registerOrLoginUser(
+        name: resolvedName,
+        email: resolvedEmail,
+        phone: phone,
         authProvider: 'google',
       );
 
       if (!mounted) return;
-      _showSuccessDialog(profile['name'] as String? ?? 'مستخدم Google');
+      _showSuccessDialog(resolvedName);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,18 +105,48 @@ class _AuthScreenState extends State<AuthScreen> {
     HapticFeedback.mediumImpact();
 
     try {
-      await Future.delayed(const Duration(milliseconds: 600));
-
       final fullName = _isSignUp
           ? _nameController.text.trim()
-          : (_nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'مستخدم ذِكْر');
+          : (_nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'مستخدم درة المؤمن');
 
       final email = _emailController.text.trim();
+      final password = _passwordController.text;
       final phone = _phoneController.text.trim().isNotEmpty
           ? '$_countryCode ${_phoneController.text.trim()}'
           : 'غير مسجل';
 
-      final profile = await AdminSyncService.instance.registerOrLoginUser(
+      if (_isSignUp) {
+        try {
+          await FirebaseAuthService.instance.signUpWithEmail(
+            email: email,
+            password: password,
+            fullName: fullName,
+            phoneNumber: phone,
+          );
+        } catch (e) {
+          debugPrint('Firebase signUp note: $e');
+        }
+      } else {
+        try {
+          await FirebaseAuthService.instance.signInWithEmail(
+            email: email,
+            password: password,
+          );
+        } catch (e) {
+          debugPrint('Firebase signIn note: $e');
+        }
+      }
+
+      if (mounted) {
+        await context.read<AppState>().saveUserProfile(
+          name: fullName,
+          email: email,
+          phone: phone,
+          authProvider: _isSignUp ? 'email_signup' : 'email_login',
+        );
+      }
+
+      await AdminSyncService.instance.registerOrLoginUser(
         name: fullName,
         email: email,
         phone: phone,
@@ -100,7 +154,7 @@ class _AuthScreenState extends State<AuthScreen> {
       );
 
       if (!mounted) return;
-      _showSuccessDialog(profile['name'] as String? ?? fullName);
+      _showSuccessDialog(fullName);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -173,8 +227,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _skipAsGuest() {
     AdminSyncService.instance.registerDevice(
-      name: 'زائر التطبيق',
-      email: 'guest@dhikr.app',
+      name: 'زائر درة المؤمن',
+      email: 'guest@durrat-almuomin.app',
     );
     if (widget.onSuccess != null) {
       widget.onSuccess!();

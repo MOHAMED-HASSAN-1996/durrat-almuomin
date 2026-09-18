@@ -111,10 +111,25 @@ class PrayerAlertService {
   bool get isPlaying => _isPlaying;
   bool _initialized = false;
   final _alertController = StreamController<AdhanAlert>.broadcast();
+  final _azanFinishedController = StreamController<void>.broadcast();
   AdhanAlert? _pendingAlert;
 
   /// Emits when the user opens a prayer notification, including a full-screen one.
   Stream<AdhanAlert> get alertStream => _alertController.stream;
+
+  /// Emits when the Azan audio completes or is stopped.
+  Stream<void> get onAzanFinished => _azanFinishedController.stream;
+
+  Future<bool> areNotificationsEnabled() async {
+    if (kIsWeb) return true;
+    try {
+      final android = _notificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      return (await android?.areNotificationsEnabled()) ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
 
   AdhanAlert? takePendingAlert() {
     final alert = _pendingAlert;
@@ -936,6 +951,10 @@ class PrayerAlertService {
     try {
       _player ??= AudioPlayer();
       _isPlaying = true;
+      _player?.onPlayerComplete.listen((_) {
+        _isPlaying = false;
+        _azanFinishedController.add(null);
+      });
       try {
         await _player?.play(AssetSource('audio/adhan.mp3'));
       } catch (_) {
@@ -952,8 +971,11 @@ class PrayerAlertService {
 
   void stopAzan() {
     if (_isPlaying) {
-      _player?.stop();
+      try {
+        _player?.stop();
+      } catch (_) {}
       _isPlaying = false;
+      _azanFinishedController.add(null);
     }
     try {
       _notificationsPlugin.cancel(id: 999);

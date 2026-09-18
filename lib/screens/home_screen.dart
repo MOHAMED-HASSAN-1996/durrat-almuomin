@@ -603,7 +603,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
 
-                          // Row 2: [ مستحقو الزكاة | مستحقو الأضحية ]
+                          // Row 2: [ مستحقو الزكاة | أحكام وتوزيع الأضحية ]
                           Row(
                             children: [
                               Expanded(
@@ -626,53 +626,13 @@ class HomeScreen extends StatelessWidget {
                               Expanded(
                                 child: _buildCompactServiceCard(
                                   context: context,
-                                  title: isAr ? 'مستحقو' : 'Udhiyah',
-                                  titleLine2: isAr ? 'الأضحية' : 'Beneficiaries',
+                                  title: isAr ? 'أحكام وتوزيع' : 'Udhiyah &',
+                                  titleLine2: isAr ? 'الأضحية' : 'Distribution',
                                   imageAsset: 'assets/images/clay_3d_udhiyah.png',
                                   icon: LucideIcons.gift,
                                   accentColor: const Color(0xFFDC2626),
                                   pastelLightStart: const Color(0xFFFEF2F2),
                                   pastelLightEnd: const Color(0xFFFECACA),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 3)),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Row 3: [ أضحية بعد صلاة العيد | أضحية صدقة ]
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'أضحية بعد' : 'Post-Eid',
-                                  titleLine2: isAr ? 'صلاة العيد' : 'Udhiyah',
-                                  imageAsset: 'assets/images/clay_3d_udhiyah.png',
-                                  icon: LucideIcons.calendarCheck,
-                                  accentColor: const Color(0xFFEA580C),
-                                  pastelLightStart: const Color(0xFFFFF7ED),
-                                  pastelLightEnd: const Color(0xFFFED7AA),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 3)),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'أضحية' : 'Sadaqa',
-                                  titleLine2: isAr ? 'صدقة' : 'Udhiyah',
-                                  imageAsset: 'assets/images/clay_3d_udhiyah.png',
-                                  icon: LucideIcons.heart,
-                                  accentColor: const Color(0xFFDB2777),
-                                  pastelLightStart: const Color(0xFFFDF2F8),
-                                  pastelLightEnd: const Color(0xFFFBCFE8),
                                   dark: dark,
                                   onTap: () => Navigator.of(context).push(
                                     MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 3)),

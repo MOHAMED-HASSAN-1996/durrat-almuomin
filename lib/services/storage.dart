@@ -296,6 +296,7 @@ class DhikrStorage {
           'name': decoded['name']?.toString() ?? '',
           'email': decoded['email']?.toString() ?? '',
           'phone': decoded['phone']?.toString() ?? '',
+          'photo': decoded['photo']?.toString() ?? '',
           'authProvider': decoded['authProvider']?.toString() ?? '',
         };
       }
@@ -307,12 +308,14 @@ class DhikrStorage {
     required String name,
     required String email,
     String phone = '',
+    String photo = '',
     String authProvider = 'email',
   }) async {
     final encoded = jsonEncode({
       'name': name,
       'email': email,
       'phone': phone,
+      'photo': photo,
       'authProvider': authProvider,
     });
     await _set(_userProfileKey, encoded);

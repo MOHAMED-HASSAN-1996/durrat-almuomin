@@ -61,6 +61,8 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
 
     final isBatteryIgnored = await PlatformPermissions.isIgnoringBatteryOptimizations();
     final canExact = await PlatformPermissions.canScheduleExactAlarms();
+    final canOverlay = await PlatformPermissions.canDrawOverlays();
+    final notifsEnabled = await PrayerAlertService.instance.areNotificationsEnabled();
 
     // فحص صلاحية الموقع
     bool locGranted = false;
@@ -74,20 +76,23 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
 
     if (!mounted) return;
     setState(() {
-      _notificationsGranted = true;
+      _notificationsGranted = notifsEnabled;
       _batteryExempted = isBatteryIgnored;
       _exactAlarmGranted = canExact;
-      _fullScreenIntentGranted = true;
+      _fullScreenIntentGranted = canOverlay;
       _locationGranted = locGranted || (savedLoc != null);
       _currentCity = cityName;
-      _backgroundAudioEnabled = true;
     });
   }
 
   Future<void> _requestNotificationPermission() async {
     HapticFeedback.selectionClick();
-    await PrayerAlertService.instance.init();
-    await Future.delayed(const Duration(milliseconds: 400));
+    if (!_notificationsGranted) {
+      await PlatformPermissions.openNotificationSettings();
+    } else {
+      await PrayerAlertService.instance.init();
+    }
+    await Future.delayed(const Duration(milliseconds: 500));
     await _refreshAllStatuses();
 
     // تأكيد جدولة تنبيهات الصلوات فور تفعيل الإشعارات
@@ -149,6 +154,7 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
 
   Future<void> _requestFullScreenIntent() async {
     HapticFeedback.selectionClick();
+    await PlatformPermissions.requestOverlayPermission();
     await Future.delayed(const Duration(milliseconds: 500));
     await _refreshAllStatuses();
   }
@@ -214,7 +220,7 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
           backgroundColor: dark ? const Color(0xFF13221B) : Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
+            icon: const Icon(LucideIcons.chevronLeft, size: 22),
             onPressed: () {
               if (widget.onFinished != null) {
                 widget.onFinished!();
@@ -386,8 +392,10 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
     required bool dark,
     bool isLoading = false,
   }) {
-    final primaryAccent = dark ? const Color(0xFF34D399) : const Color(0xFF163E32);
-    final borderActive = dark ? const Color(0xFF34D399).withValues(alpha: 0.35) : const Color(0xFF163E32).withValues(alpha: 0.25);
+    const activeGreen = Color(0xFF10B981);
+    final borderActive = dark
+        ? const Color(0xFF34D399).withValues(alpha: 0.35)
+        : const Color(0xFF10B981).withValues(alpha: 0.3);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -403,7 +411,7 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
         boxShadow: [
           BoxShadow(
             color: isGranted
-                ? primaryAccent.withValues(alpha: 0.05)
+                ? activeGreen.withValues(alpha: 0.06)
                 : Colors.black.withValues(alpha: dark ? 0.2 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
@@ -420,25 +428,31 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
             child: Row(
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(14),
                     color: isGranted
-                        ? primaryAccent.withValues(alpha: dark ? 0.2 : 0.1)
-                        : (dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF3F4F6)),
+                        ? (dark
+                            ? const Color(0xFF064E3B).withValues(alpha: 0.45)
+                            : const Color(0xFFECFDF5))
+                        : (dark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : const Color(0xFFF3F4F6)),
                     border: Border.all(
                       color: isGranted
-                          ? primaryAccent.withValues(alpha: 0.3)
+                          ? (dark
+                              ? const Color(0xFF34D399).withValues(alpha: 0.3)
+                              : const Color(0xFF10B981).withValues(alpha: 0.25))
                           : (dark ? Colors.white12 : const Color(0xFFE5E7EB)),
                       width: 1,
                     ),
                   ),
                   child: Icon(
-                    isGranted ? Icons.check_circle_rounded : icon,
+                    icon,
                     size: 20,
                     color: isGranted
-                        ? primaryAccent
+                        ? (dark ? const Color(0xFF34D399) : const Color(0xFF059669))
                         : (dark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
                   ),
                 ),
@@ -474,13 +488,16 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                   const SizedBox(
                     width: 28,
                     height: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: activeGreen,
+                    ),
                   )
                 else
                   Switch.adaptive(
                     value: isGranted,
-                    activeThumbColor: primaryAccent,
-                    activeTrackColor: primaryAccent.withValues(alpha: 0.35),
+                    activeThumbColor: activeGreen,
+                    activeTrackColor: activeGreen.withValues(alpha: 0.38),
                     inactiveThumbColor: const Color(0xFF9CA3AF),
                     inactiveTrackColor: dark ? const Color(0xFF26332C) : const Color(0xFFE5E7EB),
                     onChanged: (_) => onTap(),

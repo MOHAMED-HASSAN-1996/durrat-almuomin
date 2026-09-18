@@ -115,7 +115,7 @@ class AppState extends ChangeNotifier {
     _userProfile = _storage.getUserProfile();
     
     // Force re-onboarding if app was updated (version mismatch)
-    const currentVersion = 2; // Increment this with each major update
+    const currentVersion = 3; // Increment this with each major update
     final savedVersion = _storage.getSavedAppVersion();
     if (savedVersion < currentVersion) {
       // New install or app updated - clear old onboarding state
@@ -218,15 +218,10 @@ class AppState extends ChangeNotifier {
       name: name,
       email: email,
       phone: phone,
+      photo: photo ?? '',
       authProvider: authProvider,
     );
-    _userProfile = {
-      'name': name,
-      'email': email,
-      'phone': phone,
-      'authProvider': authProvider,
-      if (photo != null) 'photo': photo,
-    };
+    _userProfile = _storage.getUserProfile();
     notifyListeners();
   }
 
@@ -430,6 +425,20 @@ class AppState extends ChangeNotifier {
       countryAr: countryAr,
       countryEn: countryEn,
     );
+    notifyListeners();
+  }
+
+
+  /// Clears user profile on sign out or delete account.
+  Future<void> clearUserProfile() async {
+    await _storage.clearUserProfile();
+    _userProfile = null;
+    notifyListeners();
+  }
+
+  /// Reloads user profile from storage.
+  void reloadUserProfile() {
+    _userProfile = _storage.getUserProfile();
     notifyListeners();
   }
 }
