@@ -39,11 +39,9 @@ class HeaderWidget extends StatelessWidget {
                   const ColorFilter.mode(Colors.transparent, BlendMode.dst),
               child: Image(
                 image: const AssetImage("assets/mainframe.png", package: 'qcf_quran'),
-                width: isPortrait
-                    ? (getScreenType(context) == ScreenType.large
-                        ? effectiveTheme.headerWidthLarge
-                        : effectiveTheme.headerWidthSmall)
-                    : MediaQuery.of(context).size.width * 0.8,
+                width: getScreenType(context) == ScreenType.large
+                    ? effectiveTheme.headerWidthLarge
+                    : effectiveTheme.headerWidthSmall,
               ),
             ),
             RichText(
@@ -53,9 +51,9 @@ class HeaderWidget extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: SurahFontHelper.fontFamily,
                   package: 'qcf_quran',
-                  fontSize:isPortrait?  getScreenType(context) == ScreenType.large
+                  fontSize: getScreenType(context) == ScreenType.large
                       ? effectiveTheme.headerFontSizeLarge
-                      : effectiveTheme.headerFontSizeSmall:MediaQuery.of(context).size.width * 0.05,
+                      : effectiveTheme.headerFontSizeSmall,
                   color: effectiveTheme.headerTextColor,
                 ),
               ),

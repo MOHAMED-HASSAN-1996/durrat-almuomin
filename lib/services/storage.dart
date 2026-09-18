@@ -401,6 +401,38 @@ class DhikrStorage {
     return result;
   }
 
+  /// ---- NAWAFIL & SUNAN TASKS TRACKER -----------------------------------
+  static const _nawafilTasksKeyPrefix = 'adhkar.nawafil_tasks.';
+
+  Set<String> getNawafilTasksForDate(String dateIso) {
+    final stored = _get('$_nawafilTasksKeyPrefix$dateIso');
+    if (stored.isEmpty) return <String>{};
+    try {
+      final list = jsonDecode(stored);
+      if (list is List) {
+        return list.map((e) => e.toString()).toSet();
+      }
+    } catch (_) {}
+    return <String>{};
+  }
+
+  Future<void> saveNawafilTasksForDate(String dateIso, Set<String> completedNawafil) async {
+    final encoded = jsonEncode(completedNawafil.toList());
+    await _set('$_nawafilTasksKeyPrefix$dateIso', encoded);
+  }
+
+  Map<int, Set<String>> getMonthlyNawafilTasks(int year, int month) {
+    final Map<int, Set<String>> result = {};
+    for (int day = 1; day <= 31; day++) {
+      final dateIso = '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+      final tasks = getNawafilTasksForDate(dateIso);
+      if (tasks.isNotEmpty) {
+        result[day] = tasks;
+      }
+    }
+    return result;
+  }
+
 
   /// ---- STREAK / ACTIVITY TRACKER ---------------------------------------
   static const _streakCountKey = 'adhkar.streak_count';

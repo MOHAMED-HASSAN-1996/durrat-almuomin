@@ -362,19 +362,6 @@ class _HomeHeroCardState extends State<HomeHeroCard> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _formatPrayerTime(nextTime, isAr),
-                              style: TextStyle(
-                                fontFamily: DhikrTheme.arabicFont,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white.withValues(alpha: 0.8),
-                                shadows: const [
-                                  Shadow(color: Colors.black87, blurRadius: 4),
-                                ],
-                              ),
-                            ),
                             const SizedBox(height: 6),
                             Row(
                               mainAxisSize: MainAxisSize.min,

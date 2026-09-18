@@ -3,15 +3,6 @@
 import 'package:flutter/material.dart';
 
 double getFontSize(int index, context,) {
-  // if (getDeviceType(context) == DeviceType.large) {
-  //     return 33;
-  //   }  else if (getDeviceType(context) == DeviceType.small) {
-  //     return 20;
-  //   }else
-  if (MediaQuery.of(context).orientation != Orientation.portrait) {
-    return 35;
-  }
-
   if (index == 1 || index == 2) {
     return 25;
   } else if (index == 145 || index == 585) {

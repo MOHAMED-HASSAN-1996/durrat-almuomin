@@ -15,16 +15,14 @@ import 'jawami_dhikr_screen.dart';
 import 'location_map_picker_screen.dart';
 import 'loved_ones_screen.dart';
 import 'nearest_mosques_screen.dart';
-import 'night_prayer_calculator_screen.dart';
 import 'prayer_commitment_screen.dart';
 import 'qibla_screen.dart';
 import 'quran_mushaf_screen.dart';
 import 'quran_radio_screen.dart';
-import 'sakan_screen.dart';
 import 'shaarawi_screen.dart';
 import 'soul_remedy_screen.dart';
-import 'sujud_sahw_screen.dart';
 import 'zakat_calculator_screen.dart';
+import 'notifications_screen.dart';
 import '../widgets/nawafil_tracker_sheet.dart';
 
 /// The redesigned Home Screen — engineered in RonDesignLab's signature style:
@@ -81,87 +79,162 @@ class HomeScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(10),
                                   child: Image.asset(
                                     'assets/images/app_icon.png',
-                                    width: 38,
-                                    height: 38,
+                                    width: 32,
+                                    height: 32,
                                     fit: BoxFit.cover,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                               Text(
                                 isAr ? 'دُرَّةُ الْمُؤْمِن' : "Durrat Al-Mu'min",
                                 style: TextStyle(
                                   fontFamily: DhikrTheme.arabicFont,
                                   fontWeight: FontWeight.w900,
-                                  fontSize: 26,
+                                  fontSize: 20,
                                   color: dark ? Colors.white : DhikrColors.charcoal,
                                   height: 1.1,
                                 ),
                               ),
                             ],
                           ),
-                          // Right: Dynamic Location Chip (replaces Ayah)
-                          Builder(
-                            builder: (context) {
-                              final savedLoc = appState.storage.getSavedLocation();
-                              String cityDisplay = isAr ? 'بغداد' : 'Baghdad';
-                              String countryDisplay = isAr ? 'العراق' : 'Iraq';
+                          // Right: Dynamic Location Chip + Notifications Button
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Builder(
+                                builder: (context) {
+                                  final savedLoc = appState.storage.getSavedLocation();
+                                  String cityDisplay = isAr ? 'بغداد' : 'Baghdad';
+                                  String countryDisplay = isAr ? 'العراق' : 'Iraq';
 
-                              if (savedLoc != null) {
-                                final rawAr = (savedLoc['cityAr'] as String?)?.trim() ?? '';
-                                final rawEn = (savedLoc['cityEn'] as String?)?.trim() ?? '';
-                                final cAr = (savedLoc['countryAr'] as String?)?.trim() ?? '';
-                                final cEn = (savedLoc['countryEn'] as String?)?.trim() ?? '';
+                                  if (savedLoc != null) {
+                                    final rawAr = (savedLoc['cityAr'] as String?)?.trim() ?? '';
+                                    final rawEn = (savedLoc['cityEn'] as String?)?.trim() ?? '';
+                                    final cAr = (savedLoc['countryAr'] as String?)?.trim() ?? '';
+                                    final cEn = (savedLoc['countryEn'] as String?)?.trim() ?? '';
 
-                                if (isAr) {
-                                  if (rawAr.isNotEmpty && !rawAr.toLowerCase().contains('city')) {
-                                    cityDisplay = rawAr;
-                                  } else if (rawEn.toLowerCase().contains('mit ghamr') || rawAr.toLowerCase().contains('mit ghamr')) {
-                                    cityDisplay = 'ميت غمر';
-                                  } else if (rawEn.toLowerCase().contains('baghdad') || rawAr.toLowerCase().contains('baghdad')) {
-                                    cityDisplay = 'بغداد';
-                                  } else {
-                                    cityDisplay = rawAr.isNotEmpty ? rawAr : (rawEn.isNotEmpty ? rawEn : 'بغداد');
+                                    if (isAr) {
+                                      if (rawAr.isNotEmpty && !rawAr.toLowerCase().contains('city')) {
+                                        cityDisplay = rawAr;
+                                      } else if (rawEn.toLowerCase().contains('mit ghamr') || rawAr.toLowerCase().contains('mit ghamr')) {
+                                        cityDisplay = 'ميت غمر';
+                                      } else if (rawEn.toLowerCase().contains('baghdad') || rawAr.toLowerCase().contains('baghdad')) {
+                                        cityDisplay = 'بغداد';
+                                      } else {
+                                        cityDisplay = rawAr.isNotEmpty ? rawAr : (rawEn.isNotEmpty ? rawEn : 'بغداد');
+                                      }
+                                      cityDisplay = cityDisplay.replaceAll(' City', '').replaceAll(' Governorate', '').replaceAll('محافظة', '').trim();
+                                      countryDisplay = cAr.isNotEmpty ? cAr : (cEn.isNotEmpty ? cEn : 'العراق');
+                                      if (countryDisplay.toLowerCase().contains('egypt')) countryDisplay = 'مصر';
+                                      if (countryDisplay.toLowerCase().contains('iraq')) countryDisplay = 'العراق';
+                                    } else {
+                                      cityDisplay = rawEn.isNotEmpty ? rawEn : (rawAr.isNotEmpty ? rawAr : 'Baghdad');
+                                      cityDisplay = cityDisplay.replaceAll(' City', '').replaceAll(' Governorate', '').trim();
+                                      countryDisplay = cEn.isNotEmpty ? cEn : (cAr.isNotEmpty ? cAr : 'Iraq');
+                                    }
                                   }
-                                  cityDisplay = cityDisplay.replaceAll(' City', '').replaceAll(' Governorate', '').replaceAll('محافظة', '').trim();
-                                  countryDisplay = cAr.isNotEmpty ? cAr : (cEn.isNotEmpty ? cEn : 'العراق');
-                                  if (countryDisplay.toLowerCase().contains('egypt')) countryDisplay = 'مصر';
-                                  if (countryDisplay.toLowerCase().contains('iraq')) countryDisplay = 'العراق';
-                                } else {
-                                  cityDisplay = rawEn.isNotEmpty ? rawEn : (rawAr.isNotEmpty ? rawAr : 'Baghdad');
-                                  cityDisplay = cityDisplay.replaceAll(' City', '').replaceAll(' Governorate', '').trim();
-                                  countryDisplay = cEn.isNotEmpty ? cEn : (cAr.isNotEmpty ? cAr : 'Iraq');
-                                }
-                              }
 
-                              final locationLabel = countryDisplay.isNotEmpty
-                                  ? '$cityDisplay، $countryDisplay'
-                                  : cityDisplay;
+                                  final locationLabel = countryDisplay.isNotEmpty
+                                      ? '$cityDisplay، $countryDisplay'
+                                      : cityDisplay;
 
-                              return Tooltip(
-                                message: isAr ? 'انقر لتحديد موقعك يدوياً عبر الخريطة' : 'Tap to pick location on map',
+                                  return Tooltip(
+                                    message: isAr ? 'انقر لتحديد موقعك يدوياً عبر الخريطة' : 'Tap to pick location on map',
+                                    child: InkWell(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => LocationMapPickerScreen(
+                                              initialLat: (savedLoc?['lat'] as num?)?.toDouble(),
+                                              initialLng: (savedLoc?['lng'] as num?)?.toDouble(),
+                                              initialCityAr: savedLoc?['cityAr'] as String?,
+                                              initialCountryAr: savedLoc?['countryAr'] as String?,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: dark
+                                              ? Colors.white.withValues(alpha: 0.08)
+                                              : DhikrColors.sageSoft.withValues(alpha: 0.65),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: dark
+                                                ? const Color(0xFF34D399).withValues(alpha: 0.3)
+                                                : DhikrColors.forest.withValues(alpha: 0.22),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              LucideIcons.mapPin,
+                                              size: 13,
+                                              color: dark
+                                                  ? const Color(0xFF34D399)
+                                                  : DhikrColors.forest,
+                                            ),
+                                            const SizedBox(width: 5),
+                                            ConstrainedBox(
+                                              constraints: const BoxConstraints(maxWidth: 130),
+                                              child: Text(
+                                                locationLabel,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+                                                style: TextStyle(
+                                                  fontFamily: DhikrTheme.arabicFont,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: dark
+                                                      ? Colors.white
+                                                      : DhikrColors.charcoal,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Icon(
+                                              LucideIcons.chevronDown,
+                                              size: 12,
+                                              color: dark
+                                                  ? DhikrColors.darkMuted
+                                                  : DhikrColors.charcoalSoft,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              // Notification Bell Button
+                              Tooltip(
+                                message: isAr ? 'الإشعارات' : 'Notifications',
                                 child: InkWell(
                                   onTap: () {
                                     HapticFeedback.lightImpact();
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (_) => LocationMapPickerScreen(
-                                          initialLat: (savedLoc?['lat'] as num?)?.toDouble(),
-                                          initialLng: (savedLoc?['lng'] as num?)?.toDouble(),
-                                          initialCityAr: savedLoc?['cityAr'] as String?,
-                                          initialCountryAr: savedLoc?['countryAr'] as String?,
-                                        ),
+                                        builder: (_) => const NotificationsScreen(),
                                       ),
                                     );
                                   },
                                   borderRadius: BorderRadius.circular(20),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    width: 34,
+                                    height: 34,
                                     decoration: BoxDecoration(
                                       color: dark
                                           ? Colors.white.withValues(alpha: 0.08)
                                           : DhikrColors.sageSoft.withValues(alpha: 0.65),
-                                      borderRadius: BorderRadius.circular(20),
+                                      shape: BoxShape.circle,
                                       border: Border.all(
                                         color: dark
                                             ? const Color(0xFF34D399).withValues(alpha: 0.3)
@@ -169,48 +242,19 @@ class HomeScreen extends StatelessWidget {
                                         width: 1,
                                       ),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          LucideIcons.mapPin,
-                                          size: 13,
-                                          color: dark
-                                              ? const Color(0xFF34D399)
-                                              : DhikrColors.forest,
-                                        ),
-                                        const SizedBox(width: 5),
-                                        ConstrainedBox(
-                                          constraints: const BoxConstraints(maxWidth: 155),
-                                          child: Text(
-                                            locationLabel,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
-                                            style: TextStyle(
-                                              fontFamily: DhikrTheme.arabicFont,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: dark
-                                                  ? Colors.white
-                                                  : DhikrColors.charcoal,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 3),
-                                        Icon(
-                                          LucideIcons.chevronDown,
-                                          size: 12,
-                                          color: dark
-                                              ? DhikrColors.darkMuted
-                                              : DhikrColors.charcoalSoft,
-                                        ),
-                                      ],
+                                    child: Center(
+                                      child: Icon(
+                                        LucideIcons.bell,
+                                        size: 16,
+                                        color: dark
+                                            ? const Color(0xFF34D399)
+                                            : DhikrColors.forest,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -479,83 +523,19 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
 
-                          // Row 1: [ دعاء بظهر الغيب (دعوة الأحبة) | سجود السهو ]
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'دعاء بظهر الغيب' : 'Dua in Absentia',
-                                  titleLine2: isAr ? '(دعوة الأحبة)' : '(Loved Ones)',
-                                  imageAsset: 'assets/images/clay_3d_loved_ones.png',
-                                  icon: LucideIcons.heartHandshake,
-                                  accentColor: const Color(0xFFE11D48),
-                                  pastelLightStart: const Color(0xFFFFF1F2),
-                                  pastelLightEnd: const Color(0xFFFECDD3),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const LovedOnesScreen()),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'دليل سجود' : 'Sujud Sahw',
-                                  titleLine2: isAr ? 'السهو والأحكام' : 'Guide & Rules',
-                                  imageAsset: 'assets/images/tool_sujud_3d.png',
-                                  icon: LucideIcons.checkCheck,
-                                  accentColor: const Color(0xFF0D9488),
-                                  pastelLightStart: const Color(0xFFF0FDFA),
-                                  pastelLightEnd: const Color(0xFF99F6E4),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const SujudSahwScreen()),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Row 2: [ قيام الليل والثلث الأخير | سكن (أدعية السكينة) ]
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'قيام الليل' : 'Night Prayer',
-                                  titleLine2: isAr ? 'والثلث الأخير' : 'Last Third Calc',
-                                  imageAsset: 'assets/images/tool_night_3d.png',
-                                  icon: LucideIcons.moonStar,
-                                  accentColor: const Color(0xFF6366F1),
-                                  pastelLightStart: const Color(0xFFEEF2FF),
-                                  pastelLightEnd: const Color(0xFFC7D2FE),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const NightPrayerCalculatorScreen()),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'خريطة السَّكَن' : 'Sakan Map',
-                                  titleLine2: isAr ? 'والطمأنينة' : 'Peace & Solace',
-                                  imageAsset: 'assets/images/clay_3d_soul.png',
-                                  icon: LucideIcons.feather,
-                                  accentColor: const Color(0xFF10B981),
-                                  pastelLightStart: const Color(0xFFECFDF5),
-                                  pastelLightEnd: const Color(0xFFA7F3D0),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const SakanScreen()),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          // Card 2: [ دعاء بظهر الغيب ]
+                          _buildWideServiceCard(
+                            context: context,
+                            title: isAr ? 'دعاء بظهر الغيب' : 'Dua in Absentia',
+                            imageAsset: 'assets/images/clay_3d_loved_ones.png',
+                            icon: LucideIcons.heartHandshake,
+                            accentColor: const Color(0xFFE11D48),
+                            pastelLightStart: const Color(0xFFFFF1F2),
+                            pastelLightEnd: const Color(0xFFFECDD3),
+                            dark: dark,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const LovedOnesScreen()),
+                            ),
                           ),
                         ],
                       ),
@@ -583,14 +563,14 @@ class HomeScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
                         children: [
-                          // Row 1: [ حاسبة الزكاة الذكية | حاسبة النصاب (ذهب وفضة) ]
+                          // Row 1: [ حاسبة | حاسبة ]
                           Row(
                             children: [
                               Expanded(
                                 child: _buildCompactServiceCard(
                                   context: context,
-                                  title: isAr ? 'حاسبة الزكاة' : 'Zakat Calculator',
-                                  titleLine2: isAr ? 'الشاملة الذكية' : 'Smart & Accurate',
+                                  title: isAr ? 'حاسبة' : 'Zakat',
+                                  titleLine2: isAr ? 'الزكاة' : 'Calculator',
                                   imageAsset: 'assets/images/clay_3d_zakat_calc.png',
                                   icon: LucideIcons.calculator,
                                   accentColor: const Color(0xFF059669),
@@ -606,8 +586,8 @@ class HomeScreen extends StatelessWidget {
                               Expanded(
                                 child: _buildCompactServiceCard(
                                   context: context,
-                                  title: isAr ? 'حاسبة النصاب' : 'Nisab Calculator',
-                                  titleLine2: isAr ? '(ذهب وفضة)' : '(Gold & Silver)',
+                                  title: isAr ? 'حاسبة' : 'Nisab',
+                                  titleLine2: isAr ? 'النصاب' : 'Calculator',
                                   imageAsset: 'assets/images/clay_3d_nisab.png',
                                   icon: LucideIcons.coins,
                                   accentColor: const Color(0xFFD97706),
@@ -623,14 +603,14 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
 
-                          // Row 2: [ مستحقو الزكاة | أحكام ومستحقو الأضاحي ]
+                          // Row 2: [ مستحقو الزكاة | مستحقو الأضحية ]
                           Row(
                             children: [
                               Expanded(
                                 child: _buildCompactServiceCard(
                                   context: context,
-                                  title: isAr ? 'مستحقو الزكاة' : 'Beneficiaries',
-                                  titleLine2: isAr ? 'المصارف الثمانية' : '8 Categories',
+                                  title: isAr ? 'مستحقو' : 'Zakat',
+                                  titleLine2: isAr ? 'الزكاة' : 'Beneficiaries',
                                   imageAsset: 'assets/images/clay_3d_zakat_beneficiaries.png',
                                   icon: LucideIcons.usersRound,
                                   accentColor: const Color(0xFF2563EB),
@@ -646,13 +626,53 @@ class HomeScreen extends StatelessWidget {
                               Expanded(
                                 child: _buildCompactServiceCard(
                                   context: context,
-                                  title: isAr ? 'مستحقو الأضاحي' : 'Udhiyah Rules',
-                                  titleLine2: isAr ? 'وتوزيع الحصص' : '& Shares',
+                                  title: isAr ? 'مستحقو' : 'Udhiyah',
+                                  titleLine2: isAr ? 'الأضحية' : 'Beneficiaries',
                                   imageAsset: 'assets/images/clay_3d_udhiyah.png',
                                   icon: LucideIcons.gift,
                                   accentColor: const Color(0xFFDC2626),
                                   pastelLightStart: const Color(0xFFFEF2F2),
                                   pastelLightEnd: const Color(0xFFFECACA),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 3)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Row 3: [ أضحية بعد صلاة العيد | أضحية صدقة ]
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'أضحية بعد' : 'Post-Eid',
+                                  titleLine2: isAr ? 'صلاة العيد' : 'Udhiyah',
+                                  imageAsset: 'assets/images/clay_3d_udhiyah.png',
+                                  icon: LucideIcons.calendarCheck,
+                                  accentColor: const Color(0xFFEA580C),
+                                  pastelLightStart: const Color(0xFFFFF7ED),
+                                  pastelLightEnd: const Color(0xFFFED7AA),
+                                  dark: dark,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 3)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildCompactServiceCard(
+                                  context: context,
+                                  title: isAr ? 'أضحية' : 'Sadaqa',
+                                  titleLine2: isAr ? 'صدقة' : 'Udhiyah',
+                                  imageAsset: 'assets/images/clay_3d_udhiyah.png',
+                                  icon: LucideIcons.heart,
+                                  accentColor: const Color(0xFFDB2777),
+                                  pastelLightStart: const Color(0xFFFDF2F8),
+                                  pastelLightEnd: const Color(0xFFFBCFE8),
                                   dark: dark,
                                   onTap: () => Navigator.of(context).push(
                                     MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 3)),
@@ -781,7 +801,7 @@ class HomeScreen extends StatelessWidget {
                                 child: _buildCompactServiceCard(
                                   context: context,
                                   title: isAr ? 'الالتزام بالصلاة' : 'Prayer Tracking',
-                                  titleLine2: isAr ? 'متابعة الفرائض' : 'Obligatory tracker',
+                                  titleLine2: isAr ? 'متابعة الفرائض والسنن' : 'Obligatory & Sunan tracker',
                                   imageAsset: 'assets/images/clay_3d_minaret.png',
                                   icon: LucideIcons.calendarCheck,
                                   accentColor: const Color(0xFF6366F1),
@@ -1185,7 +1205,7 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(width: 8),
             Icon(
-              LucideIcons.chevronRight,
+              LucideIcons.chevronLeft,
               size: 14,
               color: dark ? Colors.white38 : Colors.black26,
             ),
@@ -1320,58 +1340,38 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: titleLine2 != null
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: AlignmentDirectional.centerStart,
-                          child: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: DhikrTheme.arabicFont,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              color: dark ? Colors.white : DhikrColors.charcoal,
-                            ),
-                          ),
-                        ),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: AlignmentDirectional.centerStart,
-                          child: Text(
-                            titleLine2,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: DhikrTheme.arabicFont,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                              color: dark ? const Color(0xFF9CA3AF) : DhikrColors.charcoalSoft,
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontFamily: DhikrTheme.arabicFont,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: dark ? Colors.white : DhikrColors.charcoal,
-                        ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: DhikrTheme.arabicFont,
+                      fontSize: titleLine2 != null ? 13.5 : 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: dark ? Colors.white : DhikrColors.charcoal,
+                      height: 1.2,
+                    ),
+                  ),
+                  if (titleLine2 != null) ...[
+                    Text(
+                      titleLine2,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: DhikrTheme.arabicFont,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: dark ? Colors.white : DhikrColors.charcoal,
+                        height: 1.2,
                       ),
                     ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),

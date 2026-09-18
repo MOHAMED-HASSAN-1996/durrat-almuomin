@@ -74,6 +74,16 @@ class _TasbihScreenState extends State<TasbihScreen> {
     });
   }
 
+  void _undo() {
+    if (_count > 0) {
+      setState(() {
+        _count--;
+        if (_total > 0) _total--;
+      });
+      HapticFeedback.selectionClick();
+    }
+  }
+
   void _reset() {
     setState(() {
       _count = 0;
@@ -231,7 +241,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                 ),
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: dark ? DhikrColors.sage : DhikrColors.forest,
+                backgroundColor: dark ? DhikrColors.sage : const Color(0xFF1E3A2F),
                 foregroundColor: dark ? DhikrColors.darkBg : Colors.white,
                 minimumSize: const Size.fromHeight(54),
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -256,29 +266,25 @@ class _TasbihScreenState extends State<TasbihScreen> {
       _phraseIndex = 0;
     }
     final phrase = currentPhrases[_phraseIndex];
-    final muted = dark ? DhikrColors.darkMuted : DhikrColors.forestLight;
     final totalTarget = _target == 0 ? '∞' : '$_target';
+    final screenBg = dark ? DhikrColors.darkBg : const Color(0xFFFAF7F2);
 
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: AppBar(
-              title: Text(AppStrings.t(lang, 'tasbih_title')),
-              centerTitle: true,
-              actions: [
-                IconButton(
-                  tooltip: AppStrings.t(lang, 'reset'),
-                  icon: const Icon(Icons.refresh_rounded),
-                  onPressed: _resetAll,
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
+      backgroundColor: screenBg,
+      appBar: AppBar(
+        title: Text(
+          AppStrings.t(lang, 'tasbih_title'),
+          style: TextStyle(
+            fontFamily: DhikrTheme.arabicFont,
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+            color: dark ? DhikrColors.darkText : const Color(0xFF1D2721),
           ),
         ),
+        centerTitle: true,
+        backgroundColor: screenBg,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: SafeArea(
         child: Center(
@@ -286,37 +292,47 @@ class _TasbihScreenState extends State<TasbihScreen> {
             constraints: const BoxConstraints(maxWidth: 520),
             child: Column(
               children: [
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // Phrase selector with + button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      // Dropdown Menu Container
+                      // Dropdown Menu Container (Start in RTL -> visually on right)
                       Expanded(
                         child: Container(
                           height: 52,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           decoration: BoxDecoration(
-                            color: (dark ? DhikrColors.sage : DhikrColors.forest)
-                                .withValues(alpha: 0.08),
+                            color: dark
+                                ? DhikrColors.darkSurface
+                                : const Color(0xFFE8EDE5),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: (dark ? DhikrColors.sage : DhikrColors.forest)
-                                  .withValues(alpha: 0.15),
+                              color: dark
+                                  ? Colors.white.withValues(alpha: 0.1)
+                                  : const Color(0xFFD5DFD3),
                             ),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<int>(
                               value: _phraseIndex,
                               isExpanded: true,
-                              icon: Icon(Icons.expand_more_rounded, color: muted),
+                              icon: Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: dark
+                                    ? DhikrColors.sage
+                                    : const Color(0xFF1E3A2F),
+                                size: 28,
+                              ),
                               style: TextStyle(
                                 fontFamily: DhikrTheme.arabicFont,
                                 fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                                color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+                                fontSize: 16,
+                                color: dark
+                                    ? DhikrColors.darkText
+                                    : const Color(0xFF1D2721),
                               ),
                               onChanged: (v) {
                                 if (v != null) {
@@ -344,11 +360,13 @@ class _TasbihScreenState extends State<TasbihScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
 
-                      // Small '+' Button to Add Custom Dhikr
+                      // '+' Button (End in RTL -> visually on left)
                       Material(
-                        color: dark ? DhikrColors.sage : DhikrColors.forest,
+                        color: dark
+                            ? DhikrColors.sage
+                            : const Color(0xFF1E3A2F),
                         borderRadius: BorderRadius.circular(16),
                         child: InkWell(
                           onTap: () => _showAddDhikrSheet(context, lang, dark),
@@ -359,7 +377,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                             alignment: Alignment.center,
                             child: Icon(
                               Icons.add_rounded,
-                              size: 26,
+                              size: 28,
                               color: dark ? DhikrColors.darkBg : Colors.white,
                             ),
                           ),
@@ -370,18 +388,18 @@ class _TasbihScreenState extends State<TasbihScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // Target selector — evenly distributed cards spanning full width
+                // Target selector Card
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: dark ? DhikrColors.darkSurface : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: dark
                             ? Colors.white.withValues(alpha: 0.08)
-                            : DhikrColors.charcoal.withValues(alpha: 0.08),
+                            : const Color(0xFFE8ECE6),
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -395,25 +413,30 @@ class _TasbihScreenState extends State<TasbihScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.flag_rounded,
-                              size: 15,
-                              color: dark ? DhikrColors.sage : DhikrColors.forest,
+                              size: 16,
+                              color: dark
+                                  ? DhikrColors.sage
+                                  : const Color(0xFF1E3A2F),
                             ),
                             const SizedBox(width: 6),
                             Text(
                               AppStrings.t(lang, 'target'),
                               style: TextStyle(
                                 fontFamily: DhikrTheme.arabicFont,
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+                                color: dark
+                                    ? DhikrColors.darkText
+                                    : const Color(0xFF1D2721),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                         Row(
                           children: [33, 66, 99, 100, 0].map((t) {
                             final isSelected = _target == t;
@@ -423,11 +446,12 @@ class _TasbihScreenState extends State<TasbihScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 3),
                                 child: Material(
                                   color: isSelected
-                                      ? (dark ? DhikrColors.sage : DhikrColors.forest)
+                                      ? (dark
+                                          ? DhikrColors.sage
+                                          : const Color(0xFF1E3A2F))
                                       : (dark
-                                          ? Colors.white.withValues(alpha: 0.08)
-                                          : (dark ? DhikrColors.sage : DhikrColors.forest)
-                                              .withValues(alpha: 0.08)),
+                                          ? Colors.white.withValues(alpha: 0.06)
+                                          : const Color(0xFFEEF1EC)),
                                   borderRadius: BorderRadius.circular(12),
                                   child: InkWell(
                                     onTap: () {
@@ -436,21 +460,23 @@ class _TasbihScreenState extends State<TasbihScreen> {
                                     },
                                     borderRadius: BorderRadius.circular(12),
                                     child: Container(
-                                      height: 38,
+                                      height: 40,
                                       alignment: Alignment.center,
                                       child: Text(
                                         label,
                                         style: TextStyle(
                                           fontFamily: DhikrTheme.arabicFont,
-                                          fontSize: t == 0 ? 18 : 14,
+                                          fontSize: t == 0 ? 20 : 15,
                                           fontWeight: isSelected
                                               ? FontWeight.w800
                                               : FontWeight.w700,
                                           color: isSelected
-                                              ? (dark ? DhikrColors.darkBg : Colors.white)
+                                              ? (dark
+                                                  ? DhikrColors.darkBg
+                                                  : Colors.white)
                                               : (dark
                                                   ? DhikrColors.darkText
-                                                  : DhikrColors.charcoal),
+                                                  : const Color(0xFF1D2721)),
                                           height: 1.1,
                                         ),
                                       ),
@@ -465,18 +491,21 @@ class _TasbihScreenState extends State<TasbihScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
+                // Total counter
                 Text(
                   '${AppStrings.t(lang, 'total_count')}: $_total',
                   style: TextStyle(
                     fontFamily: DhikrTheme.arabicFont,
-                    fontSize: 13,
-                    color: muted,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: dark ? DhikrColors.darkMuted : const Color(0xFF386452),
                     height: 1.2,
                   ),
                 ),
 
+                // Center area with circular counter
                 Expanded(
                   child: GestureDetector(
                     onTap: _increment,
@@ -485,122 +514,99 @@ class _TasbihScreenState extends State<TasbihScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Main counter circle
-                          GestureDetector(
-                            onTap: _increment,
-                            child: Container(
-                              width: 240,
-                              height: 240,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
+                          Container(
+                            width: 260,
+                            height: 260,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: dark
+                                  ? DhikrColors.darkSurface
+                                  : const Color(0xFFFAF8F5),
+                              border: Border.all(
                                 color: dark
-                                    ? DhikrColors.darkSurface
-                                    : DhikrColors.cream,
-                                border: Border.all(
-                                  color: (dark
-                                          ? DhikrColors.sage
-                                          : DhikrColors.forest)
-                                      .withValues(alpha: 0.18),
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black
-                                        .withValues(alpha: dark ? 0.25 : 0.07),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
+                                    ? Colors.white.withValues(alpha: 0.12)
+                                    : const Color(0xFFD5DFD3),
+                                width: 3.5,
                               ),
-                              child: Stack(
-                                alignment: Alignment.center,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                      alpha: dark ? 0.3 : 0.05),
+                                  blurRadius: 22,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  // Progress ring
-                                  SizedBox(
-                                    width: 240,
-                                    height: 240,
-                                    child: CircularProgressIndicator(
-                                      value: _target == 0
-                                          ? 0
-                                          : (_count / _target).clamp(0, 1),
-                                      strokeWidth: 7,
-                                      strokeCap: StrokeCap.round,
-                                      backgroundColor: (dark
-                                              ? DhikrColors.sage
-                                              : DhikrColors.forest)
-                                          .withValues(alpha: 0.12),
-                                      valueColor: AlwaysStoppedAnimation(
-                                        dark
-                                            ? DhikrColors.sage
-                                            : DhikrColors.forest,
-                                      ),
+                                  Text(
+                                    phrase,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 21,
+                                      color: dark
+                                          ? DhikrColors.darkText
+                                          : const Color(0xFF1D2721),
                                     ),
                                   ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          phrase,
-                                          textAlign: TextAlign.center,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontFamily: DhikrTheme.arabicFont,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 17,
-                                            color: dark
-                                                ? DhikrColors.darkText
-                                                : DhikrColors.charcoal,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          '$_count',
-                                          style: TextStyle(
-                                            fontFamily: DhikrTheme.arabicFont,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 54,
-                                            height: 1.1,
-                                            color: dark
-                                                ? DhikrColors.darkText
-                                                : DhikrColors.charcoal,
-                                          ),
-                                        ),
-                                        Text(
-                                          '/ $totalTarget',
-                                          style: TextStyle(
-                                            fontFamily: DhikrTheme.arabicFont,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: muted,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          AppStrings.t(lang, 'tap_anywhere'),
-                                          style: TextStyle(
-                                            fontFamily: DhikrTheme.arabicFont,
-                                            fontSize: 11,
-                                            color: muted,
-                                          ),
-                                        ),
-                                      ],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$_count',
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 66,
+                                      height: 1.05,
+                                      color: dark
+                                          ? DhikrColors.darkText
+                                          : const Color(0xFF1D2721),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '/ $totalTarget',
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: dark
+                                          ? DhikrColors.sage
+                                          : const Color(0xFF386452),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    AppStrings.t(lang, 'tap_anywhere'),
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: dark
+                                          ? DhikrColors.darkMuted
+                                          : const Color(0xFF4A7360),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
                           Text(
                             AppStrings.t(lang, 'count'),
                             style: TextStyle(
                               fontFamily: DhikrTheme.arabicFont,
-                              fontSize: 12,
-                              color: muted,
-                              letterSpacing: 1.2,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: dark
+                                  ? DhikrColors.darkMuted
+                                  : const Color(0xFF4A7360),
                             ),
                           ),
                         ],
@@ -609,27 +615,117 @@ class _TasbihScreenState extends State<TasbihScreen> {
                   ),
                 ),
 
-                // Controls — Reset
+                // Bottom Controls: "إعادة ↻" and "رجوع ↩"
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                  child: Center(
-                    child: FilledButton.icon(
-                      onPressed: _reset,
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: Text(AppStrings.t(lang, 'reset')),
-                      style: FilledButton.styleFrom(
-                        backgroundColor:
-                            dark ? DhikrColors.sage : DhikrColors.forest,
-                        foregroundColor: dark ? DhikrColors.darkBg : Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: Row(
+                    children: [
+                      // Right button in RTL: "إعادة ↻"
+                      Expanded(
+                        child: Material(
+                          color: dark
+                              ? DhikrColors.sage
+                              : const Color(0xFF1E3A2F),
+                          borderRadius: BorderRadius.circular(18),
+                          child: InkWell(
+                            onTap: _reset,
+                            onLongPress: () {
+                              _resetAll();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    isAr ? 'تم تصفير العداد الإجمالي' : 'Total count reset',
+                                    style: const TextStyle(fontFamily: DhikrTheme.arabicFont),
+                                  ),
+                                  duration: const Duration(seconds: 1),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(18),
+                            child: Container(
+                              height: 52,
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    AppStrings.t(lang, 'reset'),
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: dark
+                                          ? DhikrColors.darkBg
+                                          : Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    Icons.refresh_rounded,
+                                    size: 20,
+                                    color: dark
+                                        ? DhikrColors.darkBg
+                                        : Colors.white,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 14),
+
+                      // Left button in RTL: "رجوع ↩"
+                      Expanded(
+                        child: Material(
+                          color: dark ? DhikrColors.darkSurface : Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            side: BorderSide(
+                              color: dark
+                                  ? Colors.white.withValues(alpha: 0.15)
+                                  : const Color(0xFFD2DDD0),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: InkWell(
+                            onTap: _undo,
+                            borderRadius: BorderRadius.circular(18),
+                            child: Container(
+                              height: 52,
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    AppStrings.t(lang, 'undo'),
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: dark
+                                          ? DhikrColors.darkMuted
+                                          : const Color(0xFF6B8074),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    Icons.undo_rounded,
+                                    size: 20,
+                                    color: dark
+                                        ? DhikrColors.darkMuted
+                                        : const Color(0xFF6B8074),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
               ],
             ),
           ),

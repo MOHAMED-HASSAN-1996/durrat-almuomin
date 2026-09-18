@@ -49,17 +49,54 @@ class AppState extends ChangeNotifier {
   int get completedPrayerTasksCount => _todayPrayerTasks.length;
 
   // ── Nawafil Tasks ────────────────────────────────────────────────────────
-  final Set<String> _completedNawafilTasks = {};
-  int get completedNawafilTasksCount => _completedNawafilTasks.length;
-  bool isNawafilTaskCompleted(String keyId) => _completedNawafilTasks.contains(keyId);
+  Set<String> _todayNawafilTasks = {};
+  Set<String> get todayNawafilTasks => Set.unmodifiable(_todayNawafilTasks);
+  int get completedNawafilTasksCount => _todayNawafilTasks.length;
+  bool isNawafilTaskCompleted(String keyId) => _todayNawafilTasks.contains(keyId);
+
   Future<void> toggleNawafilTask(String keyId) async {
-    if (_completedNawafilTasks.contains(keyId)) {
-      _completedNawafilTasks.remove(keyId);
+    final todayIso = DhikrStorage.localTodayIso();
+    await toggleNawafilTaskForDate(todayIso, keyId);
+  }
+
+  Future<void> toggleNawafilTaskForDate(String dateIso, String keyId) async {
+    final tasks = _storage.getNawafilTasksForDate(dateIso);
+    if (tasks.contains(keyId)) {
+      tasks.remove(keyId);
     } else {
-      _completedNawafilTasks.add(keyId);
+      tasks.add(keyId);
+      _recordActivityToday();
+    }
+    await _storage.saveNawafilTasksForDate(dateIso, tasks);
+    if (dateIso == DhikrStorage.localTodayIso()) {
+      _todayNawafilTasks = Set.from(tasks);
     }
     notifyListeners();
   }
+
+  Set<String> getNawafilTasksForDate(String dateIso) =>
+      _storage.getNawafilTasksForDate(dateIso);
+
+  Map<int, Set<String>> getMonthlyNawafilTasks(int year, int month) =>
+      _storage.getMonthlyNawafilTasks(year, month);
+
+  Future<void> togglePrayerTaskForDate(String dateIso, String prayerKey) async {
+    final tasks = _storage.getPrayerTasksForDate(dateIso);
+    if (tasks.contains(prayerKey)) {
+      tasks.remove(prayerKey);
+    } else {
+      tasks.add(prayerKey);
+      _recordActivityToday();
+    }
+    await _storage.savePrayerTasksForDate(dateIso, tasks);
+    if (dateIso == DhikrStorage.localTodayIso()) {
+      _todayPrayerTasks = Set.from(tasks);
+    }
+    notifyListeners();
+  }
+
+  Set<String> getPrayerTasksForDate(String dateIso) =>
+      _storage.getPrayerTasksForDate(dateIso);
 
   int _streakCount = 1;
   int get streakCount => _streakCount;
@@ -93,6 +130,7 @@ class AppState extends ChangeNotifier {
     final todayIso = DhikrStorage.localTodayIso();
     _loadedDayIso = todayIso;
     _todayPrayerTasks = _storage.getPrayerTasksForDate(todayIso);
+    _todayNawafilTasks = _storage.getNawafilTasksForDate(todayIso);
 
     final streakInfo = _storage.getStreakInfo();
     _calculateStreak(streakInfo.streak, streakInfo.lastDate, todayIso);
@@ -116,6 +154,7 @@ class AppState extends ChangeNotifier {
       _todayProgress[category] = _storage.getTodayProgress(category);
     }
     _todayPrayerTasks = _storage.getPrayerTasksForDate(todayIso);
+    _todayNawafilTasks = _storage.getNawafilTasksForDate(todayIso);
     final streakInfo = _storage.getStreakInfo();
     _calculateStreak(streakInfo.streak, streakInfo.lastDate, todayIso);
     notifyListeners();

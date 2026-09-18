@@ -57,6 +57,9 @@ class PageviewQuran extends StatefulWidget {
   /// Callback when a verse is tapped.
   final void Function(int surahNumber, int verseNumber)? onTap;
 
+  /// Callback when a verse is double-tapped.
+  final void Function(int surahNumber, int verseNumber)? onDoubleTap;
+
   /// Custom scroll physics for the PageView (e.g., BouncingScrollPhysics, ClampingScrollPhysics).
   final ScrollPhysics? physics;
 
@@ -77,6 +80,7 @@ class PageviewQuran extends StatefulWidget {
     this.onLongPressCancel,
     this.onLongPressDown,
     this.onTap,
+    this.onDoubleTap,
     this.physics,
   }) : assert(initialPageNumber >= 1 && initialPageNumber <= totalPagesCount);
 
@@ -135,6 +139,7 @@ class _PageviewQuranState extends State<PageviewQuran> {
               onLongPressCancel: widget.onLongPressCancel,
               onLongPressDown: widget.onLongPressDown,
               onTap: widget.onTap,
+              onDoubleTap: widget.onDoubleTap,
               sp: widget.sp,
               h: widget.h,
               theme: effectiveTheme,

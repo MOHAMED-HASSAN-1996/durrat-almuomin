@@ -246,7 +246,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 16),
                   Text(
                     _isSignUp
-                        ? (isAr ? 'إنشاء حساب في ذِكْر' : 'Create Dhikr Account')
+                        ? (isAr ? 'إنشاء حساب في درة المؤمن' : 'Create Durrat Al-Mu\'min Account')
                         : (isAr ? 'تسجيل الدخول' : 'Welcome Back'),
                     style: TextStyle(
                       fontFamily: DhikrTheme.arabicFont,

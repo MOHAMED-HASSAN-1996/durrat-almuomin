@@ -45,9 +45,10 @@ class QcfPage extends StatelessWidget {
   onLongPressDown;
 
   /// Callback when a verse is tapped.
-  /// Note: If [onTap] is provided, it takes precedence over [onLongPress] for the gesture recognizer
-  /// if both are active on the same text span (TextSpan supports only one recognizer).
   final void Function(int surahNumber, int verseNumber)? onTap;
+
+  /// Callback when a verse is double-tapped.
+  final void Function(int surahNumber, int verseNumber)? onDoubleTap;
 
   /// Optional callback to customize verse background color dynamically.
   /// This takes precedence over [theme.verseBackgroundColor] if provided.
@@ -65,6 +66,7 @@ class QcfPage extends StatelessWidget {
     this.onLongPressCancel,
     this.onLongPressDown,
     this.onTap,
+    this.onDoubleTap,
     this.verseBackgroundColor,
   });
 
@@ -86,7 +88,7 @@ class QcfPage extends StatelessWidget {
     final verseSpans = <InlineSpan>[];
     if (pageNumber == 2 || pageNumber == 1) {
       verseSpans.add(
-        WidgetSpan(child: SizedBox(height: screenSize.height * .175)),
+        WidgetSpan(child: SizedBox(height: screenSize.height * (isPortrait ? .175 : .05))),
       );
     }
     for (final r in ranges) {
@@ -135,7 +137,11 @@ class QcfPage extends StatelessWidget {
 
         // Gesture Handling
         GestureRecognizer? recognizer;
-        if (onTap != null) {
+        if (onDoubleTap != null) {
+          final doubleTapRecognizer = DoubleTapGestureRecognizer();
+          doubleTapRecognizer.onDoubleTap = () => onDoubleTap?.call(surah, v);
+          recognizer = doubleTapRecognizer;
+        } else if (onTap != null) {
           recognizer =
               TapGestureRecognizer()..onTap = () => onTap?.call(surah, v);
         } else if (onLongPress != null ||
@@ -220,21 +226,13 @@ class QcfPage extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: pageFont,
                       package: 'qcf_quran',
-                      fontSize:
-                          isPortrait
-                              ? baseFontSize
-                              : (pageNumber == 1 || pageNumber == 2)
-                              ? 20 * sp
-                              : baseFontSize - (17 * sp),
+                      fontSize: (pageNumber == 1 || pageNumber == 2)
+                          ? 22.0 * sp
+                          : baseFontSize,
                       color: theme.verseTextColor,
-                      height:
-                          isPortrait
-                              ? (pageNumber == 1 || pageNumber == 2)
-                                  ? 2.2 * h
-                                  : theme.verseHeight * h
-                              : (pageNumber == 1 || pageNumber == 2)
-                              ? 4 * h
-                              : 4 * h,
+                      height: (pageNumber == 1 || pageNumber == 2)
+                          ? 1.9 * h
+                          : theme.verseHeight * h,
                       letterSpacing: theme.letterSpacing,
                       wordSpacing: theme.wordSpacing,
                     ),

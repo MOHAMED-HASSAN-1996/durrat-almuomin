@@ -8,6 +8,7 @@ import '../services/quran_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/ayah_tafseer_bottom_sheet.dart';
 
 enum MushafThemeMode {
   cream,
@@ -164,9 +165,9 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
     required bool isPortrait,
     required double headerW,
   }) {
-    final double hPadding = isPortrait ? 0.0 : 12.0;
-    final double vPadding = isPortrait ? 2.0 : 4.0;
-    final double vHeight = isPortrait ? 1.70 : 3.6;
+    final double hPadding = isPortrait ? 3.0 : 0.0;
+    const double vPadding = 2.0;
+    const double vHeight = 1.70;
     const double vNumHeight = 1.22;
 
     switch (_themeMode) {
@@ -320,17 +321,15 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final double availableW = constraints.maxWidth;
-                        final double availableH = constraints.maxHeight;
                         final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
                         
                         // Reference standard device canvas for QCF Uthmanic font:
+                        final double textW = isPortrait ? (availableW - 6.0) : availableW;
                         final double sp = isPortrait
-                            ? (availableW / 414.0)
-                            : (availableW / 820.0);
-                        final double h = isPortrait ? 1.0 : 1.0;
-                        final double headerW = isPortrait
-                            ? availableW.clamp(280.0, availableW)
-                            : 420.0;
+                            ? (textW / 414.0) * 0.96
+                            : (availableW / 414.0) * 0.94;
+                        final double h = 1.0;
+                        final double headerW = textW.clamp(280.0, availableW);
 
                         final qcfTheme = _buildQcfTheme(
                           sp: sp,
@@ -355,6 +354,14 @@ class _QuranMushafScreenState extends State<QuranMushafScreen> {
                               sp: sp,
                               h: h,
                               theme: qcfTheme,
+                              onDoubleTap: (surah, ayah) {
+                                HapticFeedback.mediumImpact();
+                                AyahTafseerBottomSheet.show(
+                                  context,
+                                  surahNumber: surah,
+                                  verseNumber: ayah,
+                                );
+                              },
                               onPageChanged: (page) {
                                 _currentPageNotifier.value = page;
                                 _saveProgress(page);

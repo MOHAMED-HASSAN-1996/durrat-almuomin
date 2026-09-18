@@ -45,6 +45,16 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
   int get _safeIndex => _index.clamp(0, _total - 1);
 
+  bool get _isSimplifiedCategory =>
+      widget.category == DhikrCategory.morning ||
+      widget.category == DhikrCategory.evening ||
+      widget.category == DhikrCategory.afterPrayer ||
+      widget.category == DhikrCategory.ruqyah;
+
+  static String _removeTashkeel(String input) {
+    return input.replaceAll(RegExp(r'[\u064B-\u0652\u0670\u0640]'), '');
+  }
+
   @override
   void dispose() {
     _audio.dispose();
@@ -128,6 +138,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   }
 
   Future<void> _toggleAudio(Dhikr dhikr) async {
+    if (_isSimplifiedCategory) return;
     final lang = context.read<AppState>().language;
     final key = dhikr.audioKey;
     if (key == null) return;
@@ -182,6 +193,8 @@ class _ReadingScreenState extends State<ReadingScreen> {
       DhikrCategory.afterPrayer => AppStrings.t(lang, 'afterPrayer'),
       DhikrCategory.tasbeeh => AppStrings.t(lang, 'tasbeeh_dhikr'),
     };
+    final rawArabic = dhikr.arabic;
+    final displayArabic = _isSimplifiedCategory ? _removeTashkeel(rawArabic) : rawArabic;
     final mutedColor = dark ? DhikrColors.darkMuted : DhikrColors.forestLight;
 
     return Scaffold(
@@ -323,19 +336,27 @@ class _ReadingScreenState extends State<ReadingScreen> {
                               constraints: const BoxConstraints(maxWidth: 520),
                               child: lang == AppLanguage.arabic
                                   ? Text(
-                                      dhikr.arabic,
+                                      displayArabic,
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontFamily: DhikrTheme.arabicFont,
                                         fontWeight: FontWeight.w700,
-                                        fontSize: dhikr.arabic.length > 350
-                                            ? 22.0
-                                            : (dhikr.arabic.length > 200
-                                                ? 23.5
-                                                : (dhikr.arabic.length > 100
-                                                    ? 25.0
-                                                    : 26.5)),
-                                        height: 1.85,
+                                        fontSize: _isSimplifiedCategory
+                                            ? (displayArabic.length > 350
+                                                ? 16.0
+                                                : (displayArabic.length > 200
+                                                    ? 17.5
+                                                    : (displayArabic.length > 100
+                                                        ? 19.0
+                                                        : 20.5)))
+                                            : (rawArabic.length > 350
+                                                ? 22.0
+                                                : (rawArabic.length > 200
+                                                    ? 23.5
+                                                    : (rawArabic.length > 100
+                                                        ? 25.0
+                                                        : 26.5))),
+                                        height: _isSimplifiedCategory ? 1.75 : 1.85,
                                         letterSpacing: 0.2,
                                         color: dark
                                             ? DhikrColors.darkText
@@ -376,7 +397,9 @@ class _ReadingScreenState extends State<ReadingScreen> {
                                   label: AppStrings.t(lang, 'virtue_label'),
                                   icon: Icons.star_rounded,
                                 ),
-                              if (state.audioEnabled && dhikr.audioKey != null)
+                              if (!_isSimplifiedCategory &&
+                                  state.audioEnabled &&
+                                  dhikr.audioKey != null)
                                 _SourceChip(
                                   onTap: () => _toggleAudio(dhikr),
                                   label: (_audio.isPlaying &&

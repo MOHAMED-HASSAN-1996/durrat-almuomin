@@ -151,10 +151,22 @@ class AboutAppScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
+                  // Mission Card
+                  _AboutCard(
+                    dark: dark,
+                    icon: LucideIcons.crosshair,
+                    iconColor: const Color(0xFF7C3AED),
+                    title: isAr ? 'رسالتنا' : 'Our Mission',
+                    body: isAr
+                        ? 'نسعى إلى بناء تجربة روحانية متكاملة تُقرّب المسلم من ربه، وتُذكّره بالأذكار في وقتها، وتُعينه على المداومة والثبات في عبادته. "ألا بذكر الله تطمئن القلوب"'
+                        : 'We strive to build a complete spiritual experience that brings the Muslim closer to Allah, reminds them of adhkar at the right time, and helps them maintain consistency in worship. "Verily, in the remembrance of Allah do hearts find rest."',
+                  ),
+                  const SizedBox(height: 12),
+
                   // Features Card
                   _AboutCard(
                     dark: dark,
-                    icon: LucideIcons.star,
+                    icon: LucideIcons.sparkles,
                     iconColor: const Color(0xFFF59E0B),
                     title: isAr ? 'مميزات التطبيق' : 'Features',
                     body: null,
@@ -166,7 +178,28 @@ class AboutAppScreen extends StatelessWidget {
                         _FeatureRow(icon: LucideIcons.clock, text: isAr ? 'مواقيت الصلاة بدقة حسب الموقع' : 'Accurate Prayer Times by Location', dark: dark),
                         _FeatureRow(icon: LucideIcons.bell, text: isAr ? 'تنبيه الأذان عند دخول وقت الصلاة' : 'Adhan Alert at Prayer Time', dark: dark),
                         _FeatureRow(icon: LucideIcons.radio, text: isAr ? 'إذاعة القرآن الكريم المباشرة' : 'Live Quran Radio Streams', dark: dark),
-                        _FeatureRow(icon: LucideIcons.calendarDays, text: isAr ? 'متابعة الختمات وسجل الصلوات' : 'Track Khatmahs & Prayer History', dark: dark),
+                        _FeatureRow(icon: LucideIcons.calendarDays, text: isAr ? 'متابعة الختمات وسجل الصلوات والسنن' : 'Track Khatmahs & Prayer History', dark: dark),
+                        _FeatureRow(icon: LucideIcons.calculator, text: isAr ? 'حاسبة الزكاة والنصاب ومستحقيها' : 'Zakat & Nisab Calculator', dark: dark),
+                        _FeatureRow(icon: LucideIcons.moon, text: isAr ? 'التقويم الهجري وأوقات الحرص' : 'Hijri Calendar & Special Times', dark: dark),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // How to use Card
+                  _AboutCard(
+                    dark: dark,
+                    icon: LucideIcons.helpCircle,
+                    iconColor: const Color(0xFF0284C7),
+                    title: isAr ? 'كيفية الاستخدام' : 'How to Use',
+                    body: null,
+                    customChild: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _StepRow(step: '١', text: isAr ? 'افتح التطبيق بعد صلاة الفجر وابدأ بأذكار الصباح' : 'Open after Fajr and start morning adhkar', dark: dark),
+                        _StepRow(step: '٢', text: isAr ? 'تابع أوقات الصلاة من شاشة الرئيسية' : 'Track prayer times from the home screen', dark: dark),
+                        _StepRow(step: '٣', text: isAr ? 'سجّل ختمتك القرآنية يومياً من قسم التلاوة' : 'Record your Quran reading daily', dark: dark),
+                        _StepRow(step: '٤', text: isAr ? 'أغلق يومك بأذكار المساء قبل النوم' : 'Close your day with evening adhkar before sleep', dark: dark),
                       ],
                     ),
                   ),
@@ -176,11 +209,11 @@ class AboutAppScreen extends StatelessWidget {
                   _AboutCard(
                     dark: dark,
                     icon: LucideIcons.library,
-                    iconColor: const Color(0xFF7C3AED),
+                    iconColor: const Color(0xFF0F766E),
                     title: isAr ? 'مصادر الأذكار' : 'Sources',
                     body: isAr
-                        ? 'صحيح البخاري، صحيح مسلم، سنن أبي داود، سنن الترمذي، مسند الإمام أحمد، وحصن المسلم من أذكار الكتاب والسنة.'
-                        : 'Sahih al-Bukhari, Sahih Muslim, Sunan Abi Dawud, Sunan at-Tirmidhi, Musnad Ahmad, and Hisnul Muslim.',
+                        ? 'صحيح البخاري ومسلم، سنن أبي داود والترمذي، مسند الإمام أحمد، حصن المسلم من أذكار الكتاب والسنة للإمام النووي، والأذكار للشيخ ابن باز والشيخ ابن عثيمين رحمهم الله.'
+                        : 'Sahih al-Bukhari, Sahih Muslim, Sunan Abi Dawud, Sunan at-Tirmidhi, Musnad Ahmad, and Hisnul Muslim — verified with authentic chains of narration.',
                   ),
                   const SizedBox(height: 12),
 
@@ -188,7 +221,7 @@ class AboutAppScreen extends StatelessWidget {
                   _AboutCard(
                     dark: dark,
                     icon: LucideIcons.code2,
-                    iconColor: const Color(0xFF0284C7),
+                    iconColor: const Color(0xFF2563EB),
                     title: isAr ? 'برمجة وتصميم' : 'Development & Design',
                     body: null,
                     customChild: Column(
@@ -281,7 +314,7 @@ class AboutAppScreen extends StatelessWidget {
                                   const Icon(LucideIcons.externalLink, size: 16, color: Color(0xFF0057FF)),
                                   const SizedBox(width: 8),
                                   Text(
-                                    isAr ? 'معرض الأعمال على Behance (mohameduxi)' : 'Behance Portfolio (mohameduxi)',
+                                    isAr ? 'معرض الأعمال على Behance' : 'View Portfolio on Behance',
                                     style: const TextStyle(
                                       fontFamily: DhikrTheme.arabicFont,
                                       fontSize: 12.5,
@@ -299,6 +332,35 @@ class AboutAppScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
+                  // Contact / Support Card
+                  _AboutCard(
+                    dark: dark,
+                    icon: LucideIcons.messageCircle,
+                    iconColor: const Color(0xFF059669),
+                    title: isAr ? 'التواصل والدعم' : 'Contact & Support',
+                    body: null,
+                    customChild: Column(
+                      children: [
+                        _ContactButton(
+                          dark: dark,
+                          icon: LucideIcons.mail,
+                          label: isAr ? 'تواصل معنا عبر البريد' : 'Email Us',
+                          color: const Color(0xFF059669),
+                          url: 'mailto:support@durratalmumin.app',
+                        ),
+                        const SizedBox(height: 8),
+                        _ContactButton(
+                          dark: dark,
+                          icon: LucideIcons.share2,
+                          label: isAr ? 'تابعنا على إنستجرام' : 'Follow on Instagram',
+                          color: const Color(0xFFDB2777),
+                          url: 'https://instagram.com/durratalmumin',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
                   // Legal
                   _AboutCard(
                     dark: dark,
@@ -306,28 +368,111 @@ class AboutAppScreen extends StatelessWidget {
                     iconColor: const Color(0xFF059669),
                     title: isAr ? 'الخصوصية والبيانات' : 'Privacy & Data',
                     body: isAr
-                        ? 'يحترم التطبيق خصوصيتك التامة. جميع بيانات الأذكار والختمات محفوظة محلياً على جهازك. لا يتم مشاركة أي بيانات شخصية مع أطراف ثالثة دون إذنك.'
-                        : 'Your privacy is respected. Adhkar and khatmah data is stored locally on your device. No personal data is shared with third parties without your consent.',
+                        ? 'يحترم التطبيق خصوصيتك التامة. جميع بيانات الأذكار والختمات محفوظة محلياً على جهازك. لا يتم مشاركة أي بيانات شخصية مع أطراف ثالثة دون إذنك الصريح.'
+                        : 'Your privacy is fully respected. Adhkar and khatmah data is stored locally on your device. No personal data is shared with third parties without your explicit consent.',
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 12),
+
+                  // Version Info
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+                    decoration: BoxDecoration(
+                      color: dark ? DhikrColors.darkSurface : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: dark
+                            ? Colors.white.withValues(alpha: 0.07)
+                            : DhikrColors.charcoal.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: (dark ? DhikrColors.sage : DhikrColors.forest).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(LucideIcons.tag, size: 18, color: dark ? DhikrColors.sage : DhikrColors.forest),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isAr ? 'إصدار التطبيق' : 'App Version',
+                                style: TextStyle(
+                                  fontFamily: DhikrTheme.arabicFont,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+                                ),
+                              ),
+                              Text(
+                                'v1.0.0 — ${isAr ? "الإصدار الأول" : "Initial Release"}',
+                                style: TextStyle(
+                                  fontFamily: DhikrTheme.arabicFont,
+                                  fontSize: 12,
+                                  color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: (dark ? DhikrColors.sage : DhikrColors.forest).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'v1.0.0',
+                            style: TextStyle(
+                              fontFamily: DhikrTheme.arabicFont,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: dark ? DhikrColors.sage : DhikrColors.forest,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
 
                   // Bottom tagline
                   Center(
-                    child: Text(
-                      isAr
-                          ? '﴿ وَاذْكُرُوا اللَّهَ كَثِيرًا لَعَلَّكُمْ تُفْلِحُونَ ﴾'
-                          : '﴿ Remember Allah often that you may succeed ﴾',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: DhikrTheme.arabicFont,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: (dark ? DhikrColors.sage : DhikrColors.forest).withValues(alpha: 0.75),
-                        height: 1.7,
-                      ),
+                    child: Column(
+                      children: [
+                        Text(
+                          isAr
+                              ? '﴿ وَاذْكُرُوا اللَّهَ كَثِيرًا لَعَلَّكُمْ تُفْلِحُونَ ﴾'
+                              : '﴿ Remember Allah often that you may succeed ﴾',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: DhikrTheme.arabicFont,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: (dark ? DhikrColors.sage : DhikrColors.forest).withValues(alpha: 0.75),
+                            height: 1.7,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          isAr ? '— سورة الجمعة: ١٠ —' : '— Surah Al-Jumu\'ah: 10 —',
+                          style: TextStyle(
+                            fontFamily: DhikrTheme.arabicFont,
+                            fontSize: 11,
+                            color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                 ]),
               ),
             ),
@@ -455,6 +600,119 @@ class _FeatureRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StepRow extends StatelessWidget {
+  const _StepRow({
+    required this.step,
+    required this.text,
+    required this.dark,
+  });
+
+  final String step;
+  final String text;
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              step,
+              style: const TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontWeight: FontWeight.w900,
+                fontSize: 11,
+                color: Color(0xFF0F766E),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactButton extends StatelessWidget {
+  const _ContactButton({
+    required this.dark,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.url,
+  });
+
+  final bool dark;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () async {
+          HapticFeedback.lightImpact();
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: color),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: DhikrTheme.arabicFont,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

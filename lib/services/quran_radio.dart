@@ -184,14 +184,19 @@ class QuranRadioService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data is Map && data['radios'] is List) {
-          final seen = <String>{};
+          final seenUrls = <String>{};
+          final seenNames = <String>{};
           for (final item in data['radios']) {
             if (item is! Map) continue;
-            final name = item['name'] as String? ?? '';
-            var url = (item['url'] as String? ?? '').replaceFirst('http://', 'https://');
+            final name = (item['name'] as String? ?? '').trim();
+            var url = (item['url'] as String? ?? '').trim().replaceFirst('http://', 'https://');
             final id = (item['id'] as num?)?.toInt() ?? 0;
-            if (url.isEmpty || name.isEmpty || seen.contains(url)) continue;
-            seen.add(url);
+            if (url.isEmpty || name.isEmpty) continue;
+
+            final normName = name.replaceAll(RegExp(r'\s+'), ' ');
+            if (seenUrls.contains(url) || seenNames.contains(normName)) continue;
+            seenUrls.add(url);
+            seenNames.add(normName);
             _stations.add((id: id, name: name, url: url, category: 'radio'));
           }
         }

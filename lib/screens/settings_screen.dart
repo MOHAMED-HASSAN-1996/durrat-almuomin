@@ -10,7 +10,9 @@ import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
 import 'auth_screen.dart';
+import 'about_app_screen.dart';
 import 'privacy_screen.dart';
+import 'profile_details_screen.dart';
 
 import 'setup_permissions_screen.dart';
 
@@ -190,7 +192,13 @@ class SettingsScreen extends StatelessWidget {
                       icon: LucideIcons.helpCircle,
                       iconColor: dark ? DhikrColors.sage : DhikrColors.forest,
                       title: AppStrings.t(lang, 'about'),
-                      onTap: () => _showInfo(context, 'about'),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AboutAppScreen(),
+                          ),
+                        );
+                      },
                       dark: dark,
                     ),
                   ],
@@ -340,7 +348,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    isAr ? 'تقييم تطبيق ذِكْر' : 'Rate DHIKR App',
+                    isAr ? 'تقييم تطبيق درة المؤمن' : 'Rate Durrat Al-Mu\'min',  
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontFamily: DhikrTheme.arabicFont,
@@ -378,14 +386,16 @@ class SettingsScreen extends StatelessWidget {
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(
-                            isSelected
-                                ? LucideIcons.star
-                                : LucideIcons.star,
-                            size: 42,
-                            color: isSelected
-                                ? const Color(0xFFFFB300)
-                                : Colors.grey.withValues(alpha: 0.35),
+                          child: AnimatedScale(
+                            scale: isSelected ? 1.15 : 1.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              isSelected ? Icons.star_rounded : Icons.star_outline_rounded,
+                              size: 42,
+                              color: isSelected
+                                  ? const Color(0xFFFFB300)
+                                  : Colors.grey.withValues(alpha: 0.35),
+                            ),
                           ),
                         ),
                       );
@@ -878,6 +888,12 @@ class _UserProfileCard extends StatelessWidget {
                 ),
               ),
             );
+          } else {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ProfileDetailsScreen(),
+              ),
+            );
           }
         },
         child: Padding(
@@ -965,13 +981,12 @@ class _UserProfileCard extends StatelessWidget {
                 ),
               ),
 
-              // Action
+              // Action arrow or login button
               if (isLoggedIn)
-                IconButton(
-                  tooltip: isAr ? 'تسجيل الخروج' : 'Log out',
-                  icon: const Icon(LucideIcons.logOut, size: 20),
-                  color: const Color(0xFFE55353),
-                  onPressed: () => _confirmLogout(context, language, dark),
+                Icon(
+                  LucideIcons.chevronLeft,
+                  size: 20,
+                  color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
                 )
               else
                 FilledButton.tonal(
@@ -1713,7 +1728,7 @@ class _SettingsNavTile extends StatelessWidget {
       ),
       trailing: trailing ??
           Icon(
-            LucideIcons.chevronRight,
+            LucideIcons.chevronLeft,
             size: 20,
             color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
           ),
