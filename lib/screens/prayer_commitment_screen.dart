@@ -655,6 +655,32 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
               ),
             ],
           ),
+          const SizedBox(height: 10),
+
+          // تلميح التسجيل — نفس نمط تلميح شاشة المواقيت
+          Row(
+            children: [
+              Icon(
+                Icons.touch_app_rounded,
+                size: 13,
+                color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  isAr
+                      ? 'اضغط على أي صلاة أو سنة لتسجيلها فورًا'
+                      : 'Tap any prayer or sunnah to log it instantly',
+                  style: TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
 
           // Subtitle Faridah
@@ -669,84 +695,15 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
           ),
           const SizedBox(height: 10),
 
-          // 5 Faridah quick buttons
+          // 5 Faridah quick buttons — راديو صغير في زاوية كل صلاة
           Row(
             children: _prayerKeys.map((key) {
-              final meta = _prayerMeta[key]!;
-              final isDone = appState.isPrayerTaskCompleted(key);
               return Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    appState.togglePrayerTask(key);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 260),
-                    curve: Curves.easeOutBack,
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-                    decoration: BoxDecoration(
-                      gradient: isDone
-                          ? LinearGradient(
-                              colors: [meta.$4, meta.$4.withValues(alpha: 0.7)],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            )
-                          : null,
-                      color: isDone ? null : (dark ? const Color(0xFF1A2520) : const Color(0xFFF3F7F5)),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isDone
-                            ? meta.$4.withValues(alpha: 0.8)
-                            : (dark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
-                        width: isDone ? 1.5 : 1,
-                      ),
-                      boxShadow: isDone
-                          ? [
-                              BoxShadow(
-                                color: meta.$4.withValues(alpha: 0.45),
-                                blurRadius: 14,
-                                spreadRadius: 0,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          transitionBuilder: (child, animation) => ScaleTransition(
-                            scale: animation,
-                            child: child,
-                          ),
-                          child: Icon(
-                            isDone ? Icons.check_circle_rounded : meta.$3,
-                            key: ValueKey(isDone),
-                            size: 20,
-                            color: isDone
-                                ? Colors.white
-                                : (dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          isAr ? meta.$1 : meta.$2,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: DhikrTheme.arabicFont,
-                            fontWeight: isDone ? FontWeight.w800 : FontWeight.w600,
-                            fontSize: 11,
-                            color: isDone
-                                ? Colors.white
-                                : (dark ? DhikrColors.darkText : DhikrColors.charcoal),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                child: _buildFaridahMiniCard(
+                  prayerKey: key,
+                  appState: appState,
+                  isAr: isAr,
+                  dark: dark,
                 ),
               );
             }).toList(),
@@ -828,6 +785,129 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // FARIDAH MINI-CARD (كرت مصغّر للصلاة — راديو صغير في الزاوية)
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildFaridahMiniCard({
+    required String prayerKey,
+    required AppState appState,
+    required bool isAr,
+    required bool dark,
+  }) {
+    final meta = _prayerMeta[prayerKey]!;
+    final isDone = appState.isPrayerTaskCompleted(prayerKey);
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        appState.togglePrayerTask(prayerKey);
+      },
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutBack,
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            decoration: BoxDecoration(
+              gradient: isDone
+                  ? LinearGradient(
+                      colors: [meta.$4, meta.$4.withValues(alpha: 0.7)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    )
+                  : null,
+              color: isDone
+                  ? null
+                  : (dark ? const Color(0xFF1A2520) : const Color(0xFFF3F7F5)),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDone
+                    ? meta.$4.withValues(alpha: 0.8)
+                    : (dark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
+                width: isDone ? 1.5 : 1,
+              ),
+              boxShadow: isDone
+                  ? [
+                      BoxShadow(
+                        color: meta.$4.withValues(alpha: 0.45),
+                        blurRadius: 14,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, animation) => ScaleTransition(
+                    scale: animation,
+                    child: child,
+                  ),
+                  child: Icon(
+                    isDone ? Icons.check_circle_rounded : meta.$3,
+                    key: ValueKey(isDone),
+                    size: 20,
+                    color: isDone
+                        ? Colors.white
+                        : (dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  isAr ? meta.$1 : meta.$2,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontWeight: isDone ? FontWeight.w800 : FontWeight.w600,
+                    fontSize: 11,
+                    color: isDone
+                        ? Colors.white
+                        : (dark ? DhikrColors.darkText : DhikrColors.charcoal),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // نقطة راديو صغيرة في الزاوية العليا (نفس نمط شاشة المواقيت)
+          PositionedDirectional(
+            top: 6,
+            start: 8,
+            child: _buildCornerRadioDot(isDone: isDone, dark: dark),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CORNER RADIO DOT (نقطة راديو 10px في زاوية الكارت)
+  // ══════════════════════════════════════════════════════════════════════════
+  /// الكارت كلّه قابل للضغط للتسجيل، والنقطة إشارة بصرية لحالة التسجيل فقط.
+  Widget _buildCornerRadioDot({required bool isDone, required bool dark}) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isDone ? Colors.white : Colors.transparent,
+        border: Border.all(
+          color: isDone
+              ? Colors.white
+              : (dark
+                    ? Colors.white.withValues(alpha: 0.4)
+                    : DhikrColors.charcoal.withValues(alpha: 0.25)),
+          width: 1.5,
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // NAWAFIL MINI-CARD (كرت مصغّر للسنن — 3 أعمدة)
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildNawafilMiniCard({
@@ -844,67 +924,78 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
         HapticFeedback.lightImpact();
         appState.toggleNawafilTask(item.keyId);
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: isDone
-              ? const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF0F766E), Color(0xFF0B5F59)],
-                )
-              : null,
-          color: isDone
-              ? null
-              : (dark ? const Color(0xFF1B2421) : const Color(0xFFF7FAF8)),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDone
-                ? const Color(0xFF0F766E)
-                : (dark ? Colors.white12 : Colors.black12),
-            width: isDone ? 1.3 : 1,
-          ),
-          boxShadow: isDone
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF0F766E).withValues(alpha: 0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isDone ? Icons.check_circle_rounded : icon,
-              size: 18,
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: isDone
+                  ? const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF0F766E), Color(0xFF0B5F59)],
+                    )
+                  : null,
               color: isDone
-                  ? const Color(0xFFFDE68A)
-                  : (dark ? DhikrColors.darkMuted : Colors.grey),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              isAr ? item.titleAr : item.titleEn,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: DhikrTheme.arabicFont,
-                fontSize: 10.5,
-                height: 1.2,
-                fontWeight: isDone ? FontWeight.w800 : FontWeight.w600,
+                  ? null
+                  : (dark ? const Color(0xFF1B2421) : const Color(0xFFF7FAF8)),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
                 color: isDone
-                    ? Colors.white
-                    : (dark ? DhikrColors.darkText : DhikrColors.charcoal),
+                    ? const Color(0xFF0F766E)
+                    : (dark ? Colors.white12 : Colors.black12),
+                width: isDone ? 1.3 : 1,
               ),
+              boxShadow: isDone
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF0F766E).withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
-          ],
-        ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isDone ? Icons.check_circle_rounded : icon,
+                  size: 18,
+                  color: isDone
+                      ? const Color(0xFFFDE68A)
+                      : (dark ? DhikrColors.darkMuted : Colors.grey),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  isAr ? item.titleAr : item.titleEn,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontSize: 10.5,
+                    height: 1.2,
+                    fontWeight: isDone ? FontWeight.w800 : FontWeight.w600,
+                    color: isDone
+                        ? Colors.white
+                        : (dark ? DhikrColors.darkText : DhikrColors.charcoal),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // نقطة راديو صغيرة في الزاوية العليا (نفس نمط كروت الفرائض)
+          PositionedDirectional(
+            top: 6,
+            start: 8,
+            child: _buildCornerRadioDot(isDone: isDone, dark: dark),
+          ),
+        ],
       ),
     );
   }
