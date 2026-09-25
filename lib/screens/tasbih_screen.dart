@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -54,10 +54,9 @@ class _TasbihScreenState extends State<TasbihScreen> {
   /// وإلا نرجع لهزة فلاتر القوية + الاهتزاز النظامي حتى ما تفقد النقرة إحساسها.
   Future<void> _tapHaptic() async {
     if (!_vibrate) return;
-    HapticFeedback.heavyImpact();
     final handled = await PlatformPermissions.tapVibration();
     if (!handled) {
-      HapticFeedback.vibrate();
+      HapticFeedback.heavyImpact();
     }
   }
 

@@ -89,8 +89,19 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
     'dhuhr': ('الظهر', 'Dhuhr', Icons.light_mode_rounded, Color(0xFFD97706)),
     'asr': ('العصر', 'Asr', Icons.wb_twilight_rounded, Color(0xFFEA580C)),
     'maghrib': ('المغرب', 'Maghrib', Icons.bedtime_rounded, Color(0xFF4F46E5)),
-    'isha': ('العشاء', 'Isha', Icons.dark_mode_rounded, Color(0xFF2563EB)),
-  };
+      'isha': ('العشاء', 'Isha', Icons.dark_mode_rounded, Color(0xFF2563EB)),
+    };
+
+    static const Map<String, IconData> _nawafilIcons = {
+      'sunnah_fajr': LucideIcons.sunrise,
+      'duha': LucideIcons.sun,
+      'sunnah_dhuhr_before': LucideIcons.sunMedium,
+      'sunnah_dhuhr_after': LucideIcons.sunDim,
+      'sunnah_asr': LucideIcons.cloudSun,
+      'sunnah_maghrib': LucideIcons.sunset,
+      'sunnah_isha': LucideIcons.moon,
+      'qiyam_witr': LucideIcons.moonStar,
+    };
 
   @override
   Widget build(BuildContext context) {
@@ -781,68 +792,119 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
           ),
           const SizedBox(height: 10),
 
-          // Nawafil Chips Wrap
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: allNawafilList.map((item) {
-              final isDone = appState.isNawafilTaskCompleted(item.keyId);
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  appState.toggleNawafilTask(item.keyId);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: isDone
-                        ? const Color(0xFF0F766E)
-                        : (dark ? const Color(0xFF1B2421) : const Color(0xFFF7FAF8)),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDone
-                          ? const Color(0xFF0F766E)
-                          : (dark ? Colors.white12 : Colors.black12),
-                      width: isDone ? 1.3 : 1,
-                    ),
-                    boxShadow: isDone
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFF0F766E).withValues(alpha: 0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isDone ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                        size: 13,
-                        color: isDone ? const Color(0xFFFDE68A) : (dark ? DhikrColors.darkMuted : Colors.grey),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        isAr ? item.titleAr : item.titleEn,
-                        style: TextStyle(
-                          fontFamily: DhikrTheme.arabicFont,
-                          fontSize: 11.5,
-                          fontWeight: isDone ? FontWeight.w800 : FontWeight.w600,
-                          color: isDone
-                              ? Colors.white
-                              : (dark ? DhikrColors.darkText : DhikrColors.charcoal),
-                        ),
-                      ),
-                    ],
-                  ),
+          // Nawafil mini-cards grid (3 columns)
+          for (var rowStart = 0;
+              rowStart < allNawafilList.length;
+              rowStart += 3)
+            Padding(
+              padding: EdgeInsets.only(
+                bottom: rowStart + 3 < allNawafilList.length ? 8 : 0,
+              ),
+              // IntrinsicHeight يقيّد ارتفاع الصف (stretch مع قائمة غير محدودة
+              // الارتفاع بيمدد الأبناء للانهاية ويفرّغ ما بعدها في release)
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var col = 0; col < 3; col++)
+                      if (rowStart + col < allNawafilList.length)
+                        Expanded(
+                          child: _buildNawafilMiniCard(
+                            item: allNawafilList[rowStart + col],
+                            appState: appState,
+                            isAr: isAr,
+                            dark: dark,
+                          ),
+                        )
+                      else
+                        const Expanded(child: SizedBox()),
+                  ],
                 ),
-              );
-            }).toList(),
-          ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // NAWAFIL MINI-CARD (كرت مصغّر للسنن — 3 أعمدة)
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildNawafilMiniCard({
+    required NafilaItem item,
+    required AppState appState,
+    required bool isAr,
+    required bool dark,
+  }) {
+    final isDone = appState.isNawafilTaskCompleted(item.keyId);
+    final icon = _nawafilIcons[item.keyId] ?? LucideIcons.sparkles;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        appState.toggleNawafilTask(item.keyId);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: isDone
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF0F766E), Color(0xFF0B5F59)],
+                )
+              : null,
+          color: isDone
+              ? null
+              : (dark ? const Color(0xFF1B2421) : const Color(0xFFF7FAF8)),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDone
+                ? const Color(0xFF0F766E)
+                : (dark ? Colors.white12 : Colors.black12),
+            width: isDone ? 1.3 : 1,
+          ),
+          boxShadow: isDone
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0F766E).withValues(alpha: 0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isDone ? Icons.check_circle_rounded : icon,
+              size: 18,
+              color: isDone
+                  ? const Color(0xFFFDE68A)
+                  : (dark ? DhikrColors.darkMuted : Colors.grey),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              isAr ? item.titleAr : item.titleEn,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 10.5,
+                height: 1.2,
+                fontWeight: isDone ? FontWeight.w800 : FontWeight.w600,
+                color: isDone
+                    ? Colors.white
+                    : (dark ? DhikrColors.darkText : DhikrColors.charcoal),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

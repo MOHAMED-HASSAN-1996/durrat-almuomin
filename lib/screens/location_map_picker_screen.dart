@@ -135,22 +135,30 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
         if (features != null && features.isNotEmpty) {
           final props = features[0]['properties'] as Map<String, dynamic>?;
           if (props != null) {
+            final district = props['district'] ??
+                props['suburb'] ??
+                props['neighbourhood'] ??
+                props['locality'] ??
+                '';
             final city = props['city'] ??
                 props['town'] ??
-                props['district'] ??
                 props['county'] ??
+                props['state'] ??
                 props['name'] ??
                 '';
-            final province = props['state'] ?? '';
+            final state = props['state'] ?? '';
             final country = props['country'] ?? '';
 
-            if (city.toString().isNotEmpty) {
+            final displayDistrict = district.toString().isNotEmpty ? district.toString() : state.toString();
+            final displayCity = city.toString().isNotEmpty ? city.toString() : displayDistrict;
+
+            if (displayCity.isNotEmpty) {
               if (mounted) {
                 setState(() {
-                  _detectedCityAr = _cleanCityName(city.toString());
-                  _detectedCityEn = city.toString();
-                  _detectedProvinceAr = _cleanCityName(province.toString());
-                  _detectedProvinceEn = province.toString();
+                  _detectedCityAr = _cleanCityName(displayCity);
+                  _detectedCityEn = displayCity;
+                  _detectedProvinceAr = _cleanCityName(displayDistrict);
+                  _detectedProvinceEn = displayDistrict;
                   _detectedCountryAr = _cleanCountryName(country.toString());
                   _detectedCountryEn = country.toString();
                   _detectedCountryCode =
@@ -178,22 +186,35 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
         final data = jsonDecode(res.body);
         final addr = data['address'] as Map<String, dynamic>?;
         if (addr != null) {
+          // استخراج الحي / المنطقة بدقة (suburb, neighbourhood, quarter, district)
+          final district = addr['suburb'] ??
+              addr['neighbourhood'] ??
+              addr['quarter'] ??
+              addr['district'] ??
+              addr['residential'] ??
+              '';
+
+          // استخراج المدينة الرئيسية أو المركز
           final city = addr['city'] ??
               addr['town'] ??
-              addr['suburb'] ??
-              addr['district'] ??
+              addr['municipality'] ??
               addr['county'] ??
               addr['state'] ??
               '';
-          final province = addr['state'] ?? '';
+
+          final state = addr['state'] ?? '';
           final country = addr['country'] ?? '';
+
+          // إذا وُجد حي مميز، نجعله المنطقة ونضع المدينة بجواره ليظهر: «الحي، المدينة»
+          final displayDistrict = district.toString().isNotEmpty ? district.toString() : state.toString();
+          final displayCity = city.toString().isNotEmpty ? city.toString() : displayDistrict;
 
           if (mounted) {
             setState(() {
-              _detectedCityAr = _cleanCityName(city.toString());
-              _detectedCityEn = city.toString();
-              _detectedProvinceAr = _cleanCityName(province.toString());
-              _detectedProvinceEn = province.toString();
+              _detectedCityAr = _cleanCityName(displayCity);
+              _detectedCityEn = displayCity;
+              _detectedProvinceAr = _cleanCityName(displayDistrict);
+              _detectedProvinceEn = displayDistrict;
               _detectedCountryAr = _cleanCountryName(country.toString());
               _detectedCountryEn = country.toString();
               _detectedCountryCode =

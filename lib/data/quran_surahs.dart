@@ -20,6 +20,91 @@ class QuranSurahMeta {
 
   bool get isMeccan => revelationType == 'Meccan';
   String get typeAr => isMeccan ? 'مكية' : 'مدنية';
+
+  /// اسم السورة مجرداً من التشكيل والهمزات والزوائد لتسهيل البحث الفوري
+  String get normalizedName => normalizeArabicText(name);
+
+  /// فحص ذكي لمطابقة البحث:
+  /// - بالحروف الجزئية (starts-with على كل كلمة)
+  /// - بالأحرف المتفرقة (subsequence fuzzy)
+  /// - بدون "الـ" التعريف
+  /// - بالأرقام العربية والإنجليزية
+  /// - بالاسم الإنجليزي والترجمة
+  bool matchesSearch(String query) {
+    final q = normalizeArabicText(query.trim().toLowerCase());
+    if (q.isEmpty) return true;
+
+    // مطابقة رقم السورة (سواء أرقام إنجليزية أو عربية)
+    final numStr = number.toString();
+    if (numStr == q || normalizeArabicNumbers(query.trim()) == numStr) return true;
+
+    // تطابق الاسم العربي المجرّد من التشكيل (contains أي جزء)
+    final norm = normalizedName;
+    if (norm.contains(q)) return true;
+
+    // تطابق بدون "ال" التعريف
+    final normNoAl = norm.startsWith('ال') ? norm.substring(2) : norm;
+    final qNoAl = q.startsWith('ال') ? q.substring(2) : q;
+    if (qNoAl.isNotEmpty && (norm.contains(qNoAl) || normNoAl.contains(qNoAl))) return true;
+
+    // مطابقة بداية الكلمة (prefix على كل كلمة في الاسم)
+    // مثال: "كه" تجد "الكهف" لأن "كهف" يبدأ بـ "كه"
+    if (qNoAl.isNotEmpty) {
+      final words = normNoAl.split(RegExp(r'\s+'));
+      for (final word in words) {
+        if (word.startsWith(qNoAl)) return true;
+      }
+    }
+
+    // مطابقة متسلسلة (subsequence / fuzzy):
+    // الحروف المكتوبة تظهر بنفس الترتيب في الاسم ولو لم تكن متجاورة.
+    // مثال: "بقه" تجد "البقرة"، "نسا" تجد "النساء"
+    if (q.length >= 2) {
+      if (_isSubsequence(q, norm) || _isSubsequence(qNoAl, normNoAl)) return true;
+    }
+
+    // تطابق الاسم الإنجليزي والترجمة
+    final en = englishName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final trans = englishTranslation.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final cleanEnQ = query.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    if (cleanEnQ.isNotEmpty && (en.contains(cleanEnQ) || trans.contains(cleanEnQ))) return true;
+
+    return false;
+  }
+
+  /// هل تظهر حروف [pattern] بنفس الترتيب داخل [text] (ولو غير متجاورة)؟
+  static bool _isSubsequence(String pattern, String text) {
+    if (pattern.isEmpty) return true;
+    int pi = 0;
+    for (int ti = 0; ti < text.length && pi < pattern.length; ti++) {
+      if (text[ti] == pattern[pi]) pi++;
+    }
+    return pi == pattern.length;
+  }
+}
+
+/// تجريد وتوحيد الحروف العربية من التشكيل والهمزات لتسهيل البحث بأي صيغة
+String normalizeArabicText(String text) {
+  return text
+      // إزالة كل حركات التشكيل والتنوين والشدة والسكون
+      .replaceAll(RegExp(r'[\u064B-\u065F\u0670\u06D6-\u06ED]'), '')
+      // توحيد الهمزات والألف الممدودة والمقصورة
+      .replaceAll(RegExp(r'[إأآاٱ]'), 'ا')
+      .replaceAll('ى', 'ي')
+      .replaceAll('ة', 'ه')
+      .replaceAll('ؤ', 'و')
+      .replaceAll('ئ', 'ي')
+      .trim();
+}
+
+/// تحويل الأرقام العربية المشرقية إلى أرقام لاتينية
+String normalizeArabicNumbers(String input) {
+  const easternDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  var result = input;
+  for (int i = 0; i < easternDigits.length; i++) {
+    result = result.replaceAll(easternDigits[i], i.toString());
+  }
+  return result;
 }
 
 /// Given a page number (1..604), returns the primary Surah on that page.

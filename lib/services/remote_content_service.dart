@@ -674,7 +674,11 @@ class RemoteContentService extends ChangeNotifier {
       final sorted = List<ShaarawiLesson>.from(g.episodes)
         ..sort((a, b) => (a.displayOrder ?? a.partNumber ?? 999).compareTo(b.displayOrder ?? b.partNumber ?? 999));
       bool same = sorted.length == g.episodes.length;
-      if (same) for (var j = 0; j < sorted.length; j++) if (sorted[j].id != g.episodes[j].id) { same = false; break; }
+      if (same) {
+        for (var j = 0; j < sorted.length; j++) {
+          if (sorted[j].id != g.episodes[j].id) { same = false; break; }
+        }
+      }
       if (!same) {
         result[i] = ShaarawiSeriesGroup(
           id: g.id, titleAr: g.titleAr, titleEn: g.titleEn,
@@ -685,8 +689,12 @@ class RemoteContentService extends ChangeNotifier {
     }
     result.sort((a, b) {
       int ao = 999999, bo = 999999;
-      for (final e in a.episodes) if (e.seriesOrder != null && e.seriesOrder! < ao) ao = e.seriesOrder!;
-      for (final e in b.episodes) if (e.seriesOrder != null && e.seriesOrder! < bo) bo = e.seriesOrder!;
+      for (final e in a.episodes) {
+        if (e.seriesOrder != null && e.seriesOrder! < ao) ao = e.seriesOrder!;
+      }
+      for (final e in b.episodes) {
+        if (e.seriesOrder != null && e.seriesOrder! < bo) bo = e.seriesOrder!;
+      }
       if (ao != 999999 || bo != 999999) return ao.compareTo(bo);
       return 0;
     });

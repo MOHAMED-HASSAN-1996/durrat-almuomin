@@ -53,13 +53,7 @@ class _QuranScreenState extends State<QuranScreen> {
       if (_filterIndex == 2 && s.isMeccan) return false;
 
       // Search filter
-      if (_searchQuery.trim().isEmpty) return true;
-      final q = _searchQuery.trim().toLowerCase();
-      final numMatch = s.number.toString() == q;
-      final nameMatch = s.name.toLowerCase().contains(q) ||
-          s.englishName.toLowerCase().contains(q) ||
-          s.englishTranslation.toLowerCase().contains(q);
-      return numMatch || nameMatch;
+      return s.matchesSearch(_searchQuery);
     }).toList();
 
     return Scaffold(

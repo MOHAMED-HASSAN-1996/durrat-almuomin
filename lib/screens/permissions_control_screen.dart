@@ -153,8 +153,11 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
         );
         if (!mounted) return;
         final storage = context.read<AppState>().storage;
-        // Resolve the GPS coordinates to a country + ISO code so the
-        // zakat/nisab calculator can pick the correct local currency.
+        // Resolve the GPS coordinates to a full address label.
+        // We use locality (neighbourhood/district) as the "city"
+        // so the UI shows e.g. «المعادي، القاهرة» instead of a generic label.
+        String localityAr = '';
+        String localityEn = '';
         String countryAr = '';
         String countryEn = '';
         String provinceAr = '';
@@ -169,32 +172,39 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
               .timeout(const Duration(seconds: 5));
           if (res.statusCode == 200) {
             final data = jsonDecode(res.body) as Map<String, dynamic>;
-            countryAr = (data['countryName'] as String?) ?? '';
-            provinceAr = (data['principalSubdivision'] as String?) ?? '';
+            localityAr = ((data['locality'] as String?) ?? '').trim();
+            provinceAr = ((data['principalSubdivision'] as String?) ?? '').trim();
+            countryAr = ((data['countryName'] as String?) ?? '').trim();
             cc = ((data['countryCode'] as String?) ?? '').trim().toUpperCase();
           }
         } catch (_) {}
-        if (cc.isEmpty) {
-          try {
-            final res = await http
-                .get(
-                  Uri.parse(
-                      'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.latitude}&longitude=${pos.longitude}&localityLanguage=en'),
-                )
-                .timeout(const Duration(seconds: 4));
-            if (res.statusCode == 200) {
-              final data = jsonDecode(res.body) as Map<String, dynamic>;
-              countryEn = (data['countryName'] as String?) ?? '';
-              provinceEn = (data['principalSubdivision'] as String?) ?? '';
+        try {
+          final res = await http
+              .get(
+                Uri.parse(
+                    'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.latitude}&longitude=${pos.longitude}&localityLanguage=en'),
+              )
+              .timeout(const Duration(seconds: 4));
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body) as Map<String, dynamic>;
+            localityEn = ((data['locality'] as String?) ?? '').trim();
+            provinceEn = ((data['principalSubdivision'] as String?) ?? '').trim();
+            countryEn = ((data['countryName'] as String?) ?? '').trim();
+            if (cc.isEmpty) {
               cc = ((data['countryCode'] as String?) ?? '').trim().toUpperCase();
             }
-          } catch (_) {}
-        }
+          }
+        } catch (_) {}
+        // Use locality as the city label; fall back to province, then generic.
+        final savedCityAr = localityAr.isNotEmpty ? localityAr
+            : (provinceAr.isNotEmpty ? provinceAr : 'موقعي الحالي');
+        final savedCityEn = localityEn.isNotEmpty ? localityEn
+            : (provinceEn.isNotEmpty ? provinceEn : 'Current Location');
         await storage.saveLocation(
           lat: pos.latitude,
           lng: pos.longitude,
-          cityAr: 'موقعي الحالي',
-          cityEn: 'Current Location',
+          cityAr: savedCityAr,
+          cityEn: savedCityEn,
           provinceAr: provinceAr,
           provinceEn: provinceEn,
           countryAr: countryAr,
