@@ -140,6 +140,9 @@ class HomeScreen extends StatelessWidget {
                                   String countryDisplay = isAr
                                       ? 'العراق'
                                       : 'Iraq';
+                                  String locationLabel = isAr
+                                      ? 'بغداد، العراق'
+                                      : 'Baghdad, Iraq';
 
                                   if (savedLoc != null) {
                                     final rawAr =
@@ -156,6 +159,14 @@ class HomeScreen extends StatelessWidget {
                                         '';
                                     final cEn =
                                         (savedLoc['countryEn'] as String?)
+                                            ?.trim() ??
+                                        '';
+                                    final pAr =
+                                        (savedLoc['provinceAr'] as String?)
+                                            ?.trim() ??
+                                        '';
+                                    final pEn =
+                                        (savedLoc['provinceEn'] as String?)
                                             ?.trim() ??
                                         '';
 
@@ -218,12 +229,28 @@ class HomeScreen extends StatelessWidget {
                                           ? cEn
                                           : (cAr.isNotEmpty ? cAr : 'Iraq');
                                     }
-                                  }
 
-                                  final locationLabel =
-                                      countryDisplay.isNotEmpty
-                                      ? '$cityDisplay، $countryDisplay'
-                                      : cityDisplay;
+                                    final displayProvince = isAr
+                                        ? (pAr.isNotEmpty
+                                              ? pAr
+                                              : (pEn.isNotEmpty ? pEn : ''))
+                                        : (pEn.isNotEmpty
+                                              ? pEn
+                                              : (pAr.isNotEmpty ? pAr : ''));
+                                    final cleanedProvince = displayProvince
+                                        .replaceAll(' Governorate', '')
+                                        .replaceAll('محافظة', '')
+                                        .replaceAll(' Province', '')
+                                        .trim();
+
+                                    locationLabel =
+                                        cleanedProvince.isNotEmpty &&
+                                                cleanedProvince != cityDisplay
+                                            ? '$cityDisplay، $cleanedProvince'
+                                            : countryDisplay.isNotEmpty
+                                                  ? '$cityDisplay، $countryDisplay'
+                                                  : cityDisplay;
+                                  }
 
                                   return Tooltip(
                                     message: isAr
@@ -244,6 +271,9 @@ class HomeScreen extends StatelessWidget {
                                                           ?.toDouble(),
                                                   initialCityAr:
                                                       savedLoc?['cityAr']
+                                                          as String?,
+                                                  initialProvinceAr:
+                                                      savedLoc?['provinceAr']
                                                           as String?,
                                                   initialCountryAr:
                                                       savedLoc?['countryAr']

@@ -32,6 +32,7 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
   LovedOneCategory _selectedCategory = LovedOneCategory.deceased;
   String? _imagePath;
   bool _isSaving = false;
+  final ScrollController _scrollCtrl = ScrollController();
 
   final ImagePicker _picker = ImagePicker();
 
@@ -53,6 +54,7 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
   void dispose() {
     _nameController.dispose();
     _duaController.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -252,10 +254,32 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
 
     if (mounted) {
       setState(() => _isSaving = false);
-      await _showThankYouDialog(context, isEdit: widget.itemToEdit != null);
-      if (mounted) {
-        Navigator.pop(context, true);
+      if (widget.itemToEdit != null) {
+        await _showThankYouDialog(context, isEdit: true);
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+        return;
       }
+      // وضع الإضافة: حفظ صامت + مسح الحقول والبقاء في الشاشة (بدون أي نتيجة)
+      _resetForm();
+    }
+  }
+
+  void _resetForm() {
+    _formKey.currentState?.reset();
+    setState(() {
+      _selectedCategory = LovedOneCategory.deceased;
+      _nameController.clear();
+      _duaController.text = _selectedCategory.defaultDuaAr;
+      _imagePath = null;
+    });
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOutCubic,
+      );
     }
   }
 
@@ -415,7 +439,7 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
         backgroundColor: dark ? const Color(0xFF0D1612) : const Color(0xFFF7FBF9),
         appBar: AppBar(
           title: Text(
-            widget.itemToEdit != null ? 'تعديل بيانات الدعاء' : 'إضافة شخص للدعاء بظهر الغيب',
+            widget.itemToEdit != null ? 'تعديل بيانات الدعاء' : 'دعوة بظهر الغيب',
             style: const TextStyle(
               fontFamily: DhikrTheme.arabicFont,
               fontWeight: FontWeight.w800,
@@ -425,6 +449,7 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
         ),
         body: SafeArea(
           child: SingleChildScrollView(
+            controller: _scrollCtrl,
             padding: const EdgeInsets.all(20),
             child: Form(
               key: _formKey,

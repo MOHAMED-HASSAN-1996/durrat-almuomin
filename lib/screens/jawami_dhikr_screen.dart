@@ -236,6 +236,16 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
     (key: 'jawami', titleAr: 'جوامع الذكر', titleEn: 'Comprehensive', icon: Icons.auto_awesome_rounded),
   ];
 
+  Map<String, int> get _categoryCounts {
+    final m = <String, int>{};
+    for (final d in _jawamiList) {
+      final c = d['category'] ?? '';
+      m[c] = (m[c] ?? 0) + 1;
+    }
+    m['all'] = _jawamiList.length;
+    return m;
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<AppState>().language;
@@ -303,58 +313,101 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
                     ),
                   ),
 
-                  // شريط تصنيفات الأدعية (Chips)
+                  // شريط تصنيفات الأدعية (Chips مع عداد)
                   SizedBox(
-                    height: 44,
+                    height: 52,
                     child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      physics: const BouncingScrollPhysics(),
                       itemCount: _categories.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 8),
                       itemBuilder: (context, idx) {
                         final cat = _categories[idx];
                         final isSelected = _selectedCategory == cat.key;
-                        return GestureDetector(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => _selectedCategory = cat.key);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? emerald
-                                  : (dark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04)),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
+                        final count = _categoryCounts[cat.key] ?? 0;
+                        return ChoiceChip(
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                cat.icon,
+                                size: 14,
                                 color: isSelected
-                                    ? gold.withValues(alpha: 0.6)
-                                    : (dark ? Colors.white12 : Colors.black12),
-                                width: 1,
+                                    ? Colors.white
+                                    : (dark
+                                          ? Colors.white70
+                                          : Colors.black87),
                               ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  cat.icon,
-                                  size: 16,
-                                  color: isSelected ? gold : (dark ? Colors.white70 : Colors.black87),
+                              const SizedBox(width: 6),
+                              Text(
+                                isAr ? cat.titleAr : cat.titleEn,
+                                style: TextStyle(
+                                  fontFamily: DhikrTheme.arabicFont,
+                                  fontSize: 12.5,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : (dark
+                                            ? DhikrColors.darkText
+                                            : DhikrColors.charcoal),
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  isAr ? cat.titleAr : cat.titleEn,
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? gold.withValues(alpha: 0.28)
+                                      : (dark
+                                            ? Colors.white.withValues(
+                                                alpha: 0.08)
+                                            : emerald.withValues(alpha: 0.08)),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  '$count',
                                   style: TextStyle(
                                     fontFamily: DhikrTheme.arabicFont,
-                                    fontSize: 12.5,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                    color: isSelected ? Colors.white : (dark ? Colors.white70 : Colors.black87),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : (dark
+                                              ? Colors.white70
+                                              : emerald),
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
+                          selected: isSelected,
+                          selectedColor: emerald,
+                          backgroundColor:
+                              dark ? const Color(0xFF101C17) : Colors.white,
+                          elevation: isSelected ? 3 : 0,
+                          pressElevation: 0,
+                          side: BorderSide(
+                            color: isSelected
+                                ? gold.withValues(alpha: 0.7)
+                                : (dark
+                                      ? Colors.white12
+                                      : DhikrColors.charcoal.withValues(
+                                          alpha: 0.12)),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          showCheckmark: false,
+                          onSelected: (selected) {
+                            if (selected) {
+                              HapticFeedback.selectionClick();
+                              setState(() => _selectedCategory = cat.key);
+                            }
+                          },
                         );
                       },
                     ),

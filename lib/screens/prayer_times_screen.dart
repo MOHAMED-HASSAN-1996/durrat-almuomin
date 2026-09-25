@@ -32,6 +32,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   double _lng = 44.3661;
   String _city = 'بغداد';
   String _cityEn = 'Baghdad';
+  String _province = '';
+  String _provinceEn = '';
   String _country = 'العراق';
   String _countryEn = 'Iraq';
   String _resolvedCountryCode = '';
@@ -1025,12 +1027,16 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     required double lng,
     String? cityAr,
     String? cityEn,
+    String? provinceAr,
+    String? provinceEn,
     String? countryAr,
     String? countryEn,
     bool resolveCity = false,
   }) async {
     String resolvedCityAr = cityAr ?? _city;
     String resolvedCityEn = cityEn ?? _cityEn;
+    String resolvedProvinceAr = provinceAr ?? _province;
+    String resolvedProvinceEn = provinceEn ?? _provinceEn;
     String resolvedCountryAr = countryAr ?? _country;
     String resolvedCountryEn = countryEn ?? _countryEn;
 
@@ -1038,9 +1044,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       final names = await _reverseGeocode(lat, lng);
       resolvedCityAr = names.$1;
       resolvedCityEn = names.$2;
-      resolvedCountryAr = names.$3;
-      resolvedCountryEn = names.$4;
-      _resolvedCountryCode = names.$5;
+      resolvedProvinceAr = names.$3;
+      resolvedProvinceEn = names.$4;
+      resolvedCountryAr = names.$5;
+      resolvedCountryEn = names.$6;
+      _resolvedCountryCode = names.$7;
     }
 
     if (!mounted) return;
@@ -1049,6 +1057,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       _lng = lng;
       _city = resolvedCityAr;
       _cityEn = resolvedCityEn;
+      _province = resolvedProvinceAr;
+      _provinceEn = resolvedProvinceEn;
       _country = resolvedCountryAr;
       _countryEn = resolvedCountryEn;
       _locateFailed = false;
@@ -1059,6 +1069,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       lng: lng,
       cityAr: resolvedCityAr,
       cityEn: resolvedCityEn,
+      provinceAr: resolvedProvinceAr,
+      provinceEn: resolvedProvinceEn,
       countryAr: resolvedCountryAr,
       countryEn: resolvedCountryEn,
       countryCode: _resolvedCountryCode,
@@ -1069,7 +1081,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     _fetchApiPrayerTimes();
   }
 
-  Future<(String cityAr, String cityEn, String countryAr, String countryEn, String countryCode)>
+  Future<(String cityAr, String cityEn, String provinceAr, String provinceEn, String countryAr, String countryEn, String countryCode)>
   _reverseGeocode(double lat, double lng) async {
     // Tier 1: Photon by Komoot (blazing fast, open-source OSM geocoder, no API key, native Arabic)
     try {
@@ -1102,6 +1114,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
             return (
               cityCandidate.isNotEmpty ? cityCandidate : _city,
               cityCandidate.isNotEmpty ? cityCandidate : _cityEn,
+              state.isNotEmpty ? state : _province,
+              state.isNotEmpty ? state : _provinceEn,
               country.isNotEmpty ? country : _country,
               country.isNotEmpty ? country : _countryEn,
               ((props['countrycode'] as String?) ?? '').toString().trim().toUpperCase(),
@@ -1129,9 +1143,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
             : ((dataAr['locality'] as String?)?.isNotEmpty == true
                   ? dataAr['locality'] as String
                   : ((dataAr['principalSubdivision'] as String?) ?? ''));
+        final provinceAr = (dataAr['principalSubdivision'] as String?) ?? '';
         final countryAr = (dataAr['countryName'] as String?) ?? '';
 
         String cityEn = cityAr;
+        String provinceEn = provinceAr;
         String countryEn = countryAr;
 
         try {
@@ -1151,6 +1167,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                       ? dataEn['locality'] as String
                       : ((dataEn['principalSubdivision'] as String?) ??
                             cityAr));
+            provinceEn = (dataEn['principalSubdivision'] as String?) ?? provinceAr;
             countryEn = (dataEn['countryName'] as String?) ?? countryAr;
           }
         } catch (_) {}
@@ -1159,6 +1176,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           return (
             cityAr.isNotEmpty ? cityAr : _city,
             cityEn.isNotEmpty ? cityEn : _cityEn,
+            provinceAr.isNotEmpty ? provinceAr : _province,
+            provinceEn.isNotEmpty ? provinceEn : _provinceEn,
             countryAr.isNotEmpty ? countryAr : _country,
             countryEn.isNotEmpty ? countryEn : _countryEn,
             ((dataAr['countryCode'] as String?) ?? '').toString().trim().toUpperCase(),
@@ -1196,12 +1215,14 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                     '')
                 as String;
         final countryAr = (addr['country'] ?? '') as String;
+        final provinceAr = (addr['state'] ?? '') as String;
         final cc = ((addr['country_code'] as String?) ?? '')
             .toString()
             .trim()
             .toUpperCase();
 
         String cityEn = cityAr;
+        String provinceEn = provinceAr;
         String countryEn = countryAr;
         try {
           final resEn = await http
@@ -1230,6 +1251,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                         dataEn['name'] ??
                         cityAr)
                     as String;
+            provinceEn = (addrEn['state'] ?? provinceAr) as String;
             countryEn = (addrEn['country'] ?? countryAr) as String;
           }
         } catch (_) {}
@@ -1237,6 +1259,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         return (
           cityAr.isNotEmpty ? cityAr : _city,
           cityEn.isNotEmpty ? cityEn : _cityEn,
+          provinceAr.isNotEmpty ? provinceAr : _province,
+          provinceEn.isNotEmpty ? provinceEn : _provinceEn,
           countryAr.isNotEmpty ? countryAr : _country,
           countryEn.isNotEmpty ? countryEn : _countryEn,
           cc,
@@ -1244,7 +1268,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       }
     } catch (_) {}
 
-    return (_city, _cityEn, _country, _countryEn, '');
+    return (_city, _cityEn, _province, _provinceEn, _country, _countryEn, '');
   }
 
   void _showCitySearchSheet(BuildContext context) {
@@ -1264,6 +1288,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           dark: dark,
           currentCityAr: _city,
           currentCityEn: _cityEn,
+          currentCountryAr: _country,
+          currentCountryEn: _countryEn,
           famousCities: _famousCities,
           onCitySelected: (c) async {
             Navigator.pop(ctx);
@@ -1599,6 +1625,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     nextTime ??= entries.first.$4.add(const Duration(days: 1));
 
     final displayCity = lang == AppLanguage.arabic ? _city : _cityEn;
+    final displayProvince = lang == AppLanguage.arabic ? _province : _provinceEn;
     final displayCountry = lang == AppLanguage.arabic ? _country : _countryEn;
 
     return Scaffold(
@@ -1687,9 +1714,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                                     maxWidth: 250,
                                   ),
                                   child: Text(
-                                    displayCountry.isNotEmpty
-                                        ? '$displayCity، $displayCountry'
-                                        : displayCity,
+                                    displayProvince.isNotEmpty &&
+                                            displayProvince != displayCity
+                                        ? '$displayCity، $displayProvince'
+                                        : displayCountry.isNotEmpty
+                                            ? '$displayCity، $displayCountry'
+                                            : displayCity,
                                     textAlign: TextAlign.center,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -2523,6 +2553,32 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
             ],
           ),
           const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.touch_app_rounded,
+                size: 14,
+                color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  isAr
+                      ? 'اضغط على اسم الصلاة لتسجيل أنها أُقيمت وتُحتسب في التزامك'
+                      : 'Tap a prayer name to mark it as performed',
+                  style: TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color:
+                        dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           // 5 Prayers Checklist
           Row(
             children: prayers.map((p) {
@@ -2679,6 +2735,8 @@ class _CitySearchModal extends StatefulWidget {
     required this.dark,
     required this.currentCityAr,
     required this.currentCityEn,
+    required this.currentCountryAr,
+    required this.currentCountryEn,
     required this.famousCities,
     required this.onCitySelected,
     required this.onAutoLocate,
@@ -2688,6 +2746,8 @@ class _CitySearchModal extends StatefulWidget {
   final bool dark;
   final String currentCityAr;
   final String currentCityEn;
+  final String currentCountryAr;
+  final String currentCountryEn;
   final List<Map<String, dynamic>> famousCities;
   final ValueChanged<Map<String, dynamic>> onCitySelected;
   final VoidCallback onAutoLocate;
@@ -2701,6 +2761,24 @@ class _CitySearchModalState extends State<_CitySearchModal> {
   List<Map<String, dynamic>> _searchResults = [];
   bool _searching = false;
   Timer? _debounce;
+
+  /// Famous cities reordered so the user's own country governorates appear first.
+  List<Map<String, dynamic>> get _famousCitiesInCountryFirst {
+    final myCountry = widget.isArabic
+        ? widget.currentCountryAr
+        : widget.currentCountryEn;
+    final same = <Map<String, dynamic>>[];
+    final rest = <Map<String, dynamic>>[];
+    for (final c in widget.famousCities) {
+      final cc = widget.isArabic ? c['countryAr'] : c['countryEn'];
+      if (myCountry.isNotEmpty && cc == myCountry) {
+        same.add(c);
+      } else {
+        rest.add(c);
+      }
+    }
+    return [...same, ...rest];
+  }
 
   @override
   void dispose() {
@@ -2978,11 +3056,11 @@ class _CitySearchModalState extends State<_CitySearchModal> {
                         const SizedBox(height: 8),
                         Expanded(
                           child: ListView.separated(
-                            itemCount: widget.famousCities.length,
+                            itemCount: _famousCitiesInCountryFirst.length,
                             separatorBuilder: (_, index) =>
                                 const Divider(height: 1),
                             itemBuilder: (context, i) {
-                              final item = widget.famousCities[i];
+                              final item = _famousCitiesInCountryFirst[i];
                               final name = isAr ? item['ar'] : item['en'];
                               final country = isAr
                                   ? item['countryAr']

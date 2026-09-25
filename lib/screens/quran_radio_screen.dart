@@ -876,7 +876,32 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 14),
+          // ملاحظة: سرعة بدء البث
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                size: 14,
+                color: dark ? Colors.white38 : DhikrColors.charcoalSoft,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  isAr
+                      ? 'يبدأ البث بعد ~5 ثوانٍ من الضغط على التشغيل'
+                      : 'Streaming starts after ~5 seconds',
+                  style: TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontSize: 11.5,
+                    color: dark ? Colors.white38 : DhikrColors.charcoalSoft,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
 
           // فاصل رقيق
           Divider(

@@ -175,18 +175,21 @@ Future<Map<String, dynamic>?> _resolveAndSave(
       if (features.isNotEmpty) {
         final props =
             (features.first['properties'] as Map<String, dynamic>?) ?? {};
-        final city = (props['name'] as String?) ??
-            (props['city'] as String?) ??
-            (props['state'] as String?) ??
+        final city = (props['city'] as String?) ??
+            (props['name'] as String?) ??
+            (props['locality'] as String?) ??
             '';
+        final province = (props['state'] as String?) ?? '';
         final country = (props['country'] as String?) ?? '';
         final cc = ((props['countrycode'] as String?) ?? '').trim().toUpperCase();
-        if (city.isNotEmpty || country.isNotEmpty) {
+        if (city.isNotEmpty || province.isNotEmpty || country.isNotEmpty) {
           await storage.saveLocation(
             lat: lat,
             lng: lng,
             cityAr: city.isNotEmpty ? city : 'موقعي الحالي',
             cityEn: city.isNotEmpty ? city : 'Current Location',
+            provinceAr: province.isNotEmpty ? province : '',
+            provinceEn: province.isNotEmpty ? province : '',
             countryAr: country.isNotEmpty ? country : '',
             countryEn: country.isNotEmpty ? country : '',
             countryCode: cc,
@@ -212,10 +215,12 @@ Future<Map<String, dynamic>?> _resolveAndSave(
           : ((dataAr['locality'] as String?)?.isNotEmpty == true
               ? dataAr['locality'] as String
               : ((dataAr['principalSubdivision'] as String?) ?? ''));
+      final provinceAr = (dataAr['principalSubdivision'] as String?) ?? '';
       final countryAr = (dataAr['countryName'] as String?) ?? '';
       final cc = ((dataAr['countryCode'] as String?) ?? '').trim().toUpperCase();
 
       String cityEn = cityAr;
+      String provinceEn = provinceAr;
       String countryEn = countryAr;
       try {
         final resEn = await http
@@ -231,6 +236,7 @@ Future<Map<String, dynamic>?> _resolveAndSave(
               : ((dataEn['locality'] as String?)?.isNotEmpty == true
                   ? dataEn['locality'] as String
                   : cityAr);
+          provinceEn = (dataEn['principalSubdivision'] as String?) ?? provinceAr;
           countryEn = (dataEn['countryName'] as String?) ?? countryAr;
         }
       } catch (_) {}
@@ -240,6 +246,8 @@ Future<Map<String, dynamic>?> _resolveAndSave(
         lng: lng,
         cityAr: cityAr.isNotEmpty ? cityAr : 'موقعي الحالي',
         cityEn: cityEn.isNotEmpty ? cityEn : 'Current Location',
+        provinceAr: provinceAr,
+        provinceEn: provinceEn,
         countryAr: countryAr,
         countryEn: countryEn,
         countryCode: cc,

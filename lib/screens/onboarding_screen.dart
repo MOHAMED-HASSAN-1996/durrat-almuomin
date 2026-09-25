@@ -36,7 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'image': 'assets/images/onboarding_athan.webp',
     },
     {
-      'titleAr': 'أذكار صحيحة وطمأنينة القلب',
+      'titleAr': 'الأذكار سبيلك إلى الطمأنينة',
       'titleEn': 'Authentic Adhkar & Serenity',
       'descAr': 'أذكار الصباح والمساء والرقية الشرعية وجوامع الكلم مراجعة ومحققة من أصح كتب السنة النبوية الشريفة.',
       'descEn': 'Verified morning and evening adhkar, Ruqyah, and supplications from authenticated Sunnah sources.',

@@ -87,6 +87,9 @@ class DhikrTheme {
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: DhikrColors.forest,
       ),
+      switchTheme: const SwitchThemeData(
+        trackOutlineColor: WidgetStatePropertyAll(Colors.transparent),
+      ),
       dividerTheme: DividerThemeData(
         color: DhikrColors.charcoal.withValues(alpha: 0.08),
         thickness: 1,
@@ -180,6 +183,9 @@ class DhikrTheme {
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: DhikrColors.sage,
+      ),
+      switchTheme: const SwitchThemeData(
+        trackOutlineColor: WidgetStatePropertyAll(Colors.transparent),
       ),
       dividerTheme: DividerThemeData(
         color: DhikrColors.darkText.withValues(alpha: 0.1),

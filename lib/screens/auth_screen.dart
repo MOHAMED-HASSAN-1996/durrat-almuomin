@@ -15,6 +15,94 @@ import '../types/adhkar.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/app_toast.dart';
 
+/// كود الدولة → علم إيموجي (من الـ ISO2: أحرف تدل إقليميًا).
+String _flagEmoji(String iso2) {
+  final upper = iso2.toUpperCase();
+  if (upper.length != 2 || upper[0].codeUnitAt(0) < 65 || upper[0].codeUnitAt(0) > 90) {
+    return '🌍';
+  }
+  return String.fromCharCodes(
+    upper.codeUnits.map((c) => 0x1F1E6 - 0x41 + c),
+  );
+}
+
+/// كل دول العالم المتاحة للاختيار (العلم + كود الاتصال + الاسم بالعربي والإنجليزي).
+const List<({String iso2, String dial, String nameAr, String nameEn})>
+    _countryCodes = [
+  (iso2: 'EG', dial: '+20', nameAr: 'مصر', nameEn: 'Egypt'),
+  (iso2: 'SA', dial: '+966', nameAr: 'السعودية', nameEn: 'Saudi Arabia'),
+  (iso2: 'AE', dial: '+971', nameAr: 'الإمارات', nameEn: 'United Arab Emirates'),
+  (iso2: 'KW', dial: '+965', nameAr: 'الكويت', nameEn: 'Kuwait'),
+  (iso2: 'QA', dial: '+974', nameAr: 'قطر', nameEn: 'Qatar'),
+  (iso2: 'BH', dial: '+973', nameAr: 'البحرين', nameEn: 'Bahrain'),
+  (iso2: 'OM', dial: '+968', nameAr: 'عُمان', nameEn: 'Oman'),
+  (iso2: 'JO', dial: '+962', nameAr: 'الأردن', nameEn: 'Jordan'),
+  (iso2: 'IQ', dial: '+964', nameAr: 'العراق', nameEn: 'Iraq'),
+  (iso2: 'SY', dial: '+963', nameAr: 'سوريا', nameEn: 'Syria'),
+  (iso2: 'LB', dial: '+961', nameAr: 'لبنان', nameEn: 'Lebanon'),
+  (iso2: 'PS', dial: '+970', nameAr: 'فلسطين', nameEn: 'Palestine'),
+  (iso2: 'YE', dial: '+967', nameAr: 'اليمن', nameEn: 'Yemen'),
+  (iso2: 'LY', dial: '+218', nameAr: 'ليبيا', nameEn: 'Libya'),
+  (iso2: 'SD', dial: '+249', nameAr: 'السودان', nameEn: 'Sudan'),
+  (iso2: 'MR', dial: '+222', nameAr: 'موريتانيا', nameEn: 'Mauritania'),
+  (iso2: 'MA', dial: '+212', nameAr: 'المغرب', nameEn: 'Morocco'),
+  (iso2: 'DZ', dial: '+213', nameAr: 'الجزائر', nameEn: 'Algeria'),
+  (iso2: 'TN', dial: '+216', nameAr: 'تونس', nameEn: 'Tunisia'),
+  (iso2: 'SO', dial: '+252', nameAr: 'الصومال', nameEn: 'Somalia'),
+  (iso2: 'DJ', dial: '+253', nameAr: 'جيبوتي', nameEn: 'Djibouti'),
+  (iso2: 'KM', dial: '+269', nameAr: 'جزر القمر', nameEn: 'Comoros'),
+  (iso2: 'TR', dial: '+90', nameAr: 'تركيا', nameEn: 'Turkey'),
+  (iso2: 'IR', dial: '+98', nameAr: 'إيران', nameEn: 'Iran'),
+  (iso2: 'PK', dial: '+92', nameAr: 'باكستان', nameEn: 'Pakistan'),
+  (iso2: 'IN', dial: '+91', nameAr: 'الهند', nameEn: 'India'),
+  (iso2: 'BD', dial: '+880', nameAr: 'بنغلاديش', nameEn: 'Bangladesh'),
+  (iso2: 'ID', dial: '+62', nameAr: 'إندونيسيا', nameEn: 'Indonesia'),
+  (iso2: 'MY', dial: '+60', nameAr: 'ماليزيا', nameEn: 'Malaysia'),
+  (iso2: 'SG', dial: '+65', nameAr: 'سنغافورة', nameEn: 'Singapore'),
+  (iso2: 'AF', dial: '+93', nameAr: 'أفغانستان', nameEn: 'Afghanistan'),
+  (iso2: 'AZ', dial: '+994', nameAr: 'أذربيجان', nameEn: 'Azerbaijan'),
+  (iso2: 'KZ', dial: '+7', nameAr: 'كازاخستان', nameEn: 'Kazakhstan'),
+  (iso2: 'UZ', dial: '+998', nameAr: 'أوزبكستان', nameEn: 'Uzbekistan'),
+  (iso2: 'TM', dial: '+993', nameAr: 'تركمانستان', nameEn: 'Turkmenistan'),
+  (iso2: 'CN', dial: '+86', nameAr: 'الصين', nameEn: 'China'),
+  (iso2: 'JP', dial: '+81', nameAr: 'اليابان', nameEn: 'Japan'),
+  (iso2: 'KR', dial: '+82', nameAr: 'كوريا الجنوبية', nameEn: 'South Korea'),
+  (iso2: 'TH', dial: '+66', nameAr: 'تايلاند', nameEn: 'Thailand'),
+  (iso2: 'VN', dial: '+84', nameAr: 'فيتنام', nameEn: 'Vietnam'),
+  (iso2: 'PH', dial: '+63', nameAr: 'الفلبين', nameEn: 'Philippines'),
+  (iso2: 'GB', dial: '+44', nameAr: 'المملكة المتحدة', nameEn: 'United Kingdom'),
+  (iso2: 'US', dial: '+1', nameAr: 'الولايات المتحدة', nameEn: 'United States'),
+  (iso2: 'CA', dial: '+1', nameAr: 'كندا', nameEn: 'Canada'),
+  (iso2: 'AU', dial: '+61', nameAr: 'أستراليا', nameEn: 'Australia'),
+  (iso2: 'NZ', dial: '+64', nameAr: 'نيوزيلندا', nameEn: 'New Zealand'),
+  (iso2: 'NL', dial: '+31', nameAr: 'هولندا', nameEn: 'Netherlands'),
+  (iso2: 'BE', dial: '+32', nameAr: 'بلجيكا', nameEn: 'Belgium'),
+  (iso2: 'LU', dial: '+352', nameAr: 'لوكسمبورغ', nameEn: 'Luxembourg'),
+  (iso2: 'FR', dial: '+33', nameAr: 'فرنسا', nameEn: 'France'),
+  (iso2: 'ES', dial: '+34', nameAr: 'إسبانيا', nameEn: 'Spain'),
+  (iso2: 'PT', dial: '+351', nameAr: 'البرتغال', nameEn: 'Portugal'),
+  (iso2: 'DE', dial: '+49', nameAr: 'ألمانيا', nameEn: 'Germany'),
+  (iso2: 'CH', dial: '+41', nameAr: 'سويسرا', nameEn: 'Switzerland'),
+  (iso2: 'AT', dial: '+43', nameAr: 'النمسا', nameEn: 'Austria'),
+  (iso2: 'IT', dial: '+39', nameAr: 'إيطاليا', nameEn: 'Italy'),
+  (iso2: 'GR', dial: '+30', nameAr: 'اليونان', nameEn: 'Greece'),
+  (iso2: 'SE', dial: '+46', nameAr: 'السويد', nameEn: 'Sweden'),
+  (iso2: 'NO', dial: '+47', nameAr: 'النرويج', nameEn: 'Norway'),
+  (iso2: 'DK', dial: '+45', nameAr: 'الدنمارك', nameEn: 'Denmark'),
+  (iso2: 'FI', dial: '+358', nameAr: 'فنلندا', nameEn: 'Finland'),
+  (iso2: 'IE', dial: '+353', nameAr: 'أيرلندا', nameEn: 'Ireland'),
+  (iso2: 'PL', dial: '+48', nameAr: 'بولندا', nameEn: 'Poland'),
+  (iso2: 'UA', dial: '+380', nameAr: 'أوكرانيا', nameEn: 'Ukraine'),
+  (iso2: 'RU', dial: '+7', nameAr: 'روسيا', nameEn: 'Russia'),
+  (iso2: 'ZA', dial: '+27', nameAr: 'جنوب أفريقيا', nameEn: 'South Africa'),
+  (iso2: 'NG', dial: '+234', nameAr: 'نيجيريا', nameEn: 'Nigeria'),
+  (iso2: 'ET', dial: '+251', nameAr: 'إثيوبيا', nameEn: 'Ethiopia'),
+  (iso2: 'KE', dial: '+254', nameAr: 'كينيا', nameEn: 'Kenya'),
+  (iso2: 'BR', dial: '+55', nameAr: 'البرازيل', nameEn: 'Brazil'),
+  (iso2: 'AR', dial: '+54', nameAr: 'الأرجنتين', nameEn: 'Argentina'),
+  (iso2: 'MX', dial: '+52', nameAr: 'المكسيك', nameEn: 'Mexico'),
+];
+
 /// Comprehensive Authentication Screen
 /// Supports Google Sign-In, Email/Password, and Phone Number Registration.
 class AuthScreen extends StatefulWidget {
@@ -45,6 +133,34 @@ class _AuthScreenState extends State<AuthScreen> {
   String _countryCode = '+20'; // Default Egypt, also popular KSA +966, UAE +971
   String? _photoPath;
   final ImagePicker _picker = ImagePicker();
+
+  ({String iso2, String dial, String nameAr, String nameEn})
+      get _selectedCountry {
+    for (final c in _countryCodes) {
+      if (c.dial == _countryCode) return c;
+    }
+    return _countryCodes.first;
+  }
+
+  Future<void> _openCountryCodePicker() async {
+    HapticFeedback.selectionClick();
+    final isAr =
+        context.read<AppState>().language == AppLanguage.arabic;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CountryCodeSheet(
+        initialDial: _countryCode,
+        dark: dark,
+        isArabic: isAr,
+      ),
+    );
+    if (selected != null && selected != _countryCode && mounted) {
+      setState(() => _countryCode = selected);
+    }
+  }
 
   @override
   void dispose() {
@@ -465,29 +581,44 @@ _isSignUp
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Country Code Dropdown
-                      Container(
-                        height: 58,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: dark ? DhikrColors.darkSurface : Colors.white,
+                      // Country Code Picker (بحث في كل الدول)
+                      Material(
+                        color: dark ? DhikrColors.darkSurface : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        child: InkWell(
                           borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _countryCode,
-                            items: const [
-                              DropdownMenuItem(value: '+20', child: Text('🇪🇬 +20')),
-                              DropdownMenuItem(value: '+966', child: Text('🇸🇦 +966')),
-                              DropdownMenuItem(value: '+971', child: Text('🇦🇪 +971')),
-                              DropdownMenuItem(value: '+965', child: Text('🇰🇼 +965')),
-                              DropdownMenuItem(value: '+974', child: Text('🇶🇦 +974')),
-                              DropdownMenuItem(value: '+968', child: Text('🇴🇲 +968')),
-                              DropdownMenuItem(value: '+962', child: Text('🇯🇴 +962')),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) setState(() => _countryCode = val);
-                            },
+                          onTap: _openCountryCodePicker,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _flagEmoji(_selectedCountry.iso2),
+                                  style: const TextStyle(fontSize: 20),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _selectedCountry.dial,
+                                  style: TextStyle(
+                                    fontFamily: DhikrTheme.arabicFont,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    color: dark
+                                        ? DhikrColors.darkText
+                                        : DhikrColors.charcoal,
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 20,
+                                  color: dark
+                                      ? DhikrColors.darkMuted
+                                      : DhikrColors.charcoalSoft,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -660,6 +791,210 @@ _isSignUp
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// ورقة اختيار الدولة القابلة للبحث: علم + اسم + كود الاتصال لكل دول العالم.
+class _CountryCodeSheet extends StatefulWidget {
+  const _CountryCodeSheet({
+    required this.initialDial,
+    required this.dark,
+    required this.isArabic,
+  });
+
+  final String initialDial;
+  final bool dark;
+  final bool isArabic;
+
+  @override
+  State<_CountryCodeSheet> createState() => _CountryCodeSheetState();
+}
+
+class _CountryCodeSheetState extends State<_CountryCodeSheet> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<({String iso2, String dial, String nameAr, String nameEn})>
+      get _filtered {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return _countryCodes;
+    return _countryCodes
+        .where((c) =>
+            c.nameAr.contains(q) ||
+            c.nameEn.toLowerCase().contains(q) ||
+            c.dial.contains(q))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isAr = widget.isArabic;
+    final dark = widget.dark;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      clipBehavior: Clip.antiAlias,
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF14221C) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                isAr ? 'اختر الدولة' : 'Select Country',
+                style: TextStyle(
+                  fontFamily: DhikrTheme.arabicFont,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _searchCtrl,
+            onChanged: (v) => setState(() => _query = v),
+            style: TextStyle(
+              fontFamily: DhikrTheme.arabicFont,
+              fontSize: 15,
+              color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+            ),
+            decoration: InputDecoration(
+              hintText:
+                  isAr ? 'ابحث باسم الدولة أو كود الاتصال...' : 'Search by country or dial code...',
+              hintStyle: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 13,
+                color:
+                    dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+              ),
+              prefixIcon: const Icon(Icons.search_rounded),
+              filled: true,
+              fillColor: dark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : const Color(0xFFF4F6F5),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _filtered.isEmpty
+                ? Center(
+                    child: Text(
+                      isAr ? 'لا توجد نتائج' : 'No results',
+                      style: TextStyle(
+                        fontFamily: DhikrTheme.arabicFont,
+                        color: dark
+                            ? DhikrColors.darkMuted
+                            : DhikrColors.charcoalSoft,
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: _filtered.length,
+                    separatorBuilder: (_, _) => Divider(
+                      height: 1,
+                      color: dark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.06),
+                    ),
+                    itemBuilder: (context, i) {
+                      final c = _filtered[i];
+                      final isSelected = c.dial == widget.initialDial;
+                      return ListTile(
+                        leading: Text(
+                          _flagEmoji(c.iso2),
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                        title: Text(
+                          c.nameAr,
+                          style: TextStyle(
+                            fontFamily: DhikrTheme.arabicFont,
+                            fontWeight:
+                                isSelected ? FontWeight.w800 : FontWeight.w600,
+                            fontSize: 15,
+                            color:
+                                dark ? DhikrColors.darkText : DhikrColors.charcoal,
+                          ),
+                        ),
+                        subtitle: Text(
+                          c.nameEn,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: dark
+                                ? DhikrColors.darkMuted
+                                : DhikrColors.charcoalSoft,
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              c.dial,
+                              style: TextStyle(
+                                fontFamily: DhikrTheme.arabicFont,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: dark
+                                    ? DhikrColors.sage
+                                    : DhikrColors.forest,
+                              ),
+                            ),
+                            if (isSelected) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: 18,
+                                color:
+                                    dark ? DhikrColors.sage : DhikrColors.forest,
+                              ),
+                            ],
+                          ],
+                        ),
+                        onTap: () => Navigator.of(context).pop(c.dial),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

@@ -29,12 +29,14 @@ class LocationMapPickerScreen extends StatefulWidget {
     this.initialLat,
     this.initialLng,
     this.initialCityAr,
+    this.initialProvinceAr,
     this.initialCountryAr,
   });
 
   final double? initialLat;
   final double? initialLng;
   final String? initialCityAr;
+  final String? initialProvinceAr;
   final String? initialCountryAr;
 
   @override
@@ -54,6 +56,8 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
 
   String _detectedCityAr = '';
   String _detectedCityEn = '';
+  String _detectedProvinceAr = '';
+  String _detectedProvinceEn = '';
   String _detectedCountryAr = '';
   String _detectedCountryEn = '';
   String _detectedCountryCode = '';
@@ -83,6 +87,8 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
 
     _detectedCityAr = widget.initialCityAr ?? 'بغداد';
     _detectedCityEn = 'Baghdad';
+    _detectedProvinceAr = widget.initialProvinceAr ?? '';
+    _detectedProvinceEn = '';
     _detectedCountryAr = widget.initialCountryAr ?? 'العراق';
     _detectedCountryEn = 'Iraq';
 
@@ -135,6 +141,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                 props['county'] ??
                 props['name'] ??
                 '';
+            final province = props['state'] ?? '';
             final country = props['country'] ?? '';
 
             if (city.toString().isNotEmpty) {
@@ -142,6 +149,8 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                 setState(() {
                   _detectedCityAr = _cleanCityName(city.toString());
                   _detectedCityEn = city.toString();
+                  _detectedProvinceAr = _cleanCityName(province.toString());
+                  _detectedProvinceEn = province.toString();
                   _detectedCountryAr = _cleanCountryName(country.toString());
                   _detectedCountryEn = country.toString();
                   _detectedCountryCode =
@@ -176,12 +185,15 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
               addr['county'] ??
               addr['state'] ??
               '';
+          final province = addr['state'] ?? '';
           final country = addr['country'] ?? '';
 
           if (mounted) {
             setState(() {
               _detectedCityAr = _cleanCityName(city.toString());
               _detectedCityEn = city.toString();
+              _detectedProvinceAr = _cleanCityName(province.toString());
+              _detectedProvinceEn = province.toString();
               _detectedCountryAr = _cleanCountryName(country.toString());
               _detectedCountryEn = country.toString();
               _detectedCountryCode =
@@ -307,7 +319,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
       );
 
       final target = LatLng(pos.latitude, pos.longitude);
-      _mapController.move(target, 15.0);
+      _mapController.move(target, 17.5);
       _onCameraMoved(target);
       if (mounted) {
         _showNotice('تم تحديد موقعك بدقة عبر GPS ✓');
@@ -338,6 +350,8 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
 
     final cityAr = _detectedCityAr.isNotEmpty ? _detectedCityAr : 'موقع محدد';
     final cityEn = _detectedCityEn.isNotEmpty ? _detectedCityEn : 'Selected Location';
+    final provinceAr = _detectedProvinceAr.isNotEmpty ? _detectedProvinceAr : '';
+    final provinceEn = _detectedProvinceEn.isNotEmpty ? _detectedProvinceEn : '';
     final countryAr = _detectedCountryAr.isNotEmpty ? _detectedCountryAr : '';
     final countryEn = _detectedCountryEn.isNotEmpty ? _detectedCountryEn : '';
 
@@ -346,6 +360,8 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
       lng: _currentCenter.longitude,
       cityAr: cityAr,
       cityEn: cityEn,
+      provinceAr: provinceAr,
+      provinceEn: provinceEn,
       countryAr: countryAr,
       countryEn: countryEn,
       countryCode: _detectedCountryCode,
@@ -363,7 +379,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'تم اعتماد الموقع: $cityAr ${countryAr.isNotEmpty ? '($countryAr)' : ''} وتحديث المواقيت بنجاح ✓',
+                'تم اعتماد الموقع: $cityAr${provinceAr.isNotEmpty ? ' ($provinceAr)' : (countryAr.isNotEmpty ? ' ($countryAr)' : '')} وتحديث المواقيت بنجاح ✓',
                 style: const TextStyle(fontFamily: DhikrTheme.arabicFont, fontWeight: FontWeight.w700),
               ),
             ),
@@ -457,8 +473,8 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                       alignment: Alignment.center,
                       children: [
                         Container(
-                          width: 28,
-                          height: 28,
+                          width: 22,
+                          height: 22,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: const Color(0xFF0F766E).withValues(alpha: 0.25),
@@ -466,7 +482,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                         ),
                         const Icon(
                           Icons.location_on_rounded,
-                          size: 44,
+                          size: 30,
                           color: Color(0xFF0F766E),
                         ),
                       ],

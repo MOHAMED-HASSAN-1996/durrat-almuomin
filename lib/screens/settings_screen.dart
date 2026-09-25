@@ -987,105 +987,18 @@ class _AppHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAr = language == AppLanguage.arabic;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: dark ? DhikrColors.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: dark
-              ? Colors.white.withValues(alpha: 0.08)
-              : DhikrColors.charcoal.withValues(alpha: 0.06),
+    // تذييل بسيط بدون خلفية أو شعار: اسم التطبيق + رقم الإصدار
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      child: Text(
+        isAr ? 'درة المؤمن • v1.0.0' : 'Durrat Al-Mu’min • v1.0.0',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontFamily: DhikrTheme.arabicFont,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.25 : 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF1E5243).withValues(alpha: 0.35),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Image.asset(
-                'assets/images/app_icon.webp',
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Container(
-                  color: const Color(0xFF1E5243),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'دُرّة',
-                    style: TextStyle(
-                      fontFamily: DhikrTheme.arabicFont,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      isAr ? 'درة المؤمن' : 'Durrat Al-Mu’min',
-                      style: TextStyle(
-                        fontFamily: DhikrTheme.arabicFont,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        color: dark
-                            ? DhikrColors.darkText
-                            : DhikrColors.charcoal,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: (dark ? DhikrColors.sage : DhikrColors.forest)
-                            .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'v1.0.0',
-                        style: TextStyle(
-                          fontFamily: DhikrTheme.arabicFont,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: dark ? DhikrColors.sage : DhikrColors.forest,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1217,7 +1130,7 @@ class _SectionTitle extends StatelessWidget {
             title,
             style: TextStyle(
               fontFamily: DhikrTheme.arabicFont,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               fontSize: 13,
               color: dark ? DhikrColors.darkMuted : DhikrColors.forestLight,
               letterSpacing: 0.3,
@@ -1307,7 +1220,7 @@ class _LanguageSelectorRow extends StatelessWidget {
               AppStrings.t(language, 'language'),
               style: TextStyle(
                 fontFamily: DhikrTheme.arabicFont,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 fontSize: 15,
                 color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
               ),
@@ -1392,7 +1305,7 @@ class _ThemeSelectorRow extends StatelessWidget {
               AppStrings.t(language, 'appearance'),
               style: TextStyle(
                 fontFamily: DhikrTheme.arabicFont,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 fontSize: 15,
                 color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
               ),
@@ -1547,7 +1460,7 @@ class _AudioSwitchRow extends StatelessWidget {
               AppStrings.t(language, 'audio'),
               style: TextStyle(
                 fontFamily: DhikrTheme.arabicFont,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 fontSize: 15,
                 color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
               ),
@@ -1599,7 +1512,7 @@ class _SettingsNavTile extends StatelessWidget {
         title,
         style: TextStyle(
           fontFamily: DhikrTheme.arabicFont,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           fontSize: 14.5,
           color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
         ),

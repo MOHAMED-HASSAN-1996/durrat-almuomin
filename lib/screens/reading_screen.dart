@@ -106,6 +106,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   }
 
   Future<void> _next() async {
+    HapticFeedback.selectionClick();
     if (_safeIndex < _total - 1) {
       _goTo(_safeIndex + 1);
     } else {
@@ -115,6 +116,12 @@ class _ReadingScreenState extends State<ReadingScreen> {
       if (!mounted) return;
       _showCompletion();
     }
+  }
+
+  void _previous() {
+    if (_safeIndex <= 0) return;
+    HapticFeedback.lightImpact();
+    _goTo(_safeIndex - 1);
   }
 
   void _showCompletion() {
@@ -512,38 +519,89 @@ class _ReadingScreenState extends State<ReadingScreen> {
                               ),
                               const SizedBox(height: 10),
                             ],
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton.icon(
-                                onPressed: isDone ? _next : null,
-                                icon: Icon(
-                                  lang == AppLanguage.arabic
-                                      ? Icons.arrow_back_rounded
-                                      : Icons.arrow_forward_rounded,
-                                ),
-                                label: Text(
-                                  AppStrings.t(lang, 'next'),
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: isDone
-                                      ? (dark
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: _safeIndex > 0
+                                        ? _previous
+                                        : null,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: dark
                                           ? DhikrColors.sage
-                                          : DhikrColors.forest)
-                                      : (dark
-                                          ? DhikrColors.darkSurface
-                                          : DhikrColors.sand),
-                                  foregroundColor: isDone
-                                      ? Colors.white
-                                      : (dark
-                                          ? DhikrColors.darkMuted
-                                          : DhikrColors.sandDeep),
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                          : DhikrColors.forest,
+                                      side: BorderSide(
+                                        color: (dark
+                                                ? DhikrColors.sage
+                                                : DhikrColors.forest)
+                                            .withValues(alpha: 0.4),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          AppStrings.t(lang, 'previous'),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          lang == AppLanguage.arabic
+                                              ? Icons.arrow_forward_rounded
+                                              : Icons.arrow_back_rounded,
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: FilledButton(
+                                    onPressed: isDone ? _next : null,
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: isDone
+                                          ? (dark
+                                              ? DhikrColors.sage
+                                              : DhikrColors.forest)
+                                          : (dark
+                                              ? DhikrColors.darkSurface
+                                              : DhikrColors.sand),
+                                      foregroundColor: isDone
+                                          ? Colors.white
+                                          : (dark
+                                              ? DhikrColors.darkMuted
+                                              : DhikrColors.sandDeep),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          AppStrings.t(lang, 'next'),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          lang == AppLanguage.arabic
+                                              ? Icons.arrow_back_rounded
+                                              : Icons.arrow_forward_rounded,
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

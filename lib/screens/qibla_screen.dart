@@ -182,6 +182,8 @@ class _QiblaScreenState extends State<QiblaScreen> with TickerProviderStateMixin
           final storage = context.read<AppState>().storage;
           String countryAr = '';
           String countryEn = '';
+          String provinceAr = '';
+          String provinceEn = '';
           String cc = '';
           try {
             final res = await http
@@ -193,6 +195,21 @@ class _QiblaScreenState extends State<QiblaScreen> with TickerProviderStateMixin
             if (res.statusCode == 200) {
               final data = jsonDecode(res.body) as Map<String, dynamic>;
               countryAr = (data['countryName'] as String?) ?? '';
+              provinceAr = (data['principalSubdivision'] as String?) ?? '';
+              cc = ((data['countryCode'] as String?) ?? '').trim().toUpperCase();
+            }
+          } catch (_) {}
+          try {
+            final res = await http
+                .get(
+                  Uri.parse(
+                      'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.latitude}&longitude=${pos.longitude}&localityLanguage=en'),
+                )
+                .timeout(const Duration(seconds: 5));
+            if (res.statusCode == 200) {
+              final data = jsonDecode(res.body) as Map<String, dynamic>;
+              countryEn = (data['countryName'] as String?) ?? '';
+              provinceEn = (data['principalSubdivision'] as String?) ?? '';
               cc = ((data['countryCode'] as String?) ?? '').trim().toUpperCase();
             }
           } catch (_) {}
@@ -201,6 +218,8 @@ class _QiblaScreenState extends State<QiblaScreen> with TickerProviderStateMixin
             lng: pos.longitude,
             cityAr: _cityName,
             cityEn: _cityName,
+            provinceAr: provinceAr,
+            provinceEn: provinceEn,
             countryAr: countryAr,
             countryEn: countryEn,
             countryCode: cc,
