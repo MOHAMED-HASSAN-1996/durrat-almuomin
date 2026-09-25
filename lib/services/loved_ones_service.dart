@@ -304,8 +304,10 @@ class LovedOnesService {
       if (!requestSnap.exists) return 0;
       final data = requestSnap.data() ?? {};
       final current = (data[countField] as num?)?.toInt() ?? 0;
-      if (interactionSnap.exists) return current;
-      tx.set(interaction, {'type': type, 'createdAt': FieldValue.serverTimestamp()});
+      // كل ضغطة تزيد العدّاد (حتى لو تفاعل المستخدم من قبل).
+      if (!interactionSnap.exists) {
+        tx.set(interaction, {'type': type, 'createdAt': FieldValue.serverTimestamp()});
+      }
       tx.update(request, {countField: FieldValue.increment(1)});
       return current + 1;
     });

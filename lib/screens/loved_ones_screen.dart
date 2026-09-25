@@ -524,10 +524,11 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          // Post Header: Author Avatar + Name (above time) + actions
+          // Post Header: صورة المستخدم واسمه، وتحتهما التاريخ والباقي من المدة
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Author avatar
                 UserAvatar(
@@ -540,7 +541,6 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Author name above post time
                       Text(
                         item.authorName.trim().isEmpty
                             ? 'مستخدم درة المؤمن'
@@ -554,22 +554,32 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                           color: dark ? Colors.white : DhikrColors.charcoal,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
-                          Text(
-                            _formatRelativeDate(item.createdAt),
-                            style: TextStyle(
-                              fontFamily: DhikrTheme.arabicFont,
-                              fontSize: 11,
-                              color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+                          Flexible(
+                            child: Text(
+                              _formatRelativeDate(item.createdAt),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: DhikrTheme.arabicFont,
+                                fontSize: 11,
+                                color: dark
+                                    ? DhikrColors.darkMuted
+                                    : DhikrColors.charcoalSoft,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1.5),
                             decoration: BoxDecoration(
-                              color: (item.daysRemaining <= 5 ? Colors.orange : const Color(0xFF10B981)).withValues(alpha: 0.12),
+                              color: (item.daysRemaining <= 5
+                                      ? Colors.orange
+                                      : const Color(0xFF10B981))
+                                  .withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
@@ -578,117 +588,27 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                                 Icon(
                                   LucideIcons.clock,
                                   size: 10,
-                                  color: item.daysRemaining <= 5 ? Colors.orange : const Color(0xFF10B981),
+                                  color: item.daysRemaining <= 5
+                                      ? Colors.orange
+                                      : const Color(0xFF10B981),
                                 ),
                                 const SizedBox(width: 3),
                                 Text(
-                                  item.isExpired ? 'انتهت الـ ٣٠ يوماً' : 'باقٍ ${item.daysRemaining} يوم',
+                                  item.isExpired
+                                      ? 'انتهت الـ ٣٠ يوماً'
+                                      : 'باقٍ ${item.daysRemaining} يوم',
                                   style: TextStyle(
                                     fontFamily: DhikrTheme.arabicFont,
                                     fontSize: 9.5,
                                     fontWeight: FontWeight.w700,
-                                    color: item.daysRemaining <= 5 ? Colors.orange : const Color(0xFF10B981),
+                                    color: item.daysRemaining <= 5
+                                        ? Colors.orange
+                                        : const Color(0xFF10B981),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          if (isMine) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0F3B2C).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'دعوتي',
-                                style: TextStyle(
-                                  fontFamily: DhikrTheme.arabicFont,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: dark ? const Color(0xFFC5A059) : const Color(0xFF0F3B2C),
-                                ),
-                              ),
-                            ),
-                            if (item.isExpired) ...[
-                              const SizedBox(width: 6),
-                              InkWell(
-                                onTap: () async {
-                                  await LovedOnesService.instance.renewLovedOne(item.id);
-                                  _load();
-                                  if (context.mounted) {
-                                    AppToast.show(context,
-                                      const SnackBar(
-                                        content: Text('تم تجديد ظهور طلب الدعاء في المجتمع لـ ٣٠ يوماً إضافية 🤲'),
-                                      ),
-                                    );
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.amber, width: 0.8),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(LucideIcons.rotateCcw, size: 9, color: Colors.amber),
-                                      SizedBox(width: 2),
-                                      Text(
-                                        'تجديد الطلب',
-                                        style: TextStyle(
-                                          fontFamily: DhikrTheme.arabicFont,
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.amber,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                          const Spacer(),
-                          // Share button
-                          IconButton(
-                            icon: const Icon(LucideIcons.share2, size: 15),
-                            tooltip: 'مشاركة الدعاء',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                            color: dark ? Colors.white54 : Colors.black45,
-                            onPressed: () => _shareDuaFromCard(context, item),
-                          ),
-                          // Edit button (only for my posts)
-                          if (isMine)
-                            IconButton(
-                              icon: const Icon(LucideIcons.edit, size: 15),
-                              tooltip: 'تعديل الدعاء',
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                              color: dark ? const Color(0xFFC5A059) : const Color(0xFF0F3B2C),
-                              onPressed: () async {
-                                final res = await Navigator.push<bool>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AddLovedOneScreen(itemToEdit: item),
-                                  ),
-                                );
-                                if (res == true) _load();
-                              },
-                            )
-                          else
-                            IconButton(
-                              icon: const Icon(LucideIcons.flag, size: 14),
-                              tooltip: 'إبلاغ عن محتوى',
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                              color: dark ? Colors.white38 : Colors.black38,
-                              onPressed: () => _showReportDialog(context, item),
-                            ),
                         ],
                       ),
                     ],
@@ -700,7 +620,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
 
           // ── Photo Banner (Height 245, Clean without duplicate title tag) ──
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10),
+            margin: const EdgeInsets.symmetric(horizontal: 14),
             height: 245,
             width: double.infinity,
             decoration: BoxDecoration(
@@ -858,28 +778,20 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                       child: InkWell(
                         onTap: () async {
                           HapticFeedback.lightImpact();
-                          final wasActive = isAmeenActive;
-                          int newCount;
-                          if (wasActive) {
-                            setState(() {
-                              _ameenInteractedIds.remove(item.id);
-                              _userStats['ameen'] =
-                                  ((_userStats['ameen'] ?? 1) - 1).clamp(0, 1 << 30);
-                            });
-                            newCount = await LovedOnesService.instance
-                                .retractAmeen(item.id);
-                          } else {
-                            setState(() {
-                              _ameenInteractedIds.add(item.id);
-                              _userStats['ameen'] = (_userStats['ameen'] ?? 0) + 1;
-                            });
-                            newCount = await LovedOnesService.instance
-                                .toggleHeart(item.id);
-                          }
+                          final firstPress =
+                              !_ameenInteractedIds.contains(item.id);
                           setState(() {
-                            item.loveCount = newCount;
+                            _ameenInteractedIds.add(item.id);
+                            _userStats['ameen'] =
+                                (_userStats['ameen'] ?? 0) + 1;
+                            item.loveCount += 1;
                           });
-                          if (context.mounted && !wasActive) {
+                          final newCount = await LovedOnesService.instance
+                              .toggleHeart(item.id);
+                          if (mounted) {
+                            setState(() => item.loveCount = newCount);
+                          }
+                          if (firstPress && context.mounted) {
                             AppToast.show(context, 
                               const SnackBar(
                                 content: Text('آمين.. استجاب الله دعاءك بظهر الغيب ولك بمثل 🤲'),
@@ -941,28 +853,20 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                       child: InkWell(
                         onTap: () async {
                           HapticFeedback.lightImpact();
-                          final wasActive = isFatihaActive;
-                          int newCount;
-                          if (wasActive) {
-                            setState(() {
-                              _fatihaInteractedIds.remove(item.id);
-                              _userStats['fatiha'] =
-                                  ((_userStats['fatiha'] ?? 1) - 1).clamp(0, 1 << 30);
-                            });
-                            newCount = await LovedOnesService.instance
-                                .retractFatiha(item.id);
-                          } else {
-                            setState(() {
-                              _fatihaInteractedIds.add(item.id);
-                              _userStats['fatiha'] = (_userStats['fatiha'] ?? 0) + 1;
-                            });
-                            newCount = await LovedOnesService.instance
-                                .incrementFatiha(item.id);
-                          }
+                          final firstPress =
+                              !_fatihaInteractedIds.contains(item.id);
                           setState(() {
-                            item.fatihaCount = newCount;
+                            _fatihaInteractedIds.add(item.id);
+                            _userStats['fatiha'] =
+                                (_userStats['fatiha'] ?? 0) + 1;
+                            item.fatihaCount += 1;
                           });
-                          if (context.mounted && !wasActive) {
+                          final newCount = await LovedOnesService.instance
+                              .incrementFatiha(item.id);
+                          if (mounted) {
+                            setState(() => item.fatihaCount = newCount);
+                          }
+                          if (firstPress && context.mounted) {
                             AppToast.show(context, 
                               const SnackBar(
                                 content: Text('تقبل الله قراءتك للفاتحة ونور بها قبره ومقامه 📖'),
@@ -1482,164 +1386,4 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
     );
   }
 
-  void _shareDuaFromCard(BuildContext context, LovedOneItem item) {
-    HapticFeedback.lightImpact();
-    final text = '''
-دعاء بظهر الغيب إلى: ${item.name} (${item.category.badgeLabelAr})
-«${item.customDua ?? item.category.defaultDuaAr}»
-
-نسألكم قراءة الفاتحة والدعاء له بظهر الغيب 🤲
-(تم الإرسال من تطبيق درة المؤمن)
-''';
-    Clipboard.setData(ClipboardData(text: text));
-    AppToast.show(
-      context,
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-            SizedBox(width: 8),
-            Text('تم نسخ بطاقة الدعاء لنشرها أو مشاركتها 🌿', style: TextStyle(fontFamily: DhikrTheme.arabicFont)),
-          ],
-        ),
-        backgroundColor: const Color(0xFF0F766E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  void _showReportDialog(BuildContext context, LovedOneItem item) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final isAr = Provider.of<AppState>(context, listen: false).language == AppLanguage.arabic;
-    String selectedReason = 'محتوى غير لائق أو مسيء';
-    final reasons = [
-      'محتوى غير لائق أو مسيء',
-      'طلب تبرعات مالية أو أرقام هواتف',
-      'إعلان أو روابط ترويجية',
-      'انتهاك خصوصية أو صورة غير مناسبة',
-      'أخرى',
-    ];
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => Directionality(
-          textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-            backgroundColor: dark ? const Color(0xFF14241E) : Colors.white,
-            title: const Row(
-              children: [
-                Icon(LucideIcons.flag, color: Colors.redAccent, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'إبلاغ عن هذا المحتوى',
-                  style: TextStyle(
-                    fontFamily: DhikrTheme.titleFont,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
-                  ),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'ساعدنا في الحفاظ على نقاء وقدسية مجتمع الدعاء، يرجى تحديد سبب الإبلاغ:',
-                  style: TextStyle(
-                    fontFamily: DhikrTheme.arabicFont,
-                    fontSize: 12.5,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...reasons.map(
-                  (r) {
-                    final isSel = selectedReason == r;
-                    return InkWell(
-                      onTap: () => setDialogState(() => selectedReason = r),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 3),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSel
-                              ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isSel
-                                ? const Color(0xFF10B981)
-                                : (dark ? Colors.white12 : Colors.black12),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isSel ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                              size: 18,
-                              color: isSel ? const Color(0xFF10B981) : Colors.grey,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                r,
-                                style: TextStyle(
-                                  fontFamily: DhikrTheme.arabicFont,
-                                  fontSize: 13,
-                                  fontWeight: isSel ? FontWeight.w800 : FontWeight.w500,
-                                  color: isSel
-                                      ? const Color(0xFF10B981)
-                                      : (dark ? Colors.white : Colors.black87),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('إلغاء', style: TextStyle(fontFamily: DhikrTheme.arabicFont)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await LovedOnesService.instance.reportLovedOne(
-                    id: item.id,
-                    reason: selectedReason,
-                  );
-                  _load();
-                  if (context.mounted) {
-                    AppToast.show(context, 
-                      const SnackBar(
-                        content: Text('تم استلام بلاغك وإخفاء المحتوى فوراً. جزاكم الله خيراً 🤲'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                },
-                child: const Text(
-                  'إرسال وإخفاء',
-                  style: TextStyle(fontFamily: DhikrTheme.arabicFont, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

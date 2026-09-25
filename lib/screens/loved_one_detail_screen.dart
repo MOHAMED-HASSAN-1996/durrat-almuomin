@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
 import 'add_loved_one_screen.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/report_dialog.dart';
 
 class LovedOneDetailScreen extends StatefulWidget {
   const LovedOneDetailScreen({super.key, required this.item});
@@ -26,12 +27,21 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
   late LovedOneItem _item;
   final _commentController = TextEditingController();
   bool _showFatihaText = true;
+  bool _isMine = false;
 
   @override
   void initState() {
     super.initState();
     _item = widget.item;
     _loadCloudComments();
+    _checkMine();
+  }
+
+  Future<void> _checkMine() async {
+    final ids = await LovedOnesService.instance.getMyCreatedIds();
+    if (mounted && ids.contains(_item.id)) {
+      setState(() => _isMine = true);
+    }
   }
 
   Future<void> _loadCloudComments() async {
@@ -52,14 +62,16 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
 
   Future<void> _incrementFatiha() async {
     HapticFeedback.lightImpact();
+    setState(() => _item.fatihaCount += 1);
     final newCount = await LovedOnesService.instance.incrementFatiha(_item.id);
-    setState(() => _item.fatihaCount = newCount);
+    if (mounted) setState(() => _item.fatihaCount = newCount);
   }
 
   Future<void> _toggleHeart() async {
     HapticFeedback.mediumImpact();
+    setState(() => _item.loveCount += 1);
     final newCount = await LovedOnesService.instance.toggleHeart(_item.id);
-    setState(() => _item.loveCount = newCount);
+    if (mounted) setState(() => _item.loveCount = newCount);
   }
 
   Future<void> _addComment() async {
@@ -185,9 +197,48 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
                   }
                 } else if (val == 'delete') {
                   _confirmDelete();
+                } else if (val == 'renew') {
+                  await LovedOnesService.instance.renewLovedOne(_item.id);
+                  final items = await LovedOnesService.instance.loadLovedOnes();
+                  final found =
+                      items.firstWhere((e) => e.id == _item.id, orElse: () => _item);
+                  if (mounted) setState(() => _item = found);
+                  if (context.mounted) {
+                    AppToast.show(context,
+                      const SnackBar(
+                        content: Text('تم تجديد ظهور طلب الدعاء في المجتمع لـ ٣٠ يوماً إضافية 🤲'),
+                      ),
+                    );
+                  }
+                } else if (val == 'report') {
+                  showLovedOneReportDialog(context, _item, onReported: () {
+                    if (mounted) Navigator.pop(context, true);
+                  });
                 }
               },
               itemBuilder: (_) => [
+                if (_isMine && _item.isExpired)
+                  const PopupMenuItem(
+                    value: 'renew',
+                    child: Row(
+                      children: [
+                        Icon(LucideIcons.rotateCcw, size: 16, color: Colors.amber),
+                        SizedBox(width: 8),
+                        Text('تجديد الطلب', style: TextStyle(fontFamily: DhikrTheme.arabicFont, color: Colors.amber)),
+                      ],
+                    ),
+                  ),
+                if (!_isMine)
+                  const PopupMenuItem(
+                    value: 'report',
+                    child: Row(
+                      children: [
+                        Icon(LucideIcons.flag, size: 16, color: Colors.redAccent),
+                        SizedBox(width: 8),
+                        Text('إبلاغ عن محتوى', style: TextStyle(fontFamily: DhikrTheme.arabicFont, color: Colors.redAccent)),
+                      ],
+                    ),
+                  ),
                 const PopupMenuItem(
                   value: 'edit',
                   child: Row(
