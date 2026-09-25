@@ -238,7 +238,25 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                                     ),
                                   ),
                                 ),
-                                const Spacer(),
+                                const SizedBox(width: 10),
+                                // اسم الصفحة أعلى الكارت
+                                Expanded(
+                                  child: Text(
+                                    isAr
+                                        ? 'سجل الالتزام بالصلاة'
+                                        : 'Prayer Commitment Log',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 17,
+                                      color: dark
+                                          ? DhikrColors.darkText
+                                          : DhikrColors.charcoal,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -273,7 +291,7 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isAr ? 'سجل الصلوات والسنن' : 'Prayer & Sunan Record',
+                                        '$monthName $yearStr',
                                         style: const TextStyle(
                                           fontFamily: DhikrTheme.arabicFont,
                                           fontWeight: FontWeight.w800,
@@ -284,8 +302,8 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                                       const SizedBox(height: 3),
                                       Text(
                                         isAr
-                                            ? 'متابعة الفرائض والسنن في $monthName $yearStr'
-                                            : 'Obligatory & Sunan in $monthName $yearStr',
+                                            ? 'متابعة الفرائض والسنن الرواتب والنوافل'
+                                            : 'Obligatory, Rawatib & Nawafil follow-up',
                                         style: TextStyle(
                                           fontFamily: DhikrTheme.arabicFont,
                                           fontSize: 11.5,
