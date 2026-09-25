@@ -13,17 +13,6 @@ import 'radio_audio_handler.dart';
 
 typedef RadioStation = ({int id, String name, String url, String category});
 
-@pragma('vm:entry-point')
-void _notificationBackgroundHandler(NotificationResponse response) {
-  if (response.actionId == 'stop_radio') {
-    QuranRadioService.instance.stop();
-  } else if (response.actionId == 'next_station') {
-    QuranRadioService.instance.nextStation();
-  } else if (response.actionId == 'prev_station') {
-    QuranRadioService.instance.previousStation();
-  }
-}
-
 class QuranRadioService {
   QuranRadioService._();
   static final QuranRadioService instance = QuranRadioService._();
@@ -60,11 +49,9 @@ class QuranRadioService {
   RadioAudioHandler? _audioHandler;
   RadioAudioHandler? get audioHandler => _audioHandler;
 
-  // ── Notification ───────────────────────────────────────────────────────
+  // ── Notification (إلغاء فقط لتنظيف الإشعار القديم بعد إزالته) ──────────
   final _notif = FlutterLocalNotificationsPlugin();
-  bool _notifReady = false;
   static const int _notifId = 9999;
-  static const String _channelId = 'sakinah_radio_playback_channel';
 
   // ── Hardcoded live stations ────────────────────────────────────────────
   // These resolve from the dedicated links file; each id matches the admin
@@ -132,7 +119,6 @@ class QuranRadioService {
         _playing = true;
         _reconnectTimer?.cancel();
         _syncHandler();
-        _showNotification();
       } else if (s == PlayerState.stopped) {
         _playing = false;
         _hideNotification();
@@ -571,105 +557,9 @@ class QuranRadioService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  //  NOTIFICATION
+  //  NOTIFICATION — إزالة الإشعار المخصص بالكامل (إشعار الـ Media Session
+  //  الخاص بـ audio_service يكفي ويظهر وحده).
   // ═══════════════════════════════════════════════════════════════════════
-
-  Future<void> _initNotification() async {
-    if (kIsWeb || _notifReady) return;
-    try {
-      await _notif.initialize(
-        settings: const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-          iOS: DarwinInitializationSettings(
-            requestAlertPermission: false,
-            requestBadgePermission: false,
-            requestSoundPermission: false,
-          ),
-        ),
-        onDidReceiveNotificationResponse: (r) async {
-          if (r.actionId == 'stop_radio') {
-            await stop();
-          } else if (r.actionId == 'next_station') {
-            await nextStation();
-          } else if (r.actionId == 'prev_station') {
-            await previousStation();
-          }
-        },
-      );
-      final android = _notif.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      if (android != null) {
-        await android.requestNotificationsPermission();
-        await android.createNotificationChannel(
-          const AndroidNotificationChannel(
-            _channelId,
-            'درة المؤمن — بث مباشر',
-            description: 'إشعار البث المباشر',
-            importance: Importance.high,
-            playSound: false,
-            enableVibration: false,
-          ),
-        );
-      }
-      _notifReady = true;
-    } catch (e) {
-      debugPrint('[Radio] Notif init: $e');
-    }
-  }
-
-  Future<void> _showNotification() async {
-    if (kIsWeb) return;
-    await _initNotification();
-    try {
-      await _notif.show(
-        id: _notifId,
-        title: 'درة المؤمن — بث مباشر',
-        body: _stationName ?? 'إذاعة القرآن الكريم',
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channelId,
-            'درة المؤمن — بث مباشر',
-            channelDescription: 'إشعار البث المباشر',
-            importance: Importance.high,
-            priority: Priority.high,
-            ongoing: true,
-            autoCancel: false,
-            showWhen: false,
-            playSound: false,
-            enableVibration: false,
-            icon: '@mipmap/ic_launcher',
-            largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-            styleInformation: BigTextStyleInformation(
-              _stationName ?? '',
-              contentTitle: 'درة المؤمن — بث مباشر',
-              summaryText: 'تلاوات القرآن الكريم',
-            ),
-            actions: [
-              const AndroidNotificationAction(
-                'prev_station',
-                '⏮ السابق',
-                showsUserInterface: false,
-              ),
-              const AndroidNotificationAction(
-                'stop_radio',
-                '⏹ إيقاف',
-                showsUserInterface: false,
-                cancelNotification: true,
-              ),
-              const AndroidNotificationAction(
-                'next_station',
-                '⏭ التالي',
-                showsUserInterface: false,
-              ),
-            ],
-            color: const Color(0xFF0F2E23),
-            visibility: NotificationVisibility.public,
-          ),
-          iOS: const DarwinNotificationDetails(presentBadge: true, presentSound: false),
-        ),
-      );
-    } catch (_) {}
-  }
 
   Future<void> _hideNotification() async {
     if (kIsWeb) return;
@@ -677,6 +567,9 @@ class QuranRadioService {
       await _notif.cancel(id: _notifId);
     } catch (_) {}
   }
+
+  /// تنظيف إشعار الإشعارات القديمة (بعد إزالة الإشعار المخصص من الواجهة).
+  Future<void> clearLegacyNotification() => _hideNotification();
 
   // ═══════════════════════════════════════════════════════════════════════
   //  RESET / DISPOSE

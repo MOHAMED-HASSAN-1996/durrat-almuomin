@@ -10,6 +10,7 @@ import 'app.dart';
 import 'data/content_validation.dart';
 import 'services/home_widget_service.dart';
 import 'services/prayer_alert_service.dart';
+import 'services/quran_radio.dart';
 import 'services/remote_content_service.dart';
 import 'services/storage.dart';
 import 'state/app_state.dart';
@@ -63,6 +64,11 @@ Future<void> main() async {
     Future.microtask(() async {
       try {
         await HomeWidgetService.instance.syncDefaultDhikr();
+      } catch (_) {}
+
+      // تنظيف إشعار البث القديم إن وُجد (أُزيل الإشعار المخصص من التطبيق).
+      try {
+        await QuranRadioService.instance.clearLegacyNotification();
       } catch (_) {}
 
       if (firstRun) return;
