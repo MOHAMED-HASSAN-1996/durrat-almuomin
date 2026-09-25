@@ -2591,10 +2591,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                     HomeWidgetService.instance.syncTracker();
                   },
                   child: Stack(
+                    fit: StackFit.passthrough,
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
                           color: isDone
