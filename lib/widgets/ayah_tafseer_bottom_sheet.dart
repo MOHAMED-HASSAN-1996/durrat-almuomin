@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:provider/provider.dart';
 
 import '../data/quran_surahs.dart';
 import '../services/tafseer_service.dart';
+import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../types/adhkar.dart';
+import 'app_toast.dart';
 
 class AyahTafseerBottomSheet extends StatefulWidget {
   final int surahNumber;
@@ -74,6 +78,7 @@ class _AyahTafseerBottomSheetState extends State<AyahTafseerBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = context.watch<AppState>().language == AppLanguage.arabic;
     final surahMeta = quranSurahs.firstWhere(
       (s) => s.number == widget.surahNumber,
       orElse: () => quranSurahs.first,
@@ -85,7 +90,7 @@ class _AyahTafseerBottomSheetState extends State<AyahTafseerBottomSheet> {
     final accentCol = const Color(0xFFC5A059);
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Container(
         height: MediaQuery.of(context).size.height * 0.78,
         decoration: BoxDecoration(
@@ -158,7 +163,7 @@ class _AyahTafseerBottomSheetState extends State<AyahTafseerBottomSheet> {
                                 '«${_result!.ayahText}» [سورة ${surahMeta.name}: ${widget.verseNumber}]\n\nالتفسير:\n${_result!.tafseerText}',
                           ),
                         );
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        AppToast.show(context, 
                           const SnackBar(
                             content: Text(
                               'تم نسخ الآية وتفسيرها بنجاح ✓',

@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 
 enum MapLayerType {
   googleRoadmap,
@@ -55,6 +56,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
   String _detectedCityEn = '';
   String _detectedCountryAr = '';
   String _detectedCountryEn = '';
+  String _detectedCountryCode = '';
 
   List<Map<String, dynamic>> _searchResults = [];
   Timer? _debounceTimer;
@@ -142,6 +144,8 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
                   _detectedCityEn = city.toString();
                   _detectedCountryAr = _cleanCountryName(country.toString());
                   _detectedCountryEn = country.toString();
+                  _detectedCountryCode =
+                      ((props['countrycode'] as String?) ?? '').toString().trim().toUpperCase();
                   _isGeocoding = false;
                 });
               }
@@ -180,6 +184,8 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
               _detectedCityEn = city.toString();
               _detectedCountryAr = _cleanCountryName(country.toString());
               _detectedCountryEn = country.toString();
+              _detectedCountryCode =
+                  ((addr['country_code'] as String?) ?? '').toString().trim().toUpperCase();
               _isGeocoding = false;
             });
           }
@@ -316,7 +322,7 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
   }
 
   void _showNotice(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppToast.show(context, 
       SnackBar(
         content: Text(msg, style: const TextStyle(fontFamily: DhikrTheme.arabicFont)),
         behavior: SnackBarBehavior.floating,
@@ -342,13 +348,14 @@ class _LocationMapPickerScreenState extends State<LocationMapPickerScreen> {
       cityEn: cityEn,
       countryAr: countryAr,
       countryEn: countryEn,
+      countryCode: _detectedCountryCode,
     );
 
     if (!mounted) return;
 
     Navigator.of(context).pop(true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppToast.show(context, 
       SnackBar(
         content: Row(
           children: [

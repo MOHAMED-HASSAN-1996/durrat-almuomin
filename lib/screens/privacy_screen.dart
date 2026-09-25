@@ -46,7 +46,7 @@ class PrivacyScreen extends StatelessWidget {
               'icon': LucideIcons.heartHandshake,
               'title': 'تصميم وإشراف مستقل لوجه الله',
               'desc':
-                  'صُمم تطبيق «دُرَّةُ الْمُؤْمِن» بعناية فائقة بواسطة محمد (Mohamed UX/UI) بأعلى معايير الإتقان والتجربة الهادئة لنيل الأجر والثواب.',
+                  'صُمم تطبيق «درة المؤمن» بعناية فائقة بواسطة محمد (Mohamed UX/UI) بأعلى معايير الإتقان والتجربة الهادئة لنيل الأجر والثواب.',
             },
           ]
         : [
@@ -139,7 +139,7 @@ class PrivacyScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             isAr
-                ? 'تطبيق «دُرَّةُ الْمُؤْمِن» — أمانك وسكينتك في المقام الأول'
+                ? 'تطبيق «درة المؤمن» — أمانك وسكينتك في المقام الأول'
                 : 'Durrat Al-Mu\u2019min — Your Privacy & Peace of Mind First',
             textAlign: TextAlign.center,
             style: TextStyle(

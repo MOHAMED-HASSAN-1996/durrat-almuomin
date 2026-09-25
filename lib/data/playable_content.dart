@@ -25,24 +25,69 @@ String? embedUrlFor(YoutubeTarget target) {
         (target.playlistId != null && target.playlistId!.isNotEmpty)
             ? '&list=${target.playlistId}'
             : '';
-    return 'https://www.youtube.com/embed/${target.videoId}'
+    return 'https://www.youtube-nocookie.com/embed/${target.videoId}'
         '?autoplay=1&rel=0&playsinline=1&enablejsapi=1$listParam'
         '&origin=$origin&widget_referrer=$origin';
   }
 
   if (target.playlistId != null && target.playlistId!.isNotEmpty) {
-    return 'https://www.youtube.com/embed/videoseries'
+    return 'https://www.youtube-nocookie.com/embed/videoseries'
         '?list=${target.playlistId}&autoplay=1&rel=0&playsinline=1&enablejsapi=1'
         '&origin=$origin&widget_referrer=$origin';
   }
 
   if (target.channelId != null && target.channelId!.isNotEmpty) {
-    return 'https://www.youtube.com/embed/videoseries'
-        '?list=UU${target.channelId}&autoplay=1&rel=0&playsinline=1&enablejsapi=1'
+    final uploads = uploadsPlaylistIdFor(target.channelId!);
+    return 'https://www.youtube-nocookie.com/embed/videoseries'
+        '?list=$uploads&autoplay=1&rel=0&playsinline=1&enablejsapi=1'
         '&origin=$origin&widget_referrer=$origin';
   }
 
   return null;
+}
+
+/// رابط تضمين مختصر للتحميل المباشر داخل WebView كصفحة كاملة.
+///
+/// الفرق عن [embedUrlFor]: بدون معاملَي `origin` و`widget_referrer`،
+/// لأنهما مخصصان لتضمين iframe داخل صفحة ويب أخرى فقط. عند تحميل
+/// رابط التضمين كصفحة علوية داخل WebView يسبب `origin` غير المطابق
+/// خطأ 153 الكاذب («Video player configuration error») حتى مع فيديوهات
+/// تسمح بالتضمين رسمياً. هذا الرابط المختصر هو المسار الرسمي المباشر.
+String? embedDirectUrlFor(YoutubeTarget target) {
+  if (target.videoId != null && target.videoId!.isNotEmpty) {
+    final listParam =
+        (target.playlistId != null && target.playlistId!.isNotEmpty)
+            ? '&list=${target.playlistId}'
+            : '';
+    return 'https://www.youtube.com/embed/${target.videoId}'
+        '?autoplay=1&rel=0&playsinline=1&controls=1$listParam';
+  }
+
+  if (target.playlistId != null && target.playlistId!.isNotEmpty) {
+    return 'https://www.youtube.com/embed/videoseries'
+        '?list=${target.playlistId}&autoplay=1&rel=0&playsinline=1&controls=1';
+  }
+
+  if (target.channelId != null && target.channelId!.isNotEmpty) {
+    final uploads = uploadsPlaylistIdFor(target.channelId!);
+    return 'https://www.youtube.com/embed/videoseries'
+        '?list=$uploads&autoplay=1&rel=0&playsinline=1&controls=1';
+  }
+
+  return null;
+}
+///
+/// يحوّل معرّف القناة (UC…) إلى معرّف قائمة «آخر الرفع» (UU…).
+///
+/// القاعدة الرسمية: تُستبدل البادئة `UC` بـ `UU` فقط، لا تُضاف `UU`
+/// أمام المعرف كاملاً. الخطأ الشائع `UU + UC…` ينتج معرّفاً غير موجود
+/// فيتقاطع المشغّل المدمج مع شاشة فارغة.
+String uploadsPlaylistIdFor(String channelId) {
+  final cid = channelId.trim();
+  if (cid.length >= 2 && (cid.startsWith('UC') || cid.startsWith('UU'))) {
+    return 'UU${cid.substring(2)}';
+  }
+  return cid;
 }
 
 /// يسحب الهدف القابل للتضمين من رابط يوتيوب؛ null للروابط غير المضمِّنة

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -82,11 +83,15 @@ class _NearestMosquesScreenState extends State<NearestMosquesScreen> {
   String _searchQuery = '';
   bool _isSearchingAddress = false;
   bool _isLocatingGps = false;
-  bool _showSearchThisArea = false;
   MapLayerType _layerType = MapLayerType.googleRoadmap;
 
   List<Map<String, dynamic>> _searchResults = [];
+  List<MosqueItem> _nameSearchMosques = [];
+  bool _isNameSearching = false;
+  bool _showNearbySheet = true;
   Timer? _searchDebounce;
+  Timer? _mapDebounce;
+  int _searchGen = 0;
 
   String get _currentTileUrl {
     switch (_layerType) {
@@ -99,11 +104,69 @@ class _NearestMosquesScreenState extends State<NearestMosquesScreen> {
     }
   }
 
-  List<MosqueItem> get _filteredMosques {
-    if (_searchQuery.trim().isEmpty) return _mosques;
-    final q = _searchQuery.trim().toLowerCase();
-    return _mosques.where((m) => m.name.toLowerCase().contains(q)).toList();
+  String _normalizeArabic(String s) {
+    return s
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('آ', 'ا')
+        .replaceAll('ة', 'ه')
+        .replaceAll('ى', 'ي')
+        .trim();
   }
+
+  bool _isGenericMosqueQuery(String raw) {
+    final n = _normalizeArabic(raw).toLowerCase().replaceFirst('ال', '').trim();
+    final stripped = n
+        .replaceAll(RegExp('مسجد|جامع|مصلى|زاويه|مساجد|جوامع|mosque|masjid|jami|jamaa'), ' ')
+        .trim();
+    return stripped.isEmpty;
+  }
+
+  bool _nameMatches(String name, String q) {
+    final n = name.toLowerCase();
+    if (n.contains(q)) return true;
+    final nNorm = _normalizeArabic(n);
+    final qNorm = _normalizeArabic(q);
+    if (nNorm.contains(qNorm)) return true;
+    final qNoAl = qNorm.replaceFirst(RegExp('^ال'), '');
+    if (qNoAl.isNotEmpty && nNorm.contains(qNoAl)) return true;
+    return false;
+  }
+
+  List<MosqueItem> _sortedByUserDistance(List<MosqueItem> list) {
+    final ref = _userLocation;
+    if (ref == null) return list;
+    final copy = [...list];
+    copy.sort((a, b) {
+      final da = _calculateDistanceMeters(ref.latitude, ref.longitude, a.lat, a.lng);
+      final db = _calculateDistanceMeters(ref.latitude, ref.longitude, b.lat, b.lng);
+      return da.compareTo(db);
+    });
+    return copy;
+  }
+
+  List<MosqueItem> get _filteredMosques {
+    final raw = _searchQuery.trim();
+    if (raw.isEmpty) return _sortedByUserDistance(_mosques);
+    final q = raw.toLowerCase();
+    final generic = _isGenericMosqueQuery(raw);
+
+    List<MosqueItem> base;
+    if (generic) {
+      // "مسجد/جامع" -> show ALL mosques, nearest to user first
+      base = [..._mosques];
+    } else {
+      base = _mosques.where((m) => _nameMatches(m.name, q)).toList();
+    }
+
+    if (_nameSearchMosques.isEmpty) return generic ? _sortedByUserDistance(base) : base;
+    final seen = base.map((m) => m.id).toSet();
+    final extra = _nameSearchMosques.where((m) => !seen.contains(m.id)).toList();
+    if (generic) return _sortedByUserDistance([...base, ...extra]);
+    return [...base, ...extra];
+  }
+
+  List<MosqueItem> get _sheetMosques => _filteredMosques;
 
   @override
   void initState() {
@@ -114,6 +177,7 @@ class _NearestMosquesScreenState extends State<NearestMosquesScreen> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _mapDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -187,11 +251,17 @@ class _NearestMosquesScreenState extends State<NearestMosquesScreen> {
           _mapController.move(_userLocation!, 14.5);
         } catch (_) {}
       });
-      await _fetchNearbyMosques(lat, lng, _searchRadiusKm * 1000);
+      // Fire both fetches in parallel: quick radius + broad background,
+      // so icons appear as fast as possible with maximum coverage.
+      // mergeWithExisting keeps the broad result when both land at once.
+      unawaited(_fetchNearbyMosques(lat, lng, _searchRadiusKm * 1000, mergeWithExisting: true));
+      unawaited(_prefetchBroadMosques(lat, lng));
     }
   }
 
-  Future<void> _fetchNearbyMosques(double lat, double lng, int radiusMeters) async {
+  Future<void> _fetchNearbyMosques(
+    double lat, double lng, int radiusMeters,
+    {bool mergeWithExisting = false}) async {
     setState(() => _loading = true);
     try {
       final overpassQuery = '''
@@ -205,44 +275,15 @@ class _NearestMosquesScreenState extends State<NearestMosquesScreen> {
   relation["building"="mosque"](around:$radiusMeters,$lat,$lng);
   node["amenity"="mosque"](around:$radiusMeters,$lat,$lng);
   way["amenity"="mosque"](around:$radiusMeters,$lat,$lng);
-  node["amenity"="place_of_worship"]["name"~"مسجد|جامع|مصلى|المسجد|الجامع|المصلى|Masjid|Mosque|زاوية"](around:$radiusMeters,$lat,$lng);
-  way["amenity"="place_of_worship"]["name"~"مسجد|جامع|مصلى|المسجد|الجامع|المصلى|Masjid|Mosque|زاوية"](around:$radiusMeters,$lat,$lng);
+  node["name"~"مسجد|جامع|مصلى|زاوية|المسجد|الجامع|المصلى|Masjid|Mosque|مسجد",i](around:$radiusMeters,$lat,$lng);
+  way["name"~"مسجد|جامع|مصلى|زاوية|المسجد|الجامع|المصلى|Masjid|Mosque|مسجد",i](around:$radiusMeters,$lat,$lng);
 );
-out center 250;
+out center 400;
 ''';
 
-      final endpoints = [
-        'https://overpass-api.de/api/interpreter',
-        'https://lz4.overpass-api.de/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter',
-      ];
-
-      dynamic responseData;
-      for (final endpoint in endpoints) {
-        try {
-          final res = await http.post(
-            Uri.parse(endpoint),
-            headers: {
-              'User-Agent': 'DurratAlMuumin/1.0 (Android; Arabic Adhkar App)',
-              'Accept': 'application/json',
-            },
-            body: {'data': overpassQuery},
-          ).timeout(const Duration(seconds: 12));
-
-          if (res.statusCode == 200) {
-            responseData = json.decode(utf8.decode(res.bodyBytes));
-            break;
-          }
-        } catch (_) {
-          continue;
-        }
-      }
+      final responseData = await _postOverpass(overpassQuery, timeoutSec: 14);
 
       if (responseData != null) {
-        final elements = responseData['elements'] as List<dynamic>? ?? [];
-        final List<MosqueItem> items = [];
-        final Set<String> seenIds = {};
-
         // Reference point for distance calculation
         final refLat = (_userLocation != null && _calculateDistanceMeters(_userLocation!.latitude, _userLocation!.longitude, lat, lng) < (radiusMeters * 2.5))
             ? _userLocation!.latitude
@@ -251,57 +292,37 @@ out center 250;
             ? _userLocation!.longitude
             : lng;
 
-        for (final el in elements) {
-          final id = el['id'].toString();
-          if (seenIds.contains(id)) continue;
-          seenIds.add(id);
+        final items = _parseOverpassElements(responseData, refLat, refLng);
 
-          final tags = el['tags'] as Map<String, dynamic>? ?? {};
-          final name = tags['name:ar'] ?? tags['name'] ?? 'مسجد';
-          double mLat = 0;
-          double mLng = 0;
+        // Merge with any already-loaded mosques (e.g. broad fetch landing
+        // first), otherwise just use this result.
+        final existingId = {for (final m in _mosques) m.id};
+        final fresh = mergeWithExisting
+            ? items.where((m) => !existingId.contains(m.id)).toList()
+            : items;
+        final base = mergeWithExisting ? [..._mosques, ...fresh] : items;
+        base.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
 
-          if (el['type'] == 'node') {
-            mLat = (el['lat'] as num).toDouble();
-            mLng = (el['lon'] as num).toDouble();
-          } else if (el['center'] != null) {
-            mLat = (el['center']['lat'] as num).toDouble();
-            mLng = (el['center']['lon'] as num).toDouble();
-          } else {
-            continue;
-          }
-
-          final dist = _calculateDistanceMeters(refLat, refLng, mLat, mLng);
-          final street = tags['addr:street'] as String?;
-
-          // Prevent exact duplicate nearby markers with identical name
-          final isNearbyDup = items.any((existing) =>
-              existing.name == name &&
-              _calculateDistanceMeters(existing.lat, existing.lng, mLat, mLng) < 25);
-          if (isNearbyDup) continue;
-
-          items.add(MosqueItem(
-            id: id,
-            name: name.toString(),
-            lat: mLat,
-            lng: mLng,
-            distanceMeters: dist,
-            street: street,
-          ));
-        }
-
-        items.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
-
+        // Progressive reveal: show the closest batch immediately, then fill
+        // in the rest in small chunks so markers pop onto the map fast.
+        const chunk = 40;
         if (mounted) {
           setState(() {
-            _mosques = items;
+            _mosques = base.take(chunk).toList();
             _loading = false;
             _errorMessage = null;
-            if (items.isNotEmpty) {
-              _selectedMosque = items.first;
+            if (_mosques.isNotEmpty) {
+              _selectedMosque = _mosques.first;
             }
           });
         }
+        for (var i = chunk; i < base.length; i += chunk) {
+          if (!mounted) return;
+          await Future<void>.delayed(const Duration(milliseconds: 40));
+          if (!mounted) return;
+          setState(() => _mosques = base.take(i + chunk).toList());
+        }
+        if (mounted) setState(() => _mosques = base);
       } else {
         throw Exception('All Overpass mirrors failed');
       }
@@ -324,39 +345,224 @@ out center 250;
   }
 
   void _onSearchChanged(String val) {
-    setState(() => _searchQuery = val);
+    setState(() {
+      _searchQuery = val;
+      if (val.trim().isEmpty) _nameSearchMosques = [];
+    });
     _searchDebounce?.cancel();
     final q = val.trim();
     if (q.length < 2) {
-      setState(() => _searchResults = []);
+      _searchGen++;
+      setState(() {
+        _searchResults = [];
+        _isSearchingAddress = false;
+        _isNameSearching = false;
+      });
       return;
     }
-    _searchDebounce = Timer(const Duration(milliseconds: 500), () => _searchPlaces(q));
+    _searchDebounce = Timer(const Duration(milliseconds: 280), () {
+      _runRemoteSearch(q);
+    });
   }
 
-  Future<void> _searchPlaces(String query) async {
-    setState(() => _isSearchingAddress = true);
-    try {
-      final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?format=json&q=${Uri.encodeComponent(query)}&accept-language=ar,en&limit=5',
-      );
-      final res = await http.get(url, headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'durrat-almuumin/1.0',
-      }).timeout(const Duration(seconds: 4));
-
-      if (res.statusCode == 200) {
-        final List list = jsonDecode(res.body);
-        if (mounted) {
-          setState(() {
-            _searchResults = list.map((e) => e as Map<String, dynamic>).toList();
-            _isSearchingAddress = false;
-          });
-          return;
+  Future<dynamic> _postOverpass(String query, {int timeoutSec = 12}) async {
+    final endpoints = [
+      'https://overpass-api.de/api/interpreter',
+      'https://lz4.overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter',
+    ];
+    for (final endpoint in endpoints) {
+      try {
+        final res = await http.post(
+          Uri.parse(endpoint),
+          headers: {
+            'User-Agent': 'DurratAlMuumin/1.0 (Android; Arabic Adhkar App)',
+            'Accept': 'application/json',
+          },
+          body: {'data': query},
+        ).timeout(Duration(seconds: timeoutSec));
+        if (res.statusCode == 200) {
+          return json.decode(utf8.decode(res.bodyBytes));
         }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  String _escRegex(String q) {
+    final sb = StringBuffer();
+    for (final ch in q.split('')) {
+      if ('\\.+*?()|[]{}^\$'.contains(ch)) {
+        sb.write('\\');
       }
-    } catch (_) {}
-    if (mounted) setState(() => _isSearchingAddress = false);
+      sb.write(ch);
+    }
+    return sb.toString();
+  }
+
+  List<MosqueItem> _parseOverpassElements(dynamic responseData, double refLat, double refLng) {
+    final List<MosqueItem> items = [];
+    final elements = responseData['elements'] as List<dynamic>? ?? [];
+    final Set<String> seenIds = {};
+    for (final el in elements) {
+      final id = el['id'].toString();
+      if (seenIds.contains(id)) continue;
+      seenIds.add(id);
+      try {
+        final tags = el['tags'] as Map<String, dynamic>? ?? {};
+        final name = tags['name:ar'] ?? tags['name'] ?? '';
+        if (name.toString().trim().isEmpty) continue;
+        double mLat = 0, mLng = 0;
+        if (el['type'] == 'node') {
+          mLat = (el['lat'] as num).toDouble();
+          mLng = (el['lon'] as num).toDouble();
+        } else if (el['center'] != null) {
+          mLat = (el['center']['lat'] as num).toDouble();
+          mLng = (el['center']['lon'] as num).toDouble();
+        } else {
+          continue;
+        }
+        final dist = _calculateDistanceMeters(refLat, refLng, mLat, mLng);
+        final isNearbyDup = items.any((existing) =>
+            existing.name == name &&
+            _calculateDistanceMeters(existing.lat, existing.lng, mLat, mLng) < 25);
+        if (isNearbyDup) continue;
+        items.add(MosqueItem(
+          id: id,
+          name: name.toString(),
+          lat: mLat,
+          lng: mLng,
+          distanceMeters: dist,
+          street: tags['addr:street'] as String?,
+        ));
+      } catch (_) {}
+    }
+    items.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
+    return items;
+  }
+
+  /// Strong name search straight from Overpass (renamed by user request).
+  /// Single query over ~100km radius: fast, comprehensive, returns real mosque
+  /// markers that show up immediately on the map. Local matches are already
+  /// shown instantly via _filteredMosques; this supplements beyond the radius.
+  Future<void> _runRemoteSearch(String q) async {
+    final gen = ++_searchGen;
+    if (mounted) {
+      setState(() {
+        _isSearchingAddress = true;
+        _isNameSearching = true;
+      });
+    }
+
+    final center = _currentCenter ?? _userLocation;
+    if (center == null) {
+      if (mounted) {
+        setState(() {
+          _isNameSearching = false;
+          _isSearchingAddress = false;
+        });
+      }
+      return;
+    }
+    final pat = _escRegex(q.trim());
+    // If the user typed a generic mosque term (مسجد/جامع...) gather ALL mosques.
+    final generic = _isGenericMosqueQuery(q.trim());
+    final overpassQuery = generic
+        ? '''
+[out:json][timeout:20];
+(
+  node["amenity"="place_of_worship"]["religion"="muslim"](around:100000,${center.latitude},${center.longitude});
+  way["amenity"="place_of_worship"]["religion"="muslim"](around:100000,${center.latitude},${center.longitude});
+  node["building"="mosque"](around:100000,${center.latitude},${center.longitude});
+  way["building"="mosque"](around:100000,${center.latitude},${center.longitude});
+  node["amenity"="mosque"](around:100000,${center.latitude},${center.longitude});
+  way["amenity"="mosque"](around:100000,${center.latitude},${center.longitude});
+  node["name"~"^مسجد|^جامع|^مصلى|^زاوية|Masjid|Mosque",i](around:100000,${center.latitude},${center.longitude});
+  way["name"~"^مسجد|^جامع|^مصلى|^زاوية|Masjid|Mosque",i](around:100000,${center.latitude},${center.longitude});
+);
+out center 300;
+'''
+        : '''
+[out:json][timeout:20];
+(
+  node["amenity"="place_of_worship"]["name"~"$pat",i](around:100000,${center.latitude},${center.longitude});
+  way["amenity"="place_of_worship"]["name"~"$pat",i](around:100000,${center.latitude},${center.longitude});
+  relation["amenity"="place_of_worship"]["name"~"$pat",i](around:100000,${center.latitude},${center.longitude});
+  node["building"="mosque"]["name"~"$pat",i](around:100000,${center.latitude},${center.longitude});
+  way["building"="mosque"]["name"~"$pat",i](around:100000,${center.latitude},${center.longitude});
+  node["amenity"="mosque"]["name"~"$pat",i](around:100000,${center.latitude},${center.longitude});
+  way["amenity"="mosque"]["name"~"$pat",i](around:100000,${center.latitude},${center.longitude});
+  node["name"~"^مسجد|^جامع|^مصلى|^زاوية|^Masjid|^Mosque|^Jamia|^Grand",i]["name"~"$pat",i](around:100000,${center.latitude},${center.longitude});
+  way["name"~"^مسجد|^جامع|^مصلى|^زاوية|^Masjid|^Mosque|^Jamia|^Grand",i]["name"~"$pat",i](around:100000,${center.latitude},${center.longitude});
+);
+out center 300;
+''';
+
+    final data = await _postOverpass(overpassQuery, timeoutSec: 15);
+    if (!mounted || gen != _searchGen) return;
+
+    if (data != null) {
+      final refLat = center.latitude;
+      final refLng = center.longitude;
+      final items = _parseOverpassElements(data, refLat, refLng);
+      final seen = _mosques.map((m) => m.id).toSet();
+      final extra = items.where((m) => !seen.contains(m.id)).toList();
+      setState(() {
+        _nameSearchMosques = extra;
+        _searchResults = extra
+            .map((m) => {
+                  'id': m.id,
+                  'lat': m.lat.toString(),
+                  'lon': m.lng.toString(),
+                  'display_name': m.name,
+                })
+            .toList();
+        _isNameSearching = false;
+        _isSearchingAddress = false;
+      });
+    } else {
+      if (mounted) {
+        setState(() {
+          _isNameSearching = false;
+          _isSearchingAddress = false;
+        });
+      }
+    }
+  }
+
+  /// Broad background fetch around the center to make local filtering instant
+  /// and comprehensive without blocking the UI. Merges into _mosques.
+  Future<void> _prefetchBroadMosques(double lat, double lng) async {
+    final overpassQuery = '''
+[out:json][timeout:25];
+(
+  node["amenity"="place_of_worship"]["religion"="muslim"](around:30000,$lat,$lng);
+  way["amenity"="place_of_worship"]["religion"="muslim"](around:30000,$lat,$lng);
+  relation["amenity"="place_of_worship"]["religion"="muslim"](around:30000,$lat,$lng);
+  node["building"="mosque"](around:30000,$lat,$lng);
+  way["building"="mosque"](around:30000,$lat,$lng);
+  node["amenity"="mosque"](around:30000,$lat,$lng);
+  node["name"~"مسجد|جامع|مصلى|زاوية|المسجد|الجامع|المصلى|Masjid|Mosque",i](around:30000,$lat,$lng);
+  way["name"~"مسجد|جامع|مصلى|زاوية|المسجد|الجامع|المصلى|Masjid|Mosque",i](around:30000,$lat,$lng);
+);
+out center 800;
+''';
+    final data = await _postOverpass(overpassQuery, timeoutSec: 20);
+    if (!mounted || data == null) return;
+    final refLat = _userLocation?.latitude ?? lat;
+    final refLng = _userLocation?.longitude ?? lng;
+    final items = _parseOverpassElements(data, refLat, refLng);
+    if (items.isEmpty) return;
+    final existing = {for (final m in _mosques) m.id};
+    final merged = [..._mosques];
+    for (final m in items) {
+      if (!existing.contains(m.id)) {
+        existing.add(m.id);
+        merged.add(m);
+      }
+    }
+    merged.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
+    if (mounted) setState(() => _mosques = merged);
   }
 
   void _selectSearchResult(Map<String, dynamic> item) {
@@ -366,8 +572,28 @@ out center 250;
       final target = LatLng(lat, lng);
       _currentCenter = target;
       _mapController.move(target, 14.5);
+      final id = item['id']?.toString();
+      if (id != null) {
+        MosqueItem? match;
+        for (final m in _mosques) {
+          if (m.id == id) {
+            match = m;
+            break;
+          }
+        }
+        if (match == null) {
+          for (final m in _nameSearchMosques) {
+            if (m.id == id) {
+              match = m;
+              break;
+            }
+          }
+        }
+        if (match != null) _selectedMosque = match;
+      }
       setState(() {
         _searchResults = [];
+        _nameSearchMosques = [];
         _searchCtrl.clear();
         _searchQuery = '';
       });
@@ -508,8 +734,6 @@ out center 250;
                       _buildRadiusChips(dark),
                       _buildCityChips(dark),
                       if (_searchResults.isNotEmpty) _buildSearchSuggestions(dark),
-                      if (_isMapView && _showSearchThisArea)
-                        _buildSearchThisAreaButton(dark),
                     ],
                   ),
                 ),
@@ -522,7 +746,11 @@ out center 250;
             if (_isMapView)
               Positioned(
                 left: 14,
-                bottom: _selectedMosque != null ? 190 : 36,
+                bottom: _selectedMosque != null
+                    ? 190
+                    : (_showNearbySheet && _sheetMosques.isNotEmpty
+                        ? (MediaQuery.of(context).size.height * 0.38) + 20
+                        : 36),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -534,6 +762,19 @@ out center 250;
                       iconColor: const Color(0xFF0F766E),
                       isLoading: _isLocatingGps,
                       onTap: _isLocatingGps ? null : _locateViaGps,
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Toggle nearby list sheet
+                    _buildFloatingButton(
+                      heroTag: 'mosque_sheet',
+                      dark: dark,
+                      icon: _showNearbySheet ? LucideIcons.listX : LucideIcons.list,
+                      iconColor: const Color(0xFFC5A059),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _showNearbySheet = !_showNearbySheet);
+                      },
                     ),
                     const SizedBox(height: 8),
 
@@ -583,7 +824,7 @@ out center 250;
               ),
 
             // ─────────────────────────────────────────────
-            // 4. Floating Selected Mosque Preview Card
+            // 4. Nearby mosques bottom sheet + selected card
             // ─────────────────────────────────────────────
             if (_isMapView && _selectedMosque != null)
               Positioned(
@@ -599,48 +840,62 @@ out center 250;
                     ),
                   ),
                 ),
+              )
+            else if (_isMapView && _showNearbySheet && _sheetMosques.isNotEmpty)
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 10, right: 10, bottom: 6),
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.38,
+                      child: _buildNearbyMosquesSheet(dark),
+                    ),
+                  ),
+                ),
               ),
 
             // ─────────────────────────────────────────────
-            // 5. Global Loading Indicator Overlay
+            // 5. Non-blocking loading pill (map stays visible)
             // ─────────────────────────────────────────────
             if (_loading && _mosques.isEmpty)
-              Positioned.fill(
-                child: Container(
-                  color: (dark ? Colors.black : Colors.white).withValues(alpha: 0.6),
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: dark ? const Color(0xFF16231E) : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
+              Positioned(
+                top: (MediaQuery.of(context).size.height * 0.28),
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: (dark ? const Color(0xFF16231E) : Colors.white).withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F766E)),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'جارٍ جلب المساجد القريبة...',
+                          style: TextStyle(
+                            fontFamily: DhikrTheme.arabicFont,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                            color: dark ? Colors.white : const Color(0xFF0F3B2C),
                           ),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF0F766E)),
-                          ),
-                          SizedBox(width: 14),
-                          Text(
-                            'جارٍ البحث عن أقرب المساجد...',
-                            style: TextStyle(
-                              fontFamily: DhikrTheme.arabicFont,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13.5,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -664,9 +919,10 @@ out center 250;
         onPositionChanged: (camera, hasGesture) {
           if (hasGesture) {
             _currentCenter = camera.center;
-            if (!_showSearchThisArea && mounted) {
-              setState(() => _showSearchThisArea = true);
-            }
+            _mapDebounce?.cancel();
+            _mapDebounce = Timer(const Duration(milliseconds: 600), () {
+              if (mounted) _searchCurrentMapArea(silent: true);
+            });
           }
         },
         onTap: (_, _) {
@@ -771,10 +1027,10 @@ out center 250;
                           ),
                         ),
 
-                      // Mosque Pin
+                      // Mosque Pin (crisp vector icon)
                       Container(
-                        width: isSelected ? 42 : 36,
-                        height: isSelected ? 42 : 36,
+                        width: isSelected ? 50 : 42,
+                        height: isSelected ? 50 : 42,
                         decoration: BoxDecoration(
                           color: isSelected ? const Color(0xFFC5A059) : const Color(0xFF0F766E),
                           shape: BoxShape.circle,
@@ -792,10 +1048,15 @@ out center 250;
                             ),
                           ],
                         ),
-                        child: Center(
-                          child: Text(
-                            '🕌',
-                            style: TextStyle(fontSize: isSelected ? 19 : 16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: CustomPaint(
+                            size: Size.square(isSelected ? 34 : 26),
+                            painter: _MosqueIconPainter(
+                              pinColor: isSelected
+                                  ? const Color(0xFFC5A059)
+                                  : const Color(0xFF0F766E),
+                            ),
                           ),
                         ),
                       ),
@@ -861,7 +1122,7 @@ out center 250;
                     ),
                     decoration: InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'ابحث عن اسم مسجد أو حي أو منطقة...',
+                      hintText: 'ابحث: جامع مسجد / grand...',
                       hintStyle: TextStyle(
                         fontFamily: DhikrTheme.arabicFont,
                         fontSize: 12.5,
@@ -879,10 +1140,15 @@ out center 250;
                 else if (_searchCtrl.text.isNotEmpty)
                   GestureDetector(
                     onTap: () {
+                      _searchDebounce?.cancel();
+                      _searchGen++;
                       _searchCtrl.clear();
                       setState(() {
                         _searchQuery = '';
                         _searchResults = [];
+                        _nameSearchMosques = [];
+                        _isSearchingAddress = false;
+                        _isNameSearching = false;
                       });
                     },
                     child: Icon(
@@ -1101,8 +1367,8 @@ out center 250;
     );
   }
 
-  void _searchCurrentMapArea() {
-    HapticFeedback.selectionClick();
+  void _searchCurrentMapArea({bool silent = false}) {
+    if (!silent) HapticFeedback.selectionClick();
     final center = _currentCenter ?? _userLocation;
     if (center == null) return;
     final zoom = _mapController.camera.zoom;
@@ -1118,66 +1384,7 @@ out center 250;
     } else {
       radius = _searchRadiusKm * 1000;
     }
-    setState(() => _showSearchThisArea = false);
     _fetchNearbyMosques(center.latitude, center.longitude, radius);
-  }
-
-  Widget _buildSearchThisAreaButton(bool dark) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Center(
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _loading ? null : _searchCurrentMapArea,
-            borderRadius: BorderRadius.circular(24),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: dark ? const Color(0xFF0F3B2C) : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: const Color(0xFFC5A059).withValues(alpha: 0.9),
-                  width: 1.5,
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_loading) ...[
-                    const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFC5A059)),
-                    ),
-                    const SizedBox(width: 8),
-                  ] else ...[
-                    const Icon(Icons.search_rounded, size: 16, color: Color(0xFFC5A059)),
-                    const SizedBox(width: 6),
-                  ],
-                  Text(
-                    'البحث عن المساجد في هذه المنطقة',
-                    style: TextStyle(
-                      fontFamily: DhikrTheme.arabicFont,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: dark ? Colors.white : const Color(0xFF0F3B2C),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildSearchSuggestions(bool dark) {
@@ -1363,6 +1570,219 @@ out center 250;
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNearbyMosquesSheet(bool dark) {
+    final list = _sheetMosques;
+    final count = list.length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: dark
+            ? const Color(0xFF16231E).withValues(alpha: 0.97)
+            : Colors.white.withValues(alpha: 0.98),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        border: Border.all(
+          color: const Color(0xFF0F766E).withValues(alpha: 0.3),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 4),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: (dark ? Colors.white24 : Colors.black12),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'الماساجد القريبة',
+                    style: TextStyle(
+                      fontFamily: DhikrTheme.arabicFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: dark ? Colors.white : const Color(0xFF0F3B2C),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: const TextStyle(
+                      fontFamily: DhikrTheme.arabicFont,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                      color: Color(0xFF0F766E),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: dark ? Colors.white38 : Colors.black38,
+                  ),
+                  onPressed: () => setState(() => _showNearbySheet = false),
+                ),
+              ],
+            ),
+          ),
+          if (_isNameSearching || _isSearchingAddress)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 6),
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                color: Color(0xFF0F766E),
+                backgroundColor: Colors.transparent,
+              ),
+            ),
+          Divider(height: 1, color: dark ? Colors.white10 : Colors.black12),
+          Expanded(
+            child: list.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        _searchQuery.trim().isEmpty
+                            ? 'لم نجد مساجد في هذا النطاق'
+                            : 'لا توجد مساجد مطابقة. جرّب كلمات أكثر مثل «جامع مسجد» أو «grand mosque»',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: DhikrTheme.arabicFont,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: dark ? Colors.white70 : DhikrColors.charcoalSoft,
+                        ),
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) => Divider(
+                      height: 1,
+                      color: dark ? Colors.white10 : Colors.black12,
+                    ),
+                    itemBuilder: (ctx, i) {
+                      final item = list[i];
+                      final isSelected = _selectedMosque?.id == item.id;
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              _selectedMosque = item;
+                              _showNearbySheet = false;
+                            });
+                            _mapController.move(LatLng(item.lat, item.lng), 16.5);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFF0F766E).withValues(alpha: 0.08)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(
+                                    LucideIcons.navigation,
+                                    size: 18,
+                                    color: Color(0xFF0F766E),
+                                  ),
+                                  onPressed: () => _launchExternalGoogleMaps(item),
+                                  tooltip: 'ملاحة',
+                                ),
+                                const SizedBox(width: 4),
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Center(
+                                    child: Text('🕌', style: TextStyle(fontSize: 18)),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontFamily: DhikrTheme.arabicFont,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13.5,
+                                          color: dark ? Colors.white : DhikrColors.charcoal,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.formattedDistance,
+                                        style: const TextStyle(
+                                          fontFamily: DhikrTheme.arabicFont,
+                                          fontSize: 11.5,
+                                          color: Color(0xFFC5A059),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.chevron_left_rounded,
+                                  size: 20,
+                                  color: dark ? Colors.white24 : Colors.black26,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -1618,4 +2038,73 @@ out center 250;
           : Icon(icon, size: 20),
     );
   }
+}
+
+/// Vector mosque icon: dome + crescent finial + two minarets + base.
+/// Painted white on the colored pin circle for a crisp, always-clear marker.
+class _MosqueIconPainter extends CustomPainter {
+  final Color pinColor;
+
+  _MosqueIconPainter({required this.pinColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final cx = w / 2;
+
+    // Central dome (arc shape)
+    final domePath = ui.Path()
+      ..moveTo(cx - w * 0.34, h * 0.62)
+      ..quadraticBezierTo(cx - w * 0.38, h * 0.34, cx, h * 0.30)
+      ..quadraticBezierTo(cx + w * 0.38, h * 0.34, cx + w * 0.34, h * 0.62)
+      ..close();
+    canvas.drawPath(domePath, paint);
+
+    // Base bar
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(cx - w * 0.32, h * 0.62, w * 0.64, h * 0.20),
+        Radius.circular(w * 0.04),
+      ),
+      paint,
+    );
+
+    // Crescent finial above dome
+    final crescent = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(cx, h * 0.22), w * 0.10, crescent);
+    canvas.drawCircle(
+      Offset(cx + w * 0.045, h * 0.19),
+      w * 0.08,
+      Paint()
+        ..color = pinColor
+        ..style = PaintingStyle.fill,
+    );
+
+    // Two minarets
+    final minaretPaint = Paint()..color = Colors.white;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(cx - w * 0.42, h * 0.30, w * 0.07, h * 0.32),
+        Radius.circular(w * 0.03),
+      ),
+      minaretPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(cx + w * 0.35, h * 0.30, w * 0.07, h * 0.32),
+        Radius.circular(w * 0.03),
+      ),
+      minaretPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _MosqueIconPainter oldDelegate) => false;
 }

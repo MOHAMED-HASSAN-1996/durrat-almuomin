@@ -66,6 +66,8 @@ class LovedOneItem {
     this.loveCount = 0,
     List<String>? comments,
     DateTime? createdAt,
+    this.authorName = '',
+    this.authorPhoto = '',
   })  : comments = comments ?? [],
         createdAt = createdAt ?? DateTime.now();
 
@@ -79,6 +81,8 @@ class LovedOneItem {
   int loveCount;
   final List<String> comments;
   final DateTime createdAt;
+  final String authorName;
+  final String authorPhoto;
 
   /// Duration logic (30-day community active window)
   int get daysRemaining {
@@ -101,6 +105,8 @@ class LovedOneItem {
       'loveCount': loveCount,
       'comments': comments,
       'createdAt': createdAt.toIso8601String(),
+      'authorName': authorName,
+      'authorPhoto': authorPhoto,
     };
   }
 
@@ -117,14 +123,16 @@ class LovedOneItem {
       name: map['name'] as String? ?? '',
       relation: map['relation'] as String? ?? '',
       category: cat,
-      imagePath: map['imagePath'] as String?,
+      imagePath: (map['imagePath'] as String?) ?? (map['imageUrl'] as String?),
       customDua: map['customDua'] as String?,
       fatihaCount: (map['fatihaCount'] as num?)?.toInt() ?? 0,
       loveCount: (map['loveCount'] as num?)?.toInt() ?? 0,
       comments: (map['comments'] as List?)?.map((e) => e.toString()).toList() ?? [],
       createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
+      authorName: map['authorName'] as String? ?? '',
+      authorPhoto: map['authorPhoto'] as String? ?? '',
     );
   }
 

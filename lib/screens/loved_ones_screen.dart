@@ -9,8 +9,11 @@ import '../services/loved_ones_service.dart';
 import '../services/profanity_filter_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../types/adhkar.dart';
+import '../widgets/user_avatar.dart';
 import 'add_loved_one_screen.dart';
 import 'loved_one_detail_screen.dart';
+import '../widgets/app_toast.dart';
 
 class LovedOnesScreen extends StatefulWidget {
   const LovedOnesScreen({super.key});
@@ -24,7 +27,6 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
   List<String> _myCreatedIds = [];
   Map<String, int> _userStats = {'ameen': 0, 'fatiha': 0, 'myPosts': 0};
   bool _loading = true;
-  LovedOneCategory? _filterCategory; // null = الكل
   bool _showOnlyMine = false; // false = دعوات المسلمين (الكل), true = أحبتي ودعواتي
 
   final Set<String> _ameenInteractedIds = {};
@@ -76,25 +78,23 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = context.watch<AppState>().language == AppLanguage.arabic;
 
     var filtered = _items;
     if (_showOnlyMine) {
       filtered = filtered.where((e) => _myCreatedIds.contains(e.id)).toList();
-    }
-    if (_filterCategory != null) {
-      filtered = filtered.where((e) => e.category == _filterCategory).toList();
     }
 
     final totalFatiha = _items.fold<int>(0, (sum, e) => sum + e.fatihaCount);
     final totalLove = _items.fold<int>(0, (sum, e) => sum + e.loveCount);
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: dark ? const Color(0xFF0A1612) : const Color(0xFFF7F5F0),
         appBar: AppBar(
           title: const Text(
-            'دعاء بظهر الغيب 🤲',
+            'دعاء بظهر الغيب',
             style: TextStyle(
               fontFamily: DhikrTheme.titleFont,
               fontWeight: FontWeight.w800,
@@ -105,7 +105,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
             _buildUserAccountActivityButton(context, dark),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
+        floatingActionButton: FloatingActionButton(
           onPressed: () async {
             HapticFeedback.lightImpact();
             final res = await Navigator.push<bool>(
@@ -116,11 +116,8 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
           },
           backgroundColor: const Color(0xFF0F3B2C),
           foregroundColor: Colors.white,
-          icon: const Icon(LucideIcons.userPlus, size: 20),
-          label: const Text(
-            'إضافة شخص للدعاء 🤲',
-            style: TextStyle(fontFamily: DhikrTheme.arabicFont, fontWeight: FontWeight.w800),
-          ),
+          tooltip: 'إضافة دعاء جديد',
+          child: const Icon(LucideIcons.plus, size: 28),
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator(color: Color(0xFF0F3B2C)))
@@ -247,24 +244,6 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Filter Chips
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildFilterChip('الكل (${filtered.length})', null, dark),
-                          ...LovedOneCategory.values.map((cat) {
-                            final count = filtered.where((e) => e.category == cat).length;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: _buildFilterChip('${cat.badgeLabelAr} ($count)', cat, dark),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
                     // Header Stats Banner (KPI)
                     Container(
                       padding: const EdgeInsets.all(18),
@@ -293,8 +272,6 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(LucideIcons.heartHandshake, color: Color(0xFF0F3B2C), size: 24),
-                              const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   '«مَنْ دَعَا لِأَخِيهِ بِظَهْرِ الْغَيْبِ، قَالَ الْمَلَكُ الْمُوَكَّلُ بِهِ: آمِينَ وَلَكَ بِمِثْلٍ»',
@@ -403,9 +380,8 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
     return Consumer<AppState>(
       builder: (context, state, _) {
         final profile = state.userProfile;
-        final name = profile?['name'] ?? 'مستخدم';
+        final name = profile?['name'] ?? '';
         final photoUrl = profile?['photo'] ?? '';
-        final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -415,90 +391,33 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
               _showUserSpiritualActivitySheet(context, profile, dark);
             },
             borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: dark ? const Color(0xFF1A3328) : Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFF0F3B2C).withValues(alpha: 0.35),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: dark ? 0.2 : 0.05),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(2.5),
+                  decoration: BoxDecoration(
+                    color: dark ? const Color(0xFF1A3328) : Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF0F3B2C).withValues(alpha: 0.35),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: dark ? 0.2 : 0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF0F3B2C), Color(0xFF1E5B45)],
-                  ),
+                  child: UserAvatar(photo: photoUrl, name: name, size: 30),
                 ),
-                child: Center(
-                  child: photoUrl.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.network(
-                            photoUrl,
-                            width: 32,
-                            height: 32,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Text(
-                              initial,
-                              style: const TextStyle(
-                                fontFamily: DhikrTheme.arabicFont,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Text(
-                          initial,
-                          style: const TextStyle(
-                            fontFamily: DhikrTheme.arabicFont,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
+              ],
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildFilterChip(String label, LovedOneCategory? cat, bool dark) {
-    final selected = _filterCategory == cat;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => setState(() => _filterCategory = cat),
-      selectedColor: dark ? const Color(0xFF163E32) : const Color(0xFF0F3B2C),
-      labelStyle: TextStyle(
-        fontFamily: DhikrTheme.arabicFont,
-        fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
-        fontSize: 12,
-        color: selected ? Colors.white : (dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft),
-      ),
-      backgroundColor: dark ? const Color(0xFF14221C) : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: selected ? const Color(0xFF0F3B2C) : Colors.grey.withValues(alpha: 0.2),
-        ),
-      ),
     );
   }
 
@@ -541,8 +460,10 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
   }
 
   String _getPostPhoto(LovedOneItem item) {
-    if (item.imagePath != null && item.imagePath!.isNotEmpty && File(item.imagePath!).existsSync()) {
-      return item.imagePath!;
+    final path = item.imagePath;
+    if (path != null && path.isNotEmpty) {
+      if (path.startsWith('http')) return path;
+      if (File(path).existsSync()) return path;
     }
     const photos = [
       'assets/images/hero_fajr.webp',
@@ -564,9 +485,11 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
         ? item.customDua!
         : item.category.defaultDuaAr;
     final postPhoto = _getPostPhoto(item);
-    final isCustomFile = item.imagePath != null &&
+    final hasCustomImage = item.imagePath != null &&
         item.imagePath!.isNotEmpty &&
-        File(item.imagePath!).existsSync();
+        (item.imagePath!.startsWith('http') ||
+            File(item.imagePath!).existsSync());
+    final isNetworkImage = postPhoto.startsWith('http');
 
     return Material(
       color: Colors.transparent,
@@ -601,106 +524,41 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          // Post Header: Avatar, Name, Category Badge & Date
+          // Post Header: Author Avatar + Name (above time) + actions
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
             child: Row(
               children: [
-                // Image or Avatar
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF0F3B2C).withValues(alpha: 0.35),
-                      width: 1.8,
-                    ),
-                  ),
-                  child: ClipOval(
-                    child: isCustomFile
-                        ? Image.file(
-                            File(item.imagePath!),
-                            fit: BoxFit.cover,
-                            width: 44,
-                            height: 44,
-                          )
-                        : Container(
-                            color: const Color(0xFF0F3B2C).withValues(alpha: 0.1),
-                            child: Center(
-                              child: Icon(item.category.icon, size: 22, color: const Color(0xFF0F3B2C)),
-                            ),
-                          ),
-                  ),
+                // Author avatar
+                UserAvatar(
+                  photo: item.authorPhoto,
+                  name: item.authorName,
+                  size: 44,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontFamily: DhikrTheme.arabicFont,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                                color: dark ? Colors.white : DhikrColors.charcoal,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: dark ? const Color(0xFF1E3A2E) : const Color(0xFF0F3B2C).withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: const Color(0xFF0F3B2C).withValues(alpha: 0.2),
-                                width: 0.8,
-                              ),
-                            ),
-                            child: Text(
-                              item.category.badgeLabelAr,
-                              style: TextStyle(
-                                fontFamily: DhikrTheme.arabicFont,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 11,
-                                color: dark ? const Color(0xFFC5A059) : const Color(0xFF0F3B2C),
-                              ),
-                            ),
-                          ),
-                          if (!isMine) ...[
-                            const SizedBox(width: 4),
-                            IconButton(
-                              icon: const Icon(LucideIcons.flag, size: 14),
-                              tooltip: 'إبلاغ عن محتوى',
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                              color: dark ? Colors.white38 : Colors.black38,
-                              onPressed: () => _showReportDialog(context, item),
-                            ),
-                          ],
-                        ],
+                      // Author name above post time
+                      Text(
+                        item.authorName.trim().isEmpty
+                            ? 'مستخدم درة المؤمن'
+                            : item.authorName.trim(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: DhikrTheme.arabicFont,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: dark ? Colors.white : DhikrColors.charcoal,
+                        ),
                       ),
                       const SizedBox(height: 3),
                       Row(
                         children: [
                           Text(
-                            item.relation.isNotEmpty ? item.relation : 'دعاء في ظهر الغيب',
-                            style: TextStyle(
-                              fontFamily: DhikrTheme.arabicFont,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: dark ? const Color(0xFFC5A059) : const Color(0xFF0F3B2C),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '• ${_formatRelativeDate(item.createdAt)}',
+                            _formatRelativeDate(item.createdAt),
                             style: TextStyle(
                               fontFamily: DhikrTheme.arabicFont,
                               fontSize: 11,
@@ -760,7 +618,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                                   await LovedOnesService.instance.renewLovedOne(item.id);
                                   _load();
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                    AppToast.show(context,
                                       const SnackBar(
                                         content: Text('تم تجديد ظهور طلب الدعاء في المجتمع لـ ٣٠ يوماً إضافية 🤲'),
                                       ),
@@ -794,6 +652,43 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                               ),
                             ],
                           ],
+                          const Spacer(),
+                          // Share button
+                          IconButton(
+                            icon: const Icon(LucideIcons.share2, size: 15),
+                            tooltip: 'مشاركة الدعاء',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            color: dark ? Colors.white54 : Colors.black45,
+                            onPressed: () => _shareDuaFromCard(context, item),
+                          ),
+                          // Edit button (only for my posts)
+                          if (isMine)
+                            IconButton(
+                              icon: const Icon(LucideIcons.edit, size: 15),
+                              tooltip: 'تعديل الدعاء',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                              color: dark ? const Color(0xFFC5A059) : const Color(0xFF0F3B2C),
+                              onPressed: () async {
+                                final res = await Navigator.push<bool>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AddLovedOneScreen(itemToEdit: item),
+                                  ),
+                                );
+                                if (res == true) _load();
+                              },
+                            )
+                          else
+                            IconButton(
+                              icon: const Icon(LucideIcons.flag, size: 14),
+                              tooltip: 'إبلاغ عن محتوى',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                              color: dark ? Colors.white38 : Colors.black38,
+                              onPressed: () => _showReportDialog(context, item),
+                            ),
                         ],
                       ),
                     ],
@@ -823,11 +718,23 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  isCustomFile
-                      ? Image.file(
-                          File(postPhoto),
-                          fit: BoxFit.cover,
-                        )
+                  hasCustomImage
+                      ? (isNetworkImage
+                          ? Image.network(
+                              postPhoto,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Container(
+                                color: const Color(0xFF0F3B2C),
+                                child: const Center(
+                                  child: Icon(LucideIcons.heartHandshake,
+                                      color: Colors.white, size: 40),
+                                ),
+                              ),
+                            )
+                          : Image.file(
+                              File(postPhoto),
+                              fit: BoxFit.cover,
+                            ))
                       : Image.asset(
                           postPhoto,
                           fit: BoxFit.cover,
@@ -853,12 +760,61 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                       ),
                     ),
                   ),
+                  // شيب التصنيف عائم فوق الصورة
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.35),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(item.category.icon, size: 13, color: Colors.white),
+                          const SizedBox(width: 5),
+                          Text(
+                            item.category.badgeLabelAr,
+                            style: const TextStyle(
+                              fontFamily: DhikrTheme.arabicFont,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11.5,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
 
           const SizedBox(height: 10),
+
+          // عنوان الكارت (الاسم) تحت الصورة وفوق الدعاء
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Text(
+              item.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+                color: dark ? Colors.white : DhikrColors.charcoal,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
 
 
           // Dua Content Box
@@ -897,26 +853,34 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
 
                 return Row(
                   children: [
-                    // Ameen Button
+                    // Ameen Button (toggle: تراجع ينقص العداد)
                     Expanded(
                       child: InkWell(
                         onTap: () async {
                           HapticFeedback.lightImpact();
                           final wasActive = isAmeenActive;
-                          setState(() {
-                            if (wasActive) {
+                          int newCount;
+                          if (wasActive) {
+                            setState(() {
                               _ameenInteractedIds.remove(item.id);
-                            } else {
+                              _userStats['ameen'] =
+                                  ((_userStats['ameen'] ?? 1) - 1).clamp(0, 1 << 30);
+                            });
+                            newCount = await LovedOnesService.instance
+                                .retractAmeen(item.id);
+                          } else {
+                            setState(() {
                               _ameenInteractedIds.add(item.id);
                               _userStats['ameen'] = (_userStats['ameen'] ?? 0) + 1;
-                            }
-                          });
-                          final newCount = await LovedOnesService.instance.toggleHeart(item.id);
+                            });
+                            newCount = await LovedOnesService.instance
+                                .toggleHeart(item.id);
+                          }
                           setState(() {
                             item.loveCount = newCount;
                           });
                           if (context.mounted && !wasActive) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            AppToast.show(context, 
                               const SnackBar(
                                 content: Text('آمين.. استجاب الله دعاءك بظهر الغيب ولك بمثل 🤲'),
                                 duration: Duration(seconds: 2),
@@ -957,7 +921,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                               ),
                               const SizedBox(width: 5),
                               Text(
-                                isAmeenActive ? 'أمّنت (${item.loveCount})' : 'آمين (${item.loveCount})',
+                                'آمين (${item.loveCount})',
                                 style: TextStyle(
                                   fontFamily: DhikrTheme.arabicFont,
                                   fontSize: 12,
@@ -972,21 +936,34 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                     ),
                     const SizedBox(width: 8),
 
-                    // Fatiha Button
+                    // Fatiha Button (toggle: تراجع ينقص العداد)
                     Expanded(
                       child: InkWell(
                         onTap: () async {
                           HapticFeedback.lightImpact();
-                          setState(() {
-                            _fatihaInteractedIds.add(item.id);
-                            _userStats['fatiha'] = (_userStats['fatiha'] ?? 0) + 1;
-                          });
-                          final newCount = await LovedOnesService.instance.incrementFatiha(item.id);
+                          final wasActive = isFatihaActive;
+                          int newCount;
+                          if (wasActive) {
+                            setState(() {
+                              _fatihaInteractedIds.remove(item.id);
+                              _userStats['fatiha'] =
+                                  ((_userStats['fatiha'] ?? 1) - 1).clamp(0, 1 << 30);
+                            });
+                            newCount = await LovedOnesService.instance
+                                .retractFatiha(item.id);
+                          } else {
+                            setState(() {
+                              _fatihaInteractedIds.add(item.id);
+                              _userStats['fatiha'] = (_userStats['fatiha'] ?? 0) + 1;
+                            });
+                            newCount = await LovedOnesService.instance
+                                .incrementFatiha(item.id);
+                          }
                           setState(() {
                             item.fatihaCount = newCount;
                           });
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                          if (context.mounted && !wasActive) {
+                            AppToast.show(context, 
                               const SnackBar(
                                 content: Text('تقبل الله قراءتك للفاتحة ونور بها قبره ومقامه 📖'),
                                 duration: Duration(seconds: 2),
@@ -1027,7 +1004,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                               ),
                               const SizedBox(width: 5),
                               Text(
-                                isFatihaActive ? 'قرأت الفاتحة (${item.fatihaCount})' : 'الفاتحة (${item.fatihaCount})',
+                                'الفاتحة (${item.fatihaCount})',
                                 style: TextStyle(
                                   fontFamily: DhikrTheme.arabicFont,
                                   fontSize: 12,
@@ -1165,7 +1142,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                           onSubmitted: (text) async {
                             if (text.trim().isEmpty) return;
                             if (LovedOnesService.instance.isCommentInCooldown) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              AppToast.show(context, 
                                 const SnackBar(
                                   content: Text('يرجى الانتظار بضع ثوانٍ قبل إرسال دعاء آخر ⏱️'),
                                   behavior: SnackBarBehavior.floating,
@@ -1175,7 +1152,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                             }
                             final err = ProfanityFilterService.validateText(text, fieldName: 'التعليق');
                             if (err != null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              AppToast.show(context, 
                                 SnackBar(
                                   content: Text(err),
                                   backgroundColor: Colors.redAccent,
@@ -1198,7 +1175,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                           final text = commentCtrl.text.trim();
                           if (text.isEmpty) return;
                           if (LovedOnesService.instance.isCommentInCooldown) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            AppToast.show(context, 
                               const SnackBar(
                                 content: Text('يرجى الانتظار بضع ثوانٍ قبل إرسال دعاء آخر ⏱️'),
                                 behavior: SnackBarBehavior.floating,
@@ -1208,7 +1185,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                           }
                           final err = ProfanityFilterService.validateText(text, fieldName: 'التعليق');
                           if (err != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            AppToast.show(context, 
                               SnackBar(
                                 content: Text(err),
                                 backgroundColor: Colors.redAccent,
@@ -1244,6 +1221,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
     final ameenCount = _userStats['ameen'] ?? 0;
     final fatihaCount = _userStats['fatiha'] ?? 0;
     final myPostsCount = _myCreatedIds.length;
+    final isAr = Provider.of<AppState>(context, listen: false).language == AppLanguage.arabic;
 
     showModalBottomSheet(
       context: context,
@@ -1251,7 +1229,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
       isScrollControlled: true,
       builder: (ctx) {
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
           child: Container(
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 34),
             decoration: BoxDecoration(
@@ -1504,8 +1482,36 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
     );
   }
 
+  void _shareDuaFromCard(BuildContext context, LovedOneItem item) {
+    HapticFeedback.lightImpact();
+    final text = '''
+دعاء بظهر الغيب إلى: ${item.name} (${item.category.badgeLabelAr})
+«${item.customDua ?? item.category.defaultDuaAr}»
+
+نسألكم قراءة الفاتحة والدعاء له بظهر الغيب 🤲
+(تم الإرسال من تطبيق درة المؤمن)
+''';
+    Clipboard.setData(ClipboardData(text: text));
+    AppToast.show(
+      context,
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Text('تم نسخ بطاقة الدعاء لنشرها أو مشاركتها 🌿', style: TextStyle(fontFamily: DhikrTheme.arabicFont)),
+          ],
+        ),
+        backgroundColor: const Color(0xFF0F766E),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
   void _showReportDialog(BuildContext context, LovedOneItem item) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = Provider.of<AppState>(context, listen: false).language == AppLanguage.arabic;
     String selectedReason = 'محتوى غير لائق أو مسيء';
     final reasons = [
       'محتوى غير لائق أو مسيء',
@@ -1519,7 +1525,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
           child: AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
             backgroundColor: dark ? const Color(0xFF14241E) : Colors.white,
@@ -1617,7 +1623,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                   );
                   _load();
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    AppToast.show(context, 
                       const SnackBar(
                         content: Text('تم استلام بلاغك وإخفاء المحتوى فوراً. جزاكم الله خيراً 🤲'),
                         behavior: SnackBarBehavior.floating,

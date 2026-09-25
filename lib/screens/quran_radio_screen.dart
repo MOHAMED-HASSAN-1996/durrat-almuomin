@@ -10,6 +10,7 @@ import '../services/quran_radio.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 
 /// Full-screen Quran Radio player with station list, mode switcher (Quran Radio vs Reciters),
 /// and previous/next navigation.
@@ -178,44 +179,6 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
     }
   }
 
-  /// Instant station selection for Cairo or Makkah
-  Future<void> _selectStation(RadioStation target) async {
-    HapticFeedback.selectionClick();
-    final isCurrent = _station == target.name;
-    if (isCurrent) {
-      _toggle();
-      return;
-    }
-
-    setState(() {
-      _station = target.name;
-      _connecting = true;
-    });
-
-    try {
-      _radio.ensureAudioContext();
-      final success = await _radio.play(
-        url: target.url,
-        name: target.name,
-        category: 'live',
-      );
-      if (mounted && !success && !_radio.isPlaying) {
-        setState(() {
-          _connecting = false;
-          _state = PlayerState.stopped;
-        });
-      }
-    } catch (e) {
-      debugPrint('Select station error: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _connecting = false;
-          _station = _radio.stationName;
-        });
-      }
-    }
-  }
 
   /// Instant-feedback toggle method: zero lag on stop, reliable connect on play
   Future<void> _toggle() async {
@@ -285,7 +248,7 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
         _station = _radio.stationName ?? _station;
       });
       if (!success) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppToast.show(context, 
           SnackBar(
             content: const Text(
               'تعذر تشغيل الإذاعة — تأكد من اتصالك بالإنترنت',
@@ -376,7 +339,7 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
         });
       } else if (mounted && !ok) {
         // Play failed — show error
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppToast.show(context, 
           SnackBar(
             content: Text(
               'تعذر تشغيل هذه الإذاعة',
@@ -391,7 +354,7 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
     } catch (e) {
       debugPrint('Play station error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppToast.show(context, 
           SnackBar(
             content: Text(
               'تعذر تشغيل هذه الإذاعة',
@@ -507,11 +470,42 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
                       ? _buildStationList(context, lang, isAr, dark)
                       : SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
-                          child: _buildRedesignedPlayerCard(
-                            context,
-                            isAr,
-                            dark,
-                            isPlaying,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildRedesignedPlayerCard(
+                                context,
+                                isAr,
+                                dark,
+                                isPlaying,
+                              ),
+                              const SizedBox(height: 10),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                child: Text(
+                                  isAr
+                                      ? 'البث المباشر شغال بجودة متوسطة عشان يحافظ على باقتك\n— حوالي 50 ميجا في الساعة'
+                                      : 'Live stream at medium quality to save your data\n— around 50 MB per hour',
+                                  textAlign: TextAlign.center,
+                                  textDirection: isAr
+                                      ? TextDirection.rtl
+                                      : TextDirection.ltr,
+                                  style: TextStyle(
+                                    fontFamily: DhikrTheme.arabicFont,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.6,
+                                    color: dark
+                                        ? Colors.white38
+                                        : DhikrColors.charcoalSoft.withValues(
+                                            alpha: 0.7,
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                 ),
@@ -731,6 +725,7 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
           Text(
             _radioMode == 0
                 ? ((_station?.contains('مكة') ?? false) ||
+                          (_station?.contains('المدينة') ?? false) ||
                           (_station?.contains('السعودية') ?? false)
                       ? (isAr
                             ? 'المملكة العربية السعودية — بث حي متواصل'
@@ -797,8 +792,8 @@ class _QuranRadioScreenState extends State<QuranRadioScreen>
                 iconSize: 22,
                 tooltip: _radioMode == 0
                     ? (isAr
-                          ? 'التبديل بين القاهرة ومكة'
-                          : 'Switch Cairo / Makkah')
+                          ? 'التبديل بين المحطات الحية'
+                          : 'Cycle live stations')
                     : (isAr ? 'محطة عشوائية' : 'Shuffle'),
                 onPressed: _connecting
                     ? null

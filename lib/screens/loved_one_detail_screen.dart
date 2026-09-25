@@ -2,12 +2,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:provider/provider.dart';
 
 import '../models/loved_one.dart';
 import '../services/loved_ones_service.dart';
 import '../services/profanity_filter_service.dart';
+import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../types/adhkar.dart';
 import 'add_loved_one_screen.dart';
+import '../widgets/app_toast.dart';
 
 class LovedOneDetailScreen extends StatefulWidget {
   const LovedOneDetailScreen({super.key, required this.item});
@@ -27,6 +31,17 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
   void initState() {
     super.initState();
     _item = widget.item;
+    _loadCloudComments();
+  }
+
+  Future<void> _loadCloudComments() async {
+    final comments = await LovedOnesService.instance.loadComments(_item.id);
+    if (!mounted || comments.isEmpty) return;
+    setState(() {
+      _item.comments
+        ..clear()
+        ..addAll(comments);
+    });
   }
 
   @override
@@ -52,7 +67,7 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
     if (text.isEmpty) return;
 
     if (LovedOnesService.instance.isCommentInCooldown) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.show(context, 
         const SnackBar(
           content: Text('يرجى الانتظار بضع ثوانٍ قبل إرسال دعاء آخر ⏱️'),
           behavior: SnackBarBehavior.floating,
@@ -63,7 +78,7 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
 
     final err = ProfanityFilterService.validateText(text, fieldName: 'التعليق');
     if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.show(context, 
         SnackBar(
           content: Text(err),
           backgroundColor: Colors.redAccent,
@@ -86,10 +101,10 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
 «${_item.customDua ?? _item.category.defaultDuaAr}»
 
 نسألكم قراءة الفاتحة والدعاء له بظهر الغيب 🤲
-(تم الإرسال من تطبيق دُرَّةُ الْمُؤْمِن)
+(تم الإرسال من تطبيق درة المؤمن)
 ''';
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppToast.show(context, 
       SnackBar(
         content: const Row(
           children: [
@@ -132,9 +147,10 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = context.watch<AppState>().language == AppLanguage.arabic;
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: dark ? const Color(0xFF0D1612) : const Color(0xFFF7FBF9),
         appBar: AppBar(
@@ -248,13 +264,44 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(19.5),
-                          child: _item.imagePath != null && File(_item.imagePath!).existsSync()
-                              ? Image.file(
-                                  File(_item.imagePath!),
-                                  fit: BoxFit.cover,
-                                  width: 160,
-                                  height: 160,
-                                )
+                          child: _item.imagePath != null &&
+                                  _item.imagePath!.isNotEmpty
+                              ? (_item.imagePath!.startsWith('http')
+                                  ? Image.network(
+                                      _item.imagePath!,
+                                      fit: BoxFit.cover,
+                                      width: 160,
+                                      height: 160,
+                                      errorBuilder: (_, _, _) => Container(
+                                        color: _item.category.color
+                                            .withValues(alpha: 0.12),
+                                        child: Center(
+                                          child: Icon(
+                                            _item.category.icon,
+                                            size: 56,
+                                            color: _item.category.color,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : (File(_item.imagePath!).existsSync()
+                                      ? Image.file(
+                                          File(_item.imagePath!),
+                                          fit: BoxFit.cover,
+                                          width: 160,
+                                          height: 160,
+                                        )
+                                      : Container(
+                                          color: _item.category.color
+                                              .withValues(alpha: 0.12),
+                                          child: Center(
+                                            child: Icon(
+                                              _item.category.icon,
+                                              size: 56,
+                                              color: _item.category.color,
+                                            ),
+                                          ),
+                                        )))
                               : Container(
                                   color: _item.category.color.withValues(alpha: 0.12),
                                   child: Center(
@@ -279,18 +326,6 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
                           color: dark ? Colors.white : const Color(0xFF0F3E33),
                         ),
                       ),
-                      if (_item.relation.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          _item.relation,
-                          style: TextStyle(
-                            fontFamily: DhikrTheme.arabicFont,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: dark ? DhikrColors.sage : const Color(0xFF0F766E),
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: 10),
 
                       // Status Badge

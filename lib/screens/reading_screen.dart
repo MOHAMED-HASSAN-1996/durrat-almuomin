@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/strings.dart';
+import '../services/arabic_text_utils.dart';
 import '../services/audio.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -11,6 +12,7 @@ import '../widgets/completion_screen.dart';
 import '../widgets/dhikr_counter.dart';
 import '../widgets/progress_bar.dart';
 import '../widgets/source_sheet.dart';
+import '../widgets/app_toast.dart';
 
 /// The reading screen. Shows ONE Dhikr at a time with a large counter,
 /// audio button, source link, and progress. Advancing is always explicit
@@ -52,7 +54,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
       widget.category == DhikrCategory.ruqyah;
 
   static String _removeTashkeel(String input) {
-    return input.replaceAll(RegExp(r'[\u064B-\u0652\u0670\u0640]'), '');
+    return ArabicTextUtils.stripTashkeel(input);
   }
 
   @override
@@ -70,20 +72,36 @@ class _ReadingScreenState extends State<ReadingScreen> {
     });
   }
 
-  Future<void> _handleCounterTap() async {
-    final state = context.read<AppState>();
+  Future<void> _handleCounterTap() async {    final state = context.read<AppState>();
     final dhikr = _adhkar[_safeIndex];
     final current = state.countFor(widget.category, dhikr.id);
     if (current >= dhikr.repeat) {
       // Already complete — advancing happens only via Next.
       return;
     }
+    // اهتزاز فوري مع كل ضغطة على الدائرة
+    HapticFeedback.mediumImpact();
     final next = state.increment(widget.category, dhikr.id);
     if (next >= dhikr.repeat) {
       setState(() {
         _lastCompletedIndex = _safeIndex;
       });
-      HapticFeedback.mediumImpact();
+      HapticFeedback.heavyImpact();
+    }
+  }
+
+  /// التراجع عن آخر ضغطة (إنقاص العداد واحد) — للصباح والمساء وبعد الصلاة والرقية
+  void _handleUndoTap() {
+    final state = context.read<AppState>();
+    final dhikr = _adhkar[_safeIndex];
+    final current = state.countFor(widget.category, dhikr.id);
+    if (current <= 0) return;
+    HapticFeedback.lightImpact();
+    state.decrement(widget.category, dhikr.id);
+    if (_lastCompletedIndex == _safeIndex) {
+      setState(() {
+        _lastCompletedIndex = null;
+      });
     }
   }
 
@@ -154,12 +172,12 @@ class _ReadingScreenState extends State<ReadingScreen> {
     }
     final ok = dhikr.hasQuranAudio
         ? await _audio.playStream(dhikr.quranAudio!, sourceKey: key)
-        : await _audio.play(dhikr.audio!, sourceKey: key);
+        : false;
     if (!mounted) return;
     if (ok) {
       setState(() {});
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.show(context, 
         SnackBar(content: Text(AppStrings.t(lang, 'audio_unavailable'))),
       );
     }
@@ -223,7 +241,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
                   _lastCompletedIndex = null;
                 });
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  AppToast.show(context, 
                     SnackBar(
                       content: Text(
                         lang == AppLanguage.arabic
@@ -434,6 +452,33 @@ class _ReadingScreenState extends State<ReadingScreen> {
                         onTap: _handleCounterTap,
                         languageLabel: _counterA11yLabel(dhikr, currentCount, lang),
                       ),
+                      if (currentCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: TextButton.icon(
+                            onPressed: _handleUndoTap,
+                            icon: Icon(
+                              Icons.undo_rounded,
+                              size: 16,
+                              color: dark
+                                  ? DhikrColors.darkMuted
+                                  : DhikrColors.charcoalSoft,
+                            ),
+                            label: Text(
+                              lang == AppLanguage.arabic
+                                  ? 'تراجع عن آخر ضغطة'
+                                  : 'Undo last tap',
+                              style: TextStyle(
+                                fontFamily: DhikrTheme.arabicFont,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: dark
+                                    ? DhikrColors.darkMuted
+                                    : DhikrColors.charcoalSoft,
+                              ),
+                            ),
+                          ),
+                        ),
                       Padding(
                         key: const ValueKey('next-cta'),
                         padding: const EdgeInsets.only(top: 4),

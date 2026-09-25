@@ -1,10 +1,16 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'firebase_auth_service.dart';
+
 /// Service for synchronizing User registrations, Ratings, and Suggestions
-/// with the standalone Admin Dashboard.
+/// with the admin dashboard via Firestore.
+///
+/// Everything is offline-first: entries are always stored locally, then a
+/// best-effort Firestore write delivers them to the dashboard collections
+/// (`ratings` / `feedback`). Failures never surface to the user.
 class AdminSyncService {
   AdminSyncService._();
   static final AdminSyncService instance = AdminSyncService._();
@@ -14,9 +20,30 @@ class AdminSyncService {
   static const _feedbackStorageKey = 'adhkar.admin.feedback';
   static const _userAccountKey = 'adhkar.user.account';
 
-  // Configurable backend URL (defaults to local admin dashboard server)
-  // Can be pointed to localhost:4000 or any hosted URL
+  // Legacy backend URL (kept for reference; Firestore is now the channel).
   static String adminServerUrl = 'http://127.0.0.1:4000/api';
+
+  /// Best-effort Firestore writer: initializes Firebase + anonymous identity,
+  /// writes the document, and swallows all errors (offline-safe).
+  Future<bool> _sendToCloud(
+    String collection,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final ok = await FirebaseAuthService.instance.initialize();
+      if (!ok) return false;
+      await FirebaseAuthService.instance.signInAnonymously();
+      await FirebaseFirestore.instance
+          .collection(collection)
+          .add({...data, 'sentAt': FieldValue.serverTimestamp()}).timeout(
+            const Duration(seconds: 5),
+          );
+      return true;
+    } catch (e) {
+      debugPrint('AdminSync cloud note ($collection): $e');
+      return false;
+    }
+  }
 
   /// Register or Login User with Name, Email, Phone, and Auth Provider
   Future<Map<String, dynamic>> registerOrLoginUser({
@@ -42,16 +69,8 @@ class AdminSyncService {
 
     await prefs.setString(_userAccountKey, jsonEncode(profile));
 
-    // Try posting to admin server
-    try {
-      await http.post(
-        Uri.parse('$adminServerUrl/users'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(profile),
-      ).timeout(const Duration(seconds: 3));
-    } catch (_) {
-      // Gracefully offline
-    }
+    // User identity itself lives in Firebase Auth + `users` docs
+    // (see FirebaseAuthService); no separate write needed here.
 
     return profile;
   }
@@ -99,11 +118,13 @@ class AdminSyncService {
     final prefs = await SharedPreferences.getInstance();
     final ratingData = {
       'id': 'rate_${DateTime.now().millisecondsSinceEpoch}',
-      'stars': stars,
+      'stars': stars.clamp(1, 5),
       'tags': tags,
       'comment': comment,
       'user': userName ?? 'مستخدم مجهول',
       'platform': defaultTargetPlatform.name,
+      'featured': false,
+      'isApproved': false,
       'createdAt': DateTime.now().toIso8601String(),
     };
 
@@ -112,18 +133,9 @@ class AdminSyncService {
     existing.insert(0, jsonEncode(ratingData));
     await prefs.setStringList(_ratingsStorageKey, existing);
 
-    // Send to admin dashboard backend
-    try {
-      final res = await http.post(
-        Uri.parse('$adminServerUrl/ratings'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(ratingData),
-      ).timeout(const Duration(seconds: 3));
-      return res.statusCode == 200 || res.statusCode == 201;
-    } catch (_) {
-      // Offline fallback success (stored locally)
-      return true;
-    }
+    // Deliver to the admin dashboard collection (best-effort).
+    await _sendToCloud('ratings', ratingData);
+    return true;
   }
 
   /// Submit Feedback / Suggestion
@@ -140,6 +152,7 @@ class AdminSyncService {
       'contact': userContact ?? 'غير محدد',
       'platform': defaultTargetPlatform.name,
       'status': 'جديد',
+      'adminReply': '',
       'createdAt': DateTime.now().toIso8601String(),
     };
 
@@ -148,18 +161,9 @@ class AdminSyncService {
     existing.insert(0, jsonEncode(feedbackData));
     await prefs.setStringList(_feedbackStorageKey, existing);
 
-    // Send to admin dashboard backend
-    try {
-      final res = await http.post(
-        Uri.parse('$adminServerUrl/feedback'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(feedbackData),
-      ).timeout(const Duration(seconds: 3));
-      return res.statusCode == 200 || res.statusCode == 201;
-    } catch (_) {
-      // Offline fallback
-      return true;
-    }
+    // Deliver to the admin dashboard collection (best-effort).
+    await _sendToCloud('feedback', feedbackData);
+    return true;
   }
 
   /// Retrieve all locally stored ratings

@@ -1,5 +1,9 @@
-/// Authentic Hadith collection curated from verified Sunnah and Hadith collections
-/// (Sahih al-Bukhari, Sahih Muslim, and An-Nawawi's 40 Hadiths).
+// Authentic Hadith collection curated from verified Sunnah and Hadith collections
+// (Sahih al-Bukhari, Sahih Muslim, and An-Nawawi's 40 Hadiths).
+//
+// Full Riyad as-Salihin entries live in `riyad_hadith_data.dart` and are
+// merged below so search, categories and counters pick them up automatically.
+import 'riyad_hadith_data.dart';
 class HadithItem {
   const HadithItem({
     required this.id,
@@ -111,4 +115,5 @@ const List<HadithItem> authenticHadiths = [
     explanation: 'بيان ثقل مكارم الأخلاق وحسن المعاملة في ميزان الحسنات يوم القيامة.',
     category: 'الأخلاق والمعاملات',
   ),
+  ...riyadHadiths,
 ];

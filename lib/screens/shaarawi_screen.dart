@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../data/shaarawi_data.dart';
 import '../screens/in_app_player_screen.dart';
+import '../services/remote_content_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
@@ -22,14 +23,27 @@ class _ShaarawiScreenState extends State<ShaarawiScreen> {
   String _searchQuery = '';
 
   @override
+  void initState() {
+    super.initState();
+    RemoteContentService.instance.initialize();
+    RemoteContentService.instance.addListener(_onRemoteContent);
+  }
+
+  @override
   void dispose() {
+    RemoteContentService.instance.removeListener(_onRemoteContent);
     _searchController.dispose();
     super.dispose();
   }
 
+  void _onRemoteContent() {
+    if (mounted) setState(() {});
+  }
+
   List<ShaarawiSeriesGroup> get _filteredSeriesGroups {
     final q = _searchQuery.trim().toLowerCase();
-    return shaarawiSeriesGroups
+    // Merged local + admin-managed remote lessons (remote first).
+    return RemoteContentService.instance.getShaarawiSeriesGroups()
         .map((group) {
           final matchesCategory =
               _selectedCategory == ShaarawiCategory.all ||

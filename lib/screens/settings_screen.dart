@@ -11,11 +11,12 @@ import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
 import 'auth_screen.dart';
 import 'about_app_screen.dart';
-import 'onboarding_screen.dart';
+import 'permissions_control_screen.dart';
+import 'prayer_commitment_screen.dart';
 import 'privacy_screen.dart';
 import 'profile_details_screen.dart';
-
-import 'setup_permissions_screen.dart';
+import '../widgets/user_avatar.dart';
+import '../widgets/app_toast.dart';
 
 /// Redesigned Settings screen — sleek, organized into grouped cards,
 /// with segmented switches and premium typography.
@@ -97,22 +98,9 @@ class SettingsScreen extends StatelessWidget {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) =>
-                                const _PrayerCommitmentAnalyticsPage(),
+                                const PrayerCommitmentScreen(),
                           ),
                         );
-                      },
-                      dark: dark,
-                    ),
-                    const _SectionDivider(),
-                    _SettingsNavTile(
-                      icon: LucideIcons.refreshCw,
-                      iconColor: const Color(0xFFE55353),
-                      title: AppStrings.t(lang, 'reset_today'),
-                      onTap: () async {
-                        final confirmed = await _confirmReset(context);
-                        if (confirmed == true && context.mounted) {
-                          await context.read<AppState>().resetToday();
-                        }
                       },
                       dark: dark,
                     ),
@@ -180,9 +168,7 @@ class SettingsScreen extends StatelessWidget {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => SetupPermissionsScreen(
-                              onFinished: () => Navigator.of(context).pop(),
-                            ),
+                            builder: (_) => const PermissionsControlScreen(),
                           ),
                         );
                       },
@@ -197,22 +183,6 @@ class SettingsScreen extends StatelessWidget {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const AboutAppScreen(),
-                          ),
-                        );
-                      },
-                      dark: dark,
-                    ),
-                    const _SectionDivider(),
-                    _SettingsNavTile(
-                      icon: LucideIcons.sparkles,
-                      iconColor: const Color(0xFFD97706),
-                      title: isAr ? 'جولة في التطبيق (دليل البداية)' : 'App Tour & Onboarding',
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => OnboardingScreen(
-                              onFinished: (_) => Navigator.of(context).pop(),
-                            ),
                           ),
                         );
                       },
@@ -233,58 +203,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Future<bool?> _confirmReset(BuildContext context) async {
-    final lang = context.read<AppState>().language;
-    return showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).brightness == Brightness.dark
-              ? DhikrColors.darkSurface
-              : DhikrColors.ivory,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            AppStrings.t(lang, 'reset_today'),
-            style: const TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          content: Text(
-            AppStrings.t(lang, 'reset_confirm'),
-            style: const TextStyle(fontFamily: DhikrTheme.arabicFont),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(
-                AppStrings.t(lang, 'cancel'),
-                style: const TextStyle(fontFamily: DhikrTheme.arabicFont),
-              ),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFE55353),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                AppStrings.t(lang, 'ok'),
-                style: const TextStyle(
-                  fontFamily: DhikrTheme.arabicFont,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   void _showRateSheet(BuildContext context, AppLanguage lang, bool dark) {
     final isAr = lang == AppLanguage.arabic;
@@ -558,7 +476,7 @@ class SettingsScreen extends StatelessWidget {
                       );
 
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        AppToast.show(context, 
                           SnackBar(
                             content: Text(
                               isAr
@@ -747,7 +665,7 @@ class SettingsScreen extends StatelessWidget {
                       );
 
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        AppToast.show(context, 
                           SnackBar(
                             content: Text(
                               isAr
@@ -789,66 +707,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showInfo(BuildContext context, String kind) {
-    final lang = context.read<AppState>().language;
-    final isAr = lang == AppLanguage.arabic;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-
-    final String title;
-    final String body;
-    switch (kind) {
-      case 'sources':
-        title = AppStrings.t(lang, 'sources');
-        body = isAr
-            ? 'صحيح البخاري، صحيح مسلم، سنن أبي داود، سنن الترمذي، مسند الإمام أحمد، وحصن المسلم من أذكار الكتاب والسنة.'
-            : 'Sahih al-Bukhari, Sahih Muslim, Sunan Abi Dawud, Sunan at-Tirmidhi, and Musnad Ahmad.';
-        break;
-      default:
-        title = AppStrings.t(lang, 'about');
-        body = AppStrings.t(lang, 'about_text');
-    }
-
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: dark ? DhikrColors.darkSurface : DhikrColors.ivory,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontFamily: DhikrTheme.arabicFont,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: Text(
-          body,
-          style: const TextStyle(
-            fontFamily: DhikrTheme.arabicFont,
-            height: 1.6,
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            style: FilledButton.styleFrom(
-              backgroundColor: dark ? DhikrColors.sage : DhikrColors.forest,
-              foregroundColor: dark ? DhikrColors.darkBg : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              AppStrings.t(lang, 'ok'),
-              style: const TextStyle(
-                fontFamily: DhikrTheme.arabicFont,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -913,6 +771,9 @@ class _UserProfileCard extends StatelessWidget {
             );
           }
         },
+        onLongPress: isLoggedIn
+            ? () => _confirmLogout(context, language, dark)
+            : null,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -922,38 +783,42 @@ class _UserProfileCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isLoggedIn
-                        ? (dark
-                              ? [DhikrColors.sage, const Color(0xFF6FA085)]
-                              : [DhikrColors.forest, DhikrColors.forestLight])
-                        : [
-                            (dark ? DhikrColors.sage : DhikrColors.forest)
-                                .withValues(alpha: 0.15),
-                            (dark ? DhikrColors.sage : DhikrColors.forest)
-                                .withValues(alpha: 0.08),
-                          ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: (dark ? DhikrColors.sage : DhikrColors.forest)
+                        .withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
                 ),
-                alignment: Alignment.center,
-                child: isLoggedIn
-                    ? Text(
-                        userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                        style: TextStyle(
-                          fontFamily: DhikrTheme.arabicFont,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 22,
-                          color: dark ? DhikrColors.darkBg : Colors.white,
+                child: ClipOval(
+                  child: isLoggedIn
+                      ? UserAvatar(
+                          photo: userProfile?['photo'],
+                          name: userName,
+                          size: 52,
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                (dark ? DhikrColors.sage : DhikrColors.forest)
+                                    .withValues(alpha: 0.15),
+                                (dark ? DhikrColors.sage : DhikrColors.forest)
+                                    .withValues(alpha: 0.08),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            LucideIcons.userPlus,
+                            size: 24,
+                            color: dark ? DhikrColors.sage : DhikrColors.forest,
+                          ),
                         ),
-                      )
-                    : Icon(
-                        LucideIcons.userPlus,
-                        size: 24,
-                        color: dark ? DhikrColors.sage : DhikrColors.forest,
-                      ),
+                ),
               ),
               const SizedBox(width: 14),
 
@@ -964,9 +829,7 @@ class _UserProfileCard extends StatelessWidget {
                   children: [
                     Text(
                       isLoggedIn
-                          ? (isAr
-                                ? 'أهلاً بك، $userName'
-                                : 'Welcome, $userName')
+                          ? (isAr ? 'الحساب' : 'Account')
                           : (isAr ? 'تسجيل المستخدم' : 'User Account'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1084,7 +947,7 @@ class _UserProfileCard extends StatelessWidget {
               HapticFeedback.mediumImpact();
               if (ctx.mounted) Navigator.pop(ctx);
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                AppToast.show(context, 
                   SnackBar(
                     content: Text(
                       isAr ? 'تم تسجيل الخروج' : 'Logged out',
@@ -1160,7 +1023,7 @@ class _AppHeaderCard extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: Image.asset(
-                'assets/images/app_icon.png',
+                'assets/images/app_icon.webp',
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => Container(
                   color: const Color(0xFF1E5243),
@@ -1186,7 +1049,7 @@ class _AppHeaderCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      isAr ? 'دُرَّةُ الْمُؤْمِن' : 'Durrat Al-Mu’min',
+                      isAr ? 'درة المؤمن' : 'Durrat Al-Mu’min',
                       style: TextStyle(
                         fontFamily: DhikrTheme.arabicFont,
                         fontWeight: FontWeight.w800,
@@ -1264,7 +1127,7 @@ class _DeveloperCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Image.asset(
-                  'assets/images/m_logo.jpg',
+                  'assets/images/m_logo.webp',
                   width: 44,
                   height: 44,
                   fit: BoxFit.cover,
@@ -1711,7 +1574,6 @@ class _SettingsNavTile extends StatelessWidget {
     required this.title,
     required this.onTap,
     required this.dark,
-    this.trailing,
   });
 
   final IconData icon;
@@ -1719,7 +1581,6 @@ class _SettingsNavTile extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
   final bool dark;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1743,8 +1604,7 @@ class _SettingsNavTile extends StatelessWidget {
           color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
         ),
       ),
-      trailing: trailing ??
-          Icon(
+      trailing: Icon(
             LucideIcons.chevronLeft,
             size: 20,
             color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
@@ -1753,128 +1613,6 @@ class _SettingsNavTile extends StatelessWidget {
         HapticFeedback.selectionClick();
         onTap();
       },
-    );
-  }
-}
-
-class _HistoryPage extends StatelessWidget {
-  const _HistoryPage();
-
-  @override
-  Widget build(BuildContext context) {
-    final lang = context.watch<AppState>().language;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          AppStrings.t(lang, 'history'),
-          style: const TextStyle(
-            fontFamily: DhikrTheme.arabicFont,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: const _HistoryPageBody(),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HistoryPageBody extends StatelessWidget {
-  const _HistoryPageBody();
-
-  @override
-  Widget build(BuildContext context) {
-    final lang = context.watch<AppState>().language;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final history = context.watch<AppState>().getHistory(limit: 30);
-    if (history.isEmpty) {
-      return Center(
-        child: Text(
-          lang == AppLanguage.arabic ? 'لا يوجد سجل بعد' : 'No history yet.',
-          style: TextStyle(
-            fontFamily: DhikrTheme.arabicFont,
-            color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
-          ),
-        ),
-      );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: history.length,
-      separatorBuilder: (context, _) => const SizedBox(height: 14),
-      itemBuilder: (context, i) {
-        final entry = history[i];
-        final date = entry['date'] as String;
-        final isToday = i == 0;
-        final label = isToday ? AppStrings.t(lang, 'today') : date;
-        final morning = entry['morning'] as Map?;
-        final evening = entry['evening'] as Map?;
-        return Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: dark ? DhikrColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: dark
-                  ? DhikrColors.darkText.withValues(alpha: 0.08)
-                  : DhikrColors.charcoal.withValues(alpha: 0.06),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontFamily: DhikrTheme.arabicFont,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _histLine('🌅', AppStrings.t(lang, 'morning'), morning, lang),
-              const SizedBox(height: 8),
-              _histLine('🌙', AppStrings.t(lang, 'evening'), evening, lang),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _histLine(String icon, String title, Map? data, AppLanguage lang) {
-    final completed = (data?['completed'] as num?)?.toInt() ?? 0;
-    final total = (data?['total'] as num?)?.toInt() ?? 0;
-    final pct = total == 0 ? 0 : (completed * 100 / total).round();
-    return Row(
-      children: [
-        Text(icon, style: const TextStyle(fontSize: 18)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Text(
-          '$pct%',
-          style: const TextStyle(
-            fontFamily: DhikrTheme.arabicFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-          ),
-        ),
-      ],
     );
   }
 }

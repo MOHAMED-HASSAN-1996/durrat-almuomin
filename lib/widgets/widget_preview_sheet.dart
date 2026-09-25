@@ -6,6 +6,7 @@ import '../services/home_widget_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import 'calendar_widget.dart';
+import 'app_toast.dart';
 
 /// نافذة فخمة لمعاينة وتثبيت ويدجيت الشاشة الرئيسية
 class WidgetPreviewSheet extends StatefulWidget {
@@ -162,7 +163,7 @@ class _WidgetPreviewSheetState extends State<WidgetPreviewSheet> {
                 final success = await HomeWidgetService.instance.pinWidget(isTracker: isTracker);
                 if (!context.mounted) return;
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
+                AppToast.show(context, 
                   SnackBar(
                     backgroundColor: DhikrColors.forest,
                     behavior: SnackBarBehavior.floating,
@@ -204,7 +205,7 @@ class _WidgetPreviewSheetState extends State<WidgetPreviewSheet> {
           const SizedBox(height: 8),
 
           Text(
-            '💡 يمكنك أيضاً الضغط مطولاً على أي مساحة فارغة في الشاشة الرئيسية واختيار «درّة المؤمن»',
+            '💡 يمكنك أيضاً الضغط مطولاً على أي مساحة فارغة في الشاشة الرئيسية واختيار «درة المؤمن»',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: DhikrTheme.bodyFont,

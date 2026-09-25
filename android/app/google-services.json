@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "273977925686-rbrvjukbp9ful3c519jnsishpps1ekq8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dhikr.adhkar",
+            "certificate_hash": "9b39a7817838c74affabd3efd19b628a6a387bf2"
+          }
+        },
+        {
           "client_id": "273977925686-95kek3141s432gsuqhj47gug8dql80id.apps.googleusercontent.com",
           "client_type": 3
         }

@@ -1,11 +1,11 @@
 {
-    "name": "درّة المؤمن | Durrat Al-Mu'min",
-    "short_name": "درّة المؤمن",
+    "name": "درة المؤمن | Durrat Al-Mu'min",
+    "short_name": "درة المؤمن",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#081310",
     "theme_color": "#081310",
-    "description": "درّة المؤمن — التطبيق الإسلامي الشامل للأذكار، القرآن الكريم، ومواقيت الصلاة",
+    "description": "درة المؤمن — التطبيق الإسلامي الشامل للأذكار، القرآن الكريم، ومواقيت الصلاة",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

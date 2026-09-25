@@ -253,6 +253,110 @@ String getVerseNumberQCF(
   return glyph;
 }
 
+/// Searches the full Quran text for [query] and returns the matching verses.
+///
+/// The search is fully offline (it runs against the bundled `quranText` data)
+/// and is diacritics tolerant: the fast path compares against `text_normal`
+/// (already diacritic-free), and a normalization pass is used as a fallback
+/// when no match is found at all.
+///
+/// Each returned entry contains:
+/// - `surahNumber` — 1..114
+/// - `verseNumber` — 1..surah ayah count
+/// - `surahName` — Arabic surah name (e.g. «سُورَةُ البَقَرَةِ»)
+/// - `text` — the verse text the match was found in (normalized, no diacritics)
+/// - `page` — the mushaf page (1..604) that contains this verse
+/// - `matchStart` / `matchEnd` — offsets of the match inside `text`
+///
+/// At most [limit] matches are returned, scanning the Quran in mushaf order.
+List<Map<String, dynamic>> searchVerses(String query, {int limit = 60}) {
+  final String raw = query.trim();
+  if (raw.isEmpty || limit <= 0) return const <Map<String, dynamic>>[];
+
+  final String plainQuery = removeDiacritics(raw).trim();
+  if (plainQuery.isEmpty) return const <Map<String, dynamic>>[];
+
+  final String normalisedQuery = normalise(raw).toLowerCase();
+
+  final List<Map<String, dynamic>> fastMatches = [];
+  final List<Map<String, dynamic>> deepMatches = [];
+
+  for (final verse in quranText) {
+    final int surahNumber = int.parse(verse['surah_number'].toString());
+    final int verseNumber = int.parse(verse['verse_number'].toString());
+    final String plainText = verse['text_normal'].toString();
+
+    // ── Fast path: `text_normal` is already diacritic-free ──
+    final int fastIndex = plainText.toLowerCase().indexOf(
+      plainQuery.toLowerCase(),
+    );
+    if (fastIndex >= 0) {
+      if (fastMatches.length < limit) {
+        fastMatches.add(
+          _verseMatch(
+            surahNumber: surahNumber,
+            verseNumber: verseNumber,
+            text: plainText,
+            matchStart: fastIndex,
+            matchEnd: fastIndex + plainQuery.length,
+          ),
+        );
+      }
+    } else if (deepMatches.length < limit) {
+      // ── Deep path: unify alif/ya/ta-marbuta forms before comparing ──
+      final String normalisedText = normalise(plainText).toLowerCase();
+      final int deepIndex = normalisedText.indexOf(normalisedQuery);
+      if (deepIndex >= 0) {
+        deepMatches.add(
+          _verseMatch(
+            surahNumber: surahNumber,
+            verseNumber: verseNumber,
+            text: normalisedText,
+            matchStart: deepIndex,
+            matchEnd: deepIndex + normalisedQuery.length,
+          ),
+        );
+      }
+    }
+
+    if (fastMatches.length >= limit && deepMatches.length >= limit) break;
+  }
+
+  // Prefer the exact (fast) matches; fall back to the normalized ones only when
+  // the query needed letter unification (e.g. «إبراهيم» vs «ابراهيم»).
+  final List<Map<String, dynamic>> results = fastMatches.isNotEmpty
+      ? fastMatches
+      : deepMatches;
+
+  results.sort((a, b) {
+    final int bySurah = (a['surahNumber'] as int).compareTo(
+      b['surahNumber'] as int,
+    );
+    if (bySurah != 0) return bySurah;
+    return (a['verseNumber'] as int).compareTo(b['verseNumber'] as int);
+  });
+
+  return results;
+}
+
+Map<String, dynamic> _verseMatch({
+  required int surahNumber,
+  required int verseNumber,
+  required String text,
+  required int matchStart,
+  required int matchEnd,
+}) {
+  return <String, dynamic>{
+    'surahNumber': surahNumber,
+    'verseNumber': verseNumber,
+    'surahName': getSurahName(surahNumber),
+    'text': text,
+    'page': getPageNumber(surahNumber, verseNumber),
+    'matchStart': matchStart,
+    'matchEnd': matchEnd,
+  };
+}
+
 Map searchWords(String words) {
   List<Map> result = [];
   // print(words);

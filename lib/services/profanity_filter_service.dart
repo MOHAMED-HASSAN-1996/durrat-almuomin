@@ -71,20 +71,118 @@ class ProfanityFilterService {
     return null;
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  //  كلمات جمع التبرعات المحظورة
+  //  Google Play Policy: لا يُسمح بجمع التبرعات أو المدفوعات في تطبيق
+  //  بدون اتفاقية Merchant مع Google Play. هذه القائمة تحمي التطبيق.
+  // ════════════════════════════════════════════════════════════════════════
   static const List<String> _donationKeywords = [
+    // محافظ إلكترونية مصرية وعربية
     'فودافون كاش',
+    'فودافون كاشي',
+    'vodafone cash',
     'انستاباي',
     'انستا باي',
-    'حساب بنكي',
-    'تحويل فلوس',
-    'تبرع مالي',
-    'تبرعوا',
-    'محفظه كاش',
-    'محفظة كاش',
-    'ارسل فلوس',
-    'فلوس علاج',
     'instapay',
-    'vodafone cash',
+    'محفظة كاش',
+    'محفظه كاش',
+    'ووي',
+    'wepay',
+    'فوري',
+    'fawry',
+    'بيميتش',
+    'bmetech',
+    'اورانج كاش',
+    'orange cash',
+    'اتصالات كاش',
+    'etisalat cash',
+    'باي موبايل',
+    'pay mobile',
+
+    // طلبات التحويل البنكي
+    'رقم حساب',
+    'رقم الحساب',
+    'حساب بنكي',
+    'iban',
+    'ايبان',
+    'حوالة بنكية',
+    'تحويل بنكي',
+    'swift',
+    'تحويل مصرفي',
+
+    // صياغات طلب التبرع
+    'تبرع',
+    'تبرعوا',
+    'تبرعات',
+    'تبرع مالي',
+    'تبرع لي',
+    'تبرع لنا',
+    'تبرع لأجل',
+    'تبرع الان',
+    'تبرع الآن',
+    'مساعدة مادية',
+    'دعم مادي',
+    'مساعده ماديه',
+    'إعانة مالية',
+    'دعم مالي',
+    'مساعدة مالية',
+    'مادي',
+    'محتاج مساعدة مالية',
+    'ارسل فلوس',
+    'ابعت فلوس',
+    'send money',
+    'فلوس علاج',
+    'تكاليف علاج',
+    'مصاريف علاج',
+    'تكاليف عملية',
+    'محتاج مبلغ',
+    'محتاج فلوس',
+    'محتاج مصاريف',
+    'نفقات علاج',
+    'فلوس دواء',
+    'ثمن دواء',
+
+    // عملات
+    'دولار',
+    'يورو',
+    'ريال',
+    'جنيه',
+    'درهم',
+    'دينار',
+    '\$',
+    '€',
+    '£',
+
+    // جمع تبرعات
+    'حملة تبرع',
+    'تبرع خيري',
+    'صندوق خيري',
+    'صدقة جارية',
+    'الصدقة الجارية',
+    'كفالة',
+    'جمع تبرعات',
+    'جمعية خيرية',
+    'موقع تبرع',
+    'crowdfunding',
+    'gofundme',
+    'paypal',
+    'باي بال',
+    'crypto',
+    'بيتكوين',
+    'bitcoin',
+
+    // الدفع الإلكتروني
+    'اشترك',
+    'اشتراك',
+    'ادفع',
+    'دفع',
+    'ادفع الان',
+    'اشتري',
+    'اشتر',
+    'buy now',
+    'pay now',
+    'subscribe',
+    'payment',
   ];
 
   /// Detect web URLs, domains, or messaging links
@@ -127,19 +225,44 @@ class ProfanityFilterService {
     return false;
   }
 
-  /// Form validator helper
-  static String? validateText(String? text, {String fieldName = 'النص'}) {
-    if (text == null || text.trim().isEmpty) return null;
+  /// نتيجة الفحص الكاملة
+  static ({ViolationType type, String? message}) checkContent(String text) {
+    if (text.trim().isEmpty) {
+      return (type: ViolationType.none, message: null);
+    }
+
     final badWord = findForbiddenWord(text);
     if (badWord != null) {
-      return 'عذراً، يحتوي $fieldName على كلمات غير لائقة بقدسية الدعاء';
+      return (
+        type: ViolationType.profanity,
+        message: '⛔ كلمة محظورة\n\nيحتوي الدعاء على كلمات غير لائقة بمقام الدعاء والمناجاة. يرجى مراجعة النص.',
+      );
     }
+
     if (hasPhoneOrLink(text)) {
-      return 'عذراً، يُمنع إدراج أرقام الهواتف أو روابط المواقع حفاظاً على أمان المصلين';
+      return (
+        type: ViolationType.phoneOrLink,
+        message: '⛔ كلمة محظورة\n\nيُمنع إدراج أرقام الهواتف أو روابط المواقع. هذه المنصة مخصصة للدعاء الخالص فقط.',
+      );
     }
+
     if (hasFinancialRequest(text)) {
-      return 'عذراً، يُمنع إدراج طلبات التبرعات أو المحافظ المالية، المنصة مخصصة للدعاء الخالص فقط';
+      return (
+        type: ViolationType.financialRequest,
+        message: '⛔ كلمة محظورة\n\nيُمنع إدراج طلبات التبرعات أو المحافظ المالية أو ذكر مبالغ.\n\nهذه المنصة مخصصة للدعاء والتراحم الروحي فقط، وليست منصة جمع تبرعات.',
+      );
     }
-    return null;
+
+    return (type: ViolationType.none, message: null);
+  }
+
+  /// Form validator helper — يُعيد رسالة الخطأ إذا وُجد مخالفة
+  static String? validateText(String? text, {String fieldName = 'النص'}) {
+    if (text == null || text.trim().isEmpty) return null;
+    final result = checkContent(text);
+    return result.message;
   }
 }
+
+/// نوع المخالفة
+enum ViolationType { profanity, phoneOrLink, financialRequest, none }

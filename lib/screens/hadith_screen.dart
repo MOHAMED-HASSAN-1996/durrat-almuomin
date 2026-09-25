@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:provider/provider.dart';
 
 import '../data/hadith_data.dart';
+import '../services/arabic_text_utils.dart';
+import '../services/remote_content_service.dart';
+import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 
 /// شاشة الأحاديث النبوية الصحيحة والموثقة
 class HadithScreen extends StatefulWidget {
@@ -17,17 +23,46 @@ class _HadithScreenState extends State<HadithScreen> {
   String _searchQuery = '';
   String _selectedCategory = 'الكل';
 
+  /// Local library merged with admin-managed remote hadith by id: remote
+  /// edits override the same local entry, brand-new remote entries lead.
+  List<HadithItem> get _allHadith {
+    final remote = RemoteContentService.instance.remoteHadith;
+    final remoteIds = remote.map((h) => h.id).toSet();
+    return [
+      ...remote,
+      ...authenticHadiths.where((h) => !remoteIds.contains(h.id)),
+    ];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    RemoteContentService.instance.initialize();
+    RemoteContentService.instance.addListener(_onRemoteContent);
+  }
+
+  @override
+  void dispose() {
+    RemoteContentService.instance.removeListener(_onRemoteContent);
+    super.dispose();
+  }
+
+  void _onRemoteContent() {
+    if (mounted) setState(() {});
+  }
+
   List<String> get _categories {
-    final set = <String>{'الكل'};
-    for (final h in authenticHadiths) {
-      set.add(h.category);
+    final map = <String, int>{};
+    for (final h in _allHadith) {
+      map[h.category] = (map[h.category] ?? 0) + 1;
     }
-    return set.toList();
+    final cats = map.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return ['الكل', ...cats.map((e) => e.key)];
   }
 
   Map<String, int> get _categoryCounts {
-    final map = <String, int>{'الكل': authenticHadiths.length};
-    for (final h in authenticHadiths) {
+    final map = <String, int>{'الكل': _allHadith.length};
+    for (final h in _allHadith) {
       map[h.category] = (map[h.category] ?? 0) + 1;
     }
     return map;
@@ -36,8 +71,9 @@ class _HadithScreenState extends State<HadithScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = context.watch<AppState>().language == AppLanguage.arabic;
 
-    final filtered = authenticHadiths.where((h) {
+    final filtered = _allHadith.where((h) {
       if (_selectedCategory != 'الكل' && h.category != _selectedCategory) {
         return false;
       }
@@ -50,7 +86,7 @@ class _HadithScreenState extends State<HadithScreen> {
     }).toList();
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: dark ? DhikrColors.darkBg : DhikrColors.ivory,
         appBar: PreferredSize(
@@ -122,7 +158,7 @@ class _HadithScreenState extends State<HadithScreen> {
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),
                       itemCount: _categories.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      separatorBuilder: (_, i) => const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         final cat = _categories[index];
                         final isSelected = _selectedCategory == cat;
@@ -254,26 +290,30 @@ class _HadithScreenState extends State<HadithScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // رأس الكارت: العنوان والفئة
+          // رأس الكارت: الفئة + نسخ
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: (dark ? DhikrColors.sage : DhikrColors.forest).withValues(alpha: dark ? 0.2 : 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  item.category,
-                  style: TextStyle(
-                    fontFamily: DhikrTheme.arabicFont,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: dark ? DhikrColors.sage : DhikrColors.forest,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (dark ? DhikrColors.sage : DhikrColors.forest).withValues(alpha: dark ? 0.2 : 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    item.category,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: DhikrTheme.arabicFont,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: dark ? DhikrColors.sage : DhikrColors.forest,
+                    ),
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(LucideIcons.copy, size: 16),
                 tooltip: 'نسخ الحديث',
@@ -281,7 +321,7 @@ class _HadithScreenState extends State<HadithScreen> {
                 constraints: const BoxConstraints(),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: '${item.arabic}\n${item.source}'));
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  AppToast.show(context, 
                     const SnackBar(
                       content: Text('تم نسخ الحديث الشريف بنجاح'),
                       duration: Duration(seconds: 1),
@@ -293,42 +333,37 @@ class _HadithScreenState extends State<HadithScreen> {
           ),
           const SizedBox(height: 10),
 
-          // عنوان الحديث
-          Text(
-            item.title,
-            style: TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontSize: 15.5,
-              fontWeight: FontWeight.w800,
-              color: dark ? const Color(0xFFA5E6C7) : const Color(0xFF16382E),
-            ),
-          ),
-          const SizedBox(height: 8),
-
           // نص الحديث
-          Text(
-            item.arabic,
-            style: TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              height: 1.8,
-              color: dark ? Colors.white.withValues(alpha: 0.95) : DhikrColors.charcoal,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.03)
+                  : DhikrColors.forest.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: (dark ? DhikrColors.sage : DhikrColors.forest)
+                    .withValues(alpha: 0.18),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              ArabicTextUtils.stripTashkeel(item.arabic),
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                height: 1.9,
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.95)
+                    : DhikrColors.charcoal,
+              ),
             ),
           ),
           const SizedBox(height: 12),
 
-          // الراوي والمصدر
-          Text(
-            item.narrator,
-            style: TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
-            ),
-          ),
-          const SizedBox(height: 4),
+          // المصدر فقط
           Row(
             children: [
               const Icon(LucideIcons.bookCheck, size: 14, color: Color(0xFFD97706)),

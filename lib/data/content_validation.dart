@@ -31,9 +31,6 @@ ContentValidationResult validateAdhkarList(List<Dhikr> list) {
     if (d.arabic.trim().isEmpty) {
       itemErrors.add('${d.id}: Arabic text is empty');
     }
-    if (d.english.trim().isEmpty) {
-      itemErrors.add('${d.id}: English translation is empty');
-    }
     if (d.repeat <= 0) {
       itemErrors.add('${d.id}: repeat must be > 0');
     }

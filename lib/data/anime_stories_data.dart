@@ -62,6 +62,8 @@ class AnimeProphetStory {
   final String? seriesTitleEn;
   final int? episodeNumber;
   final String? episodeTitleAr;
+  final int? displayOrder;
+  final int? seriesOrder;
 
   const AnimeProphetStory({
     required this.id,
@@ -83,9 +85,12 @@ class AnimeProphetStory {
     this.seriesTitleEn,
     this.episodeNumber,
     this.episodeTitleAr,
+    this.displayOrder,
+    this.seriesOrder,
   });
 
-  /// استخراج الصورة المصغرة بدقة عالية
+  /// استخراج الصورة المصغرة (دقة متوسطة mqdefault: أخف وأسرع بكثير من
+  /// hqdefault مع جودة كافية للبطاقات — يحسّن التمرير والبدء بشكل ملحوظ).
   String get thumbnailUrl {
     if (customThumbnail != null && customThumbnail!.isNotEmpty) {
       return customThumbnail!;
@@ -95,13 +100,13 @@ class AnimeProphetStory {
       if (uri.pathSegments.contains('watch')) {
         final v = uri.queryParameters['v'];
         if (v != null && v.isNotEmpty) {
-          return 'https://i.ytimg.com/vi/$v/hqdefault.jpg';
+          return 'https://i.ytimg.com/vi/$v/mqdefault.jpg';
         }
       } else if (uri.host.contains('youtu.be') && uri.pathSegments.isNotEmpty) {
-        return 'https://i.ytimg.com/vi/${uri.pathSegments.first}/hqdefault.jpg';
+        return 'https://i.ytimg.com/vi/${uri.pathSegments.first}/mqdefault.jpg';
       }
     }
-    return 'https://i.ytimg.com/vi/placeholder/hqdefault.jpg';
+    return 'https://i.ytimg.com/vi/placeholder/mqdefault.jpg';
   }
 }
 
@@ -139,6 +144,8 @@ const List<AnimeProphetStory> animatedProphetStories = [
     seriesTitleAr: 'سلسلة ملحمة سيف الله المسلول خالد بن الوليد (أنمي)',
     seriesTitleEn: 'Khalid Ibn Al-Walid Anime Epic',
     episodeNumber: 1,
+    displayOrder: 1,
+    seriesOrder: 1,
     episodeTitleAr: 'الفصل الأول',
     titleAr: 'خالد بن الوليد | الفصل الأول : ميلادُ بطلٍ لا يُهزم (أنمي)',
     titleEn: 'Khalid Ibn Al-Walid | Chapter 1: Birth of an Undefeated Hero',
@@ -158,6 +165,8 @@ const List<AnimeProphetStory> animatedProphetStories = [
     seriesTitleAr: 'سلسلة ملحمة سيف الله المسلول خالد بن الوليد (أنمي)',
     seriesTitleEn: 'Khalid Ibn Al-Walid Anime Epic',
     episodeNumber: 2,
+    displayOrder: 2,
+    seriesOrder: 1,
     episodeTitleAr: 'الفصل الثاني',
     titleAr: 'خالد بن الوليد | الفصل الثاني : سيف الله المسلول وغزوة مؤتة (أنمي)',
     titleEn: 'Khalid Ibn Al-Walid | Chapter 2: The Battle of Mu\'tah',
@@ -176,6 +185,8 @@ const List<AnimeProphetStory> animatedProphetStories = [
     seriesTitleAr: 'سلسلة ملحمة سيف الله المسلول خالد بن الوليد (أنمي)',
     seriesTitleEn: 'Khalid Ibn Al-Walid Anime Epic',
     episodeNumber: 3,
+    displayOrder: 3,
+    seriesOrder: 1,
     episodeTitleAr: 'الفصل الثالث',
     titleAr: 'خالد بن الوليد | الفصل الثالث : بين الموت والمجد وكمين حنين (أنمي)',
     titleEn: 'Khalid Ibn Al-Walid | Chapter 3: Ambush of Hunayn',
@@ -194,6 +205,8 @@ const List<AnimeProphetStory> animatedProphetStories = [
     seriesTitleAr: 'سلسلة ملحمة سيف الله المسلول خالد بن الوليد (أنمي)',
     seriesTitleEn: 'Khalid Ibn Al-Walid Anime Epic',
     episodeNumber: 4,
+    displayOrder: 4,
+    seriesOrder: 1,
     episodeTitleAr: 'الفصل الرابع',
     titleAr: 'خالد بن الوليد | الفصل الرابع : حروب الردة ومعركة اليمامة (أنمي)',
     titleEn: 'Khalid Ibn Al-Walid | Chapter 4: Ridda Wars & Battle of Yamama',
@@ -215,6 +228,8 @@ const List<AnimeProphetStory> animatedProphetStories = [
     seriesTitleAr: 'سلسلة قصص القرآن وعِبر الأنبياء والأمم السابقة (أنمي)',
     seriesTitleEn: 'Quran Stories & Ancient Nations Series',
     episodeNumber: 1,
+    displayOrder: 1,
+    seriesOrder: 2,
     episodeTitleAr: 'الحلقة ١',
     titleAr: 'عمالقة الأرض ومصانع الخلود | قصة قوم عاد ونبي الله هود كاملة (أنمي)',
     titleEn: 'Giants of the Earth: Story of the People of \'Ad & Prophet Hud',
@@ -234,6 +249,8 @@ const List<AnimeProphetStory> animatedProphetStories = [
     seriesTitleAr: 'سلسلة قصص القرآن وعِبر الأنبياء والأمم السابقة (أنمي)',
     seriesTitleEn: 'Quran Stories & Ancient Nations Series',
     episodeNumber: 2,
+    displayOrder: 2,
+    seriesOrder: 2,
     episodeTitleAr: 'الحلقة ٢',
     titleAr: 'طفل ضعيف هزم ملكاً جباراً يدّعي الألوهية | قصة أصحاب الأخدود (أنمي)',
     titleEn: 'Story of the Boy & The Trench (Ashab Al-Ukhdood)',
@@ -248,51 +265,34 @@ const List<AnimeProphetStory> animatedProphetStories = [
     tag: 'أصحاب الأخدود',
   ),
   AnimeProphetStory(
-    id: 'quran-story-rajfa',
+    id: 'quran-story-nimrud',
     seriesId: 'series-quran-lessons',
     seriesTitleAr: 'سلسلة قصص القرآن وعِبر الأنبياء والأمم السابقة (أنمي)',
     seriesTitleEn: 'Quran Stories & Ancient Nations Series',
     episodeNumber: 3,
+    displayOrder: 3,
+    seriesOrder: 2,
     episodeTitleAr: 'الحلقة ٣',
-    titleAr: 'الرجفة (أنمي) | قوم نحتوا الجبال وقوم بخسوا المكيال والميزان',
-    titleEn: 'The Tremor (Al-Rajfa): Lessons from Past Nations',
-    prophetNameAr: 'قصص القرآن والعِبر',
-    prophetNameEn: 'Quranic Morals',
-    descriptionAr: 'عاقبة الطغيان ونحت البيوت في الجبال والعدوان على حقوق الناس، وعِبر الأمم الهالكة.',
-    descriptionEn: 'The fate of nations that carved homes into mountains and wronged the scales.',
+    titleAr: 'أول من ادّعى الألوهية في التاريخ | قصة النمرود كاملة (أنمي)',
+    titleEn: 'The First to Claim Divinity: Full Story of Nimrod (Anime)',
+    prophetNameAr: 'سيدنا إبراهيم والنمرود',
+    prophetNameEn: 'Prophet Ibrahim & Nimrod',
+    descriptionAr: 'قصة النمرود الجبار الذي ادّعى الألوهية ومنازلته لنبي الله إبراهيم عليه السلام، والنار التي قيل لها: كوني برداً وسلاماً.',
+    descriptionEn: 'The tyrant Nimrod who claimed divinity and his confrontation with Prophet Ibrahim (AS).',
     category: AnimeCategory.quranSeries,
-    videoUrl: 'https://www.youtube.com/watch?v=HDt6ODYfKgQ',
-    durationOrEpisodes: 'حلقة تشويقية',
-    tag: 'عِبر القرآن',
-  ),
-
-  // --- 3. سلسلة بطولات وفرسان التاريخ الإسلامي ---
-  AnimeProphetStory(
-    id: 'battle-ali-marhab',
-    seriesId: 'series-islamic-knights',
-    seriesTitleAr: 'سلسلة بطولات وفرسان التاريخ الإسلامي (أنمي)',
-    seriesTitleEn: 'Knights of Islamic History Series',
-    episodeNumber: 1,
-    episodeTitleAr: 'الحلقة ١',
-    titleAr: 'أنا الذي سمتني أمي حيدرة 🔥 قتال علي بن أبي طالب ضد مرحب في خيبر',
-    titleEn: 'Ali Ibn Abi Talib vs. Marhab at Khaybar (Anime)',
-    prophetNameAr: 'علي بن أبي طالب رضي الله عنه',
-    prophetNameEn: 'Ali Ibn Abi Talib (RA)',
-    descriptionAr: 'المبارزة التاريخية الشهيرة في فتح خيبر وصرخة حيدرة التي زلزلت حصون الكفر وفتحت أبواب النصر.',
-    descriptionEn: 'The legendary duel between Ali and Marhab at the fortress of Khaybar.',
-    category: AnimeCategory.quranSeries,
-    videoUrl: 'https://www.youtube.com/watch?v=W9eCzG-_CIs',
-    durationOrEpisodes: 'مبارزة أسطورية',
-    isFeatured: true,
-    tag: 'حيدرة',
+    videoUrl: 'https://www.youtube.com/watch?v=eXgCGopLwGs',
+    durationOrEpisodes: 'حلقة كاملة',
+    tag: 'قصة النمرود',
   ),
   AnimeProphetStory(
     id: 'battle-fights',
-    seriesId: 'series-islamic-knights',
-    seriesTitleAr: 'سلسلة بطولات وفرسان التاريخ الإسلامي (أنمي)',
-    seriesTitleEn: 'Knights of Islamic History Series',
-    episodeNumber: 2,
-    episodeTitleAr: 'الحلقة ٢',
+    seriesId: 'series-quran-lessons',
+    seriesTitleAr: 'سلسلة قصص القرآن وعِبر الأنبياء والأمم السابقة (أنمي)',
+    seriesTitleEn: 'Quran Stories & Ancient Nations Series',
+    episodeNumber: 4,
+    displayOrder: 4,
+    seriesOrder: 2,
+    episodeTitleAr: 'الحلقة ٤',
     titleAr: 'أقوى القتالات في التاريخ الإسلامي 🔥 نزالات فردية أرعبت جيوشاً كاملة',
     titleEn: 'Greatest Duels in Islamic History: Lone Warriors Who Struck Fear',
     prophetNameAr: 'فرسان الإسلام',
@@ -304,61 +304,9 @@ const List<AnimeProphetStory> animatedProphetStories = [
     durationOrEpisodes: 'حلقة ملحمية',
     tag: 'فرسان الإسلام',
   ),
-  AnimeProphetStory(
-    id: 'battle-ain-jalut',
-    seriesId: 'series-islamic-knights',
-    seriesTitleAr: 'سلسلة بطولات وفرسان التاريخ الإسلامي (أنمي)',
-    seriesTitleEn: 'Knights of Islamic History Series',
-    episodeNumber: 3,
-    episodeTitleAr: 'الحلقة ٣',
-    titleAr: 'المعركة التي أوقفت المغول وأنقذت الإسلام من الفناء | عين جالوت (أنمي)',
-    titleEn: 'The Battle that Stopped the Mongols: Ain Jalut',
-    prophetNameAr: 'سيف الدين قطز',
-    prophetNameEn: 'Qutuz',
-    descriptionAr: 'حين وقفت الأمة على حافة الفناء، وصرخة «وا إسلاماه» للملك المظفر قطز التي حطمت أسطورة الجيش المغولي.',
-    descriptionEn: 'The monumental Battle of Ain Jalut that saved the Islamic world from annihilation.',
-    category: AnimeCategory.quranSeries,
-    videoUrl: 'https://www.youtube.com/watch?v=fD4Ds9wLHsE',
-    durationOrEpisodes: 'فيلم تاريخي',
-    isFeatured: true,
-    tag: 'عين جالوت',
-  ),
-  AnimeProphetStory(
-    id: 'story-wahshi',
-    seriesId: 'series-islamic-knights',
-    seriesTitleAr: 'سلسلة بطولات وفرسان التاريخ الإسلامي (أنمي)',
-    seriesTitleEn: 'Knights of Islamic History Series',
-    episodeNumber: 4,
-    episodeTitleAr: 'الحلقة ٤',
-    titleAr: 'مشهد توبة وحشي بن حرب وإسلامه ومقتل مسيلمة الكذاب (أنمي)',
-    titleEn: 'Repentance of Wahshi Ibn Harb & Slaying of Musaylima',
-    prophetNameAr: 'وحشي بن حرب رضي الله عنه',
-    prophetNameEn: 'Wahshi Ibn Harb (RA)',
-    descriptionAr: 'مشهد مؤثر يفيض بالدموع لتوبة وحشي بعد قتل حمزة، وحرصه على التكفير بقتل رأس الردة مسيلمة.',
-    descriptionEn: 'The emotional story of Wahshi\'s repentance and redemption.',
-    category: AnimeCategory.quranSeries,
-    videoUrl: 'https://www.youtube.com/watch?v=znBzmpCqVU0',
-    durationOrEpisodes: 'مشهد مؤثر',
-    tag: 'توبة صادقة',
-  ),
-  AnimeProphetStory(
-    id: 'short-hope-pain',
-    seriesId: 'series-islamic-knights',
-    seriesTitleAr: 'سلسلة بطولات وفرسان التاريخ الإسلامي (أنمي)',
-    seriesTitleEn: 'Knights of Islamic History Series',
-    episodeNumber: 5,
-    episodeTitleAr: 'الحلقة ٥',
-    titleAr: 'الأمل والألم | فيلم أنمي قصير يحاكي واقع العزة والصمود',
-    titleEn: 'Hope & Pain: Short Anime Film of Resilience',
-    prophetNameAr: 'صمود الأمة',
-    prophetNameEn: 'Resilience of the Ummah',
-    descriptionAr: 'فيلم أنمي قصير يحاكي التمسك بالأرض والأمل بالتحرير والتمكين رغم المحن والآلام.',
-    descriptionEn: 'Short moving anime about resilience and the promise of relief.',
-    category: AnimeCategory.quranSeries,
-    videoUrl: 'https://www.youtube.com/watch?v=_bnRRbRMatE',
-    durationOrEpisodes: 'فيلم قصير',
-    tag: 'الأمل والألم',
-  ),
+
+  // --- 3. (محذوفة) سلسلة بطولات وفرسان التاريخ الإسلامي — أُزيلت بالكامل
+  // وبقيت منها حلقة «أقوى القتالات» ضمن سلسلة قصص القرآن (رقم ٤)
 ];
 
 /// تجميع القصص حسب السلاسل الكرتونية المتتابعة
@@ -380,24 +328,12 @@ List<AnimeSeriesGroup> get animeSeriesGroups {
       id: 'series-quran-lessons',
       titleAr: 'سلسلة قصص القرآن وعِبر الأنبياء والأمم السابقة (أنمي)',
       titleEn: 'Quran Stories & Ancient Nations Series',
-      descriptionAr: 'حكايات العظات الكبرى: قصة قوم عاد وهود، أصحاب الأخدود، والرجفة في سرد أنميشن شيق.',
-      descriptionEn: 'Inspiring accounts of Prophet Hud, the people of \'Ad, the boy of the trench, and Quranic lessons.',
-      badge: '٣ حلقات كبرى',
+      descriptionAr: 'حكايات العظات الكبرى: قصة قوم عاد وهود، أصحاب الأخدود، وقصة النمرود في سرد أنميشن شيق.',
+      descriptionEn: 'Inspiring accounts of Prophet Hud, the people of \'Ad, the boy of the trench, and the story of Nimrod.',
+      badge: '٤ حلقات كبرى',
       category: AnimeCategory.quranSeries,
       episodes: animatedProphetStories
           .where((s) => s.seriesId == 'series-quran-lessons')
-          .toList(),
-    ),
-    AnimeSeriesGroup(
-      id: 'series-islamic-knights',
-      titleAr: 'سلسلة بطولات وفرسان التاريخ الإسلامي (أنمي)',
-      titleEn: 'Knights of Islamic History Series',
-      descriptionAr: 'مواقف الشجاعة الخالدة: قتال علي بن أبي طالب في خيبر، معركة عين جالوت، وتوبة وحشي بن حرب.',
-      descriptionEn: 'Legendary moments of courage: Ali at Khaybar, Ain Jalut battle, and Wahshi\'s repentance.',
-      badge: '٥ حلقات ملحمية',
-      category: AnimeCategory.quranSeries,
-      episodes: animatedProphetStories
-          .where((s) => s.seriesId == 'series-islamic-knights')
           .toList(),
     ),
   ];

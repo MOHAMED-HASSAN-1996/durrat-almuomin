@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -709,101 +708,6 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen>
                                 : DhikrColors.charcoalSoft,
                           ),
                         ),
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: InkWell(
-                                onTap: () {
-                                  HapticFeedback.lightImpact();
-                                  playYoutubeInFrame(
-                                    context,
-                                    url: url,
-                                    title: title,
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(10),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 9),
-                                  decoration: BoxDecoration(
-                                    color: (dark
-                                            ? DhikrColors.sage
-                                            : const Color(0xFF0F3B2C))
-                                        .withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        LucideIcons.playCircle,
-                                        size: 15,
-                                        color: dark
-                                            ? DhikrColors.sage
-                                            : const Color(0xFF0F3B2C),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        isAr ? 'مشاهدة داخل التطبيق' : 'Watch in App',
-                                        style: TextStyle(
-                                          fontFamily: DhikrTheme.arabicFont,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w800,
-                                          color: dark
-                                              ? DhikrColors.sage
-                                              : const Color(0xFF0F3B2C),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            InkWell(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                launchUrl(
-                                  Uri.parse(url),
-                                  mode: LaunchMode.externalApplication,
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 9,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFF0000).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: const Color(0xFFFF0000).withValues(alpha: 0.2),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      LucideIcons.externalLink,
-                                      size: 14,
-                                      color: Color(0xFFEF4444),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      isAr ? 'يوتيوب' : 'YouTube',
-                                      style: const TextStyle(
-                                        fontFamily: DhikrTheme.arabicFont,
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFFEF4444),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
@@ -1200,24 +1104,24 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen>
           dark: dark,
           children: [
             _buildBulletItem(
-              title: isAr ? '١. التمتع (الأفضل)' : '1. Tamattu (Recommended)',
+              title: '١',
               desc: isAr
-                  ? 'أن يحرم بالعمرة في أشهر الحج ويفرغ منها ويتحلل، ثم يحرم بالحج في نفس العام من مكة يوم التروية وعليه دم هدي.'
-                  : 'Perform Umrah first during Hajj months, exit Ihram, then enter Ihram for Hajj on 8 Dhul-Hijjah.',
+                  ? 'التمتع (الأفضل): أن يحرم بالعمرة في أشهر الحج ويفرغ منها ويتحلل، ثم يحرم بالحج في نفس العام من مكة يوم التروية وعليه دم هدي.'
+                  : 'Tamattu (Recommended): Perform Umrah first during Hajj months, exit Ihram, then enter Ihram for Hajj on 8 Dhul-Hijjah.',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '٢. القِران' : '2. Qiran',
+              title: '٢',
               desc: isAr
-                  ? 'أن يحرم بالحج والعمرة معاً، أو يحرم بالعمرة ثم يدخل الحج عليها قبل طوافها، ولا يتحلل بينهما وعليه هدي.'
-                  : 'Enter Ihram for both Umrah and Hajj together without exiting Ihram between them; requires sacrifice.',
+                  ? 'القِران: أن يحرم بالحج والعمرة معاً، أو يحرم بالعمرة ثم يدخل الحج عليها قبل طوافها، ولا يتحلل بينهما وعليه هدي.'
+                  : 'Qiran: Enter Ihram for both Umrah and Hajj together without exiting Ihram between them; requires sacrifice.',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '٣. الإفراد' : '3. Ifrad',
+              title: '٣',
               desc: isAr
-                  ? 'أن يحرم بالحج وحده فقط دون عمرة، ويبقى على إحرامه حتى يوم النحر، ولا يجب عليه هدي.'
-                  : 'Enter Ihram for Hajj alone without Umrah; no animal sacrifice is required.',
+                  ? 'الإفراد: أن يحرم بالحج وحده فقط دون عمرة، ويبقى على إحرامه حتى يوم النحر، ولا يجب عليه هدي.'
+                  : 'Ifrad: Enter Ihram for Hajj alone without Umrah; no animal sacrifice is required.',
               dark: dark,
             ),
           ],
@@ -1232,23 +1136,23 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen>
           dark: dark,
           children: [
             _buildBulletItem(
-              title: isAr ? '١. الإحرام' : '1. Ihram',
-              desc: isAr ? 'نية الدخول في نسك الحج بقلبه.' : 'Intention to enter the sacred state.',
+              title: '١',
+              desc: isAr ? 'الإحرام: نية الدخول في نسك الحج بقلبه.' : 'Ihram: Intention to enter the sacred state.',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '٢. الوقوف بعرفة' : '2. Standing at Arafat',
-              desc: isAr ? 'الحضور بأي جزء من عرفة في وقته المحدد من زوال ٩ إلى فجر ١٠.' : 'Being present within Arafat boundaries.',
+              title: '٢',
+              desc: isAr ? 'الوقوف بعرفة: الحضور بأي جزء من عرفة في وقته المحدد من زوال ٩ إلى فجر ١٠.' : 'Standing at Arafat: Being present within Arafat boundaries.',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '٣. طواف الإفاضة' : '3. Tawaf al-Ifadah',
-              desc: isAr ? 'طواف الركن بالبيت سبعة أشواط بعد الوقوف بعرفة.' : 'Circumambulating the Kaaba 7 times after Arafat.',
+              title: '٣',
+              desc: isAr ? 'طواف الإفاضة: طواف الركن بالبيت سبعة أشواط بعد الوقوف بعرفة.' : 'Tawaf al-Ifadah: Circumambulating the Kaaba 7 times after Arafat.',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '٤. السعي بين الصفا والمروة' : '4. Sa\'i between Safa & Marwa',
-              desc: isAr ? 'سبعة أشواط تبدأ بالصفا وتنتهي بالمروة.' : 'Walking 7 laps between the two hills.',
+              title: '٤',
+              desc: isAr ? 'السعي بين الصفا والمروة: سبعة أشواط تبدأ بالصفا وتنتهي بالمروة.' : 'Sa\'i between Safa & Marwa: Walking 7 laps between the two hills.',
               dark: dark,
             ),
           ],
@@ -1281,33 +1185,33 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen>
           dark: dark,
           children: [
             _buildBulletItem(
-              title: isAr ? '• قص الأظافر وحلق الشعر' : '• Cutting nails & shaving hair',
-              desc: isAr ? 'من الرأس أو سائر البدن.' : 'From head or body.',
+              title: '١',
+              desc: isAr ? 'قص الأظافر وحلق الشعر من الرأس أو سائر البدن.' : 'Cutting nails & shaving hair from head or body.',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '• استعمال الطيب والعطور' : '• Perfume & fragrances',
-              desc: isAr ? 'في الثياب أو البدن بعد الإحرام.' : 'On body or Ihram clothes.',
+              title: '٢',
+              desc: isAr ? 'استعمال الطيب والعطور في الثياب أو البدن بعد الإحرام.' : 'Perfume & fragrances on body or Ihram clothes.',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '• تغطية الرأس بملاصق للرجل' : '• Covering head for men',
-              desc: isAr ? 'كالعمامة أو القلنسوة، وتجوز المظلة.' : 'Directly with cap/turban (umbrella allowed).',
+              title: '٣',
+              desc: isAr ? 'تغطية الرأس بملاصق للرجل كالعمامة أو القلنسوة، وتجوز المظلة.' : 'Covering head directly with cap/turban (umbrella allowed).',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '• لبس المخيط للرجل' : '• Tailored garments for men',
-              desc: isAr ? 'كالثوب والسراويل، ولبس الإزار والرداء.' : 'Like shirts/pants; use two unstitched sheets.',
+              title: '٤',
+              desc: isAr ? 'لبس المخيط للرجل كالثوب والسراويل، ولبس الإزار والرداء.' : 'Tailored garments for men; use two unstitched sheets.',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '• النقاب والقفازان للمرأة' : '• Niqab & gloves for women',
-              desc: isAr ? 'وتسدل على وجهها عند مرور الرجال دون نقاب.' : 'Veil draped loosely when passing men.',
+              title: '٥',
+              desc: isAr ? 'النقاب والقفازان للمرأة، وتسدل على وجهها عند مرور الرجال دون نقاب.' : 'Niqab & gloves for women; veil draped loosely when passing men.',
               dark: dark,
             ),
             _buildBulletItem(
-              title: isAr ? '• الصيد، عقد النكاح، والجماع' : '• Hunting & marital intimacy',
-              desc: isAr ? 'والجماع مفسد للحج إن وقع قبل التحلل الأول.' : 'Intimacy invalidates Hajj if before 1st exit.',
+              title: '٦',
+              desc: isAr ? 'الصيد، عقد النكاح، والجماع مفسد للحج إن وقع قبل التحلل الأول.' : 'Hunting & marital intimacy invalidates Hajj if before 1st exit.',
               dark: dark,
             ),
           ],
@@ -1375,26 +1279,37 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen>
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: dark ? const Color(0xFF38BDF8) : DhikrColors.forest,
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: dark ? const Color(0xFF1A3A2A) : const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              title,
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: dark ? const Color(0xFF38BDF8) : DhikrColors.forest,
+              ),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            desc,
-            style: TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontSize: 12.5,
-              height: 1.55,
-              color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              desc,
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 13,
+                height: 1.6,
+                color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+              ),
             ),
           ),
         ],
@@ -1544,7 +1459,7 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen>
                   return Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        HapticFeedback.selectionClick();
+                        HapticFeedback.mediumImpact();
                         setState(() => _currentLap = lapNum);
                       },
                       child: Container(
@@ -1728,7 +1643,7 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen>
             Expanded(
               child: ElevatedButton(
                 onPressed: () {
-                  HapticFeedback.mediumImpact();
+                  HapticFeedback.heavyImpact();
                   setState(() {
                     _completedLaps.add(_currentLap);
                     if (_currentLap < 7) {

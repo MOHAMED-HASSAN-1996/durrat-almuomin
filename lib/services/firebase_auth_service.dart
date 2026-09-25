@@ -17,17 +17,30 @@ class FirebaseAuthService {
   bool _initialized = false;
   bool get isInitialized => _initialized;
 
+  /// Guards concurrent initializers so parallel services share one attempt
+  /// instead of racing `initializeApp` (which throws "already exists").
+  Future<bool>? _pendingInit;
+
   User? get currentUser => _auth?.currentUser;
   Stream<User?> get authStateChanges => _auth?.authStateChanges() ?? const Stream.empty();
 
   /// Initialize Firebase safely
-  Future<bool> initialize() async {
-    if (_initialized) return true;
+  Future<bool> initialize() {
+    if (_initialized) return Future.value(true);
+    return _pendingInit ??= _doInitialize();
+  }
+
+  Future<bool> _doInitialize() async {
     try {
       if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
+        try {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          );
+        } catch (e) {
+          // Native auto-init (google-services.json) may have beaten us.
+          if (Firebase.apps.isEmpty) rethrow;
+        }
       }
       _auth = FirebaseAuth.instance;
       _firestore = FirebaseFirestore.instance;
@@ -38,6 +51,8 @@ class FirebaseAuthService {
       debugPrint('Firebase initialization note: $e');
       _initialized = false;
       return false;
+    } finally {
+      _pendingInit = null;
     }
   }
 
@@ -146,6 +161,19 @@ class FirebaseAuthService {
       debugPrint('Google Sign-In error: $e');
       rethrow;
     }
+  }
+
+  /// Creates a stable anonymous identity for community features.
+  /// It lets users participate without forcing an account flow.
+  Future<User> signInAnonymously() async {
+    await initialize();
+    if (_auth == null) {
+      throw Exception('خدمة Firebase غير مفعلة حالياً');
+    }
+    final existing = _auth!.currentUser;
+    if (existing != null) return existing;
+    final credential = await _auth!.signInAnonymously();
+    return credential.user!;
   }
 
   /// Synchronize User Profile to Cloud Firestore

@@ -155,19 +155,19 @@ class _HomeHeroCardState extends State<HomeHeroCard> {
               Positioned.fill(
                 child: Image.asset(
                   switch (nextKey) {
-                    'fajr' => 'assets/images/hero_fajr.png',
-                    'sunrise' => 'assets/images/hero_fajr.png',
-                    'dhuhr' => 'assets/images/hero_dhuhr.png',
-                    'asr' => 'assets/images/hero_asr.png',
-                    'maghrib' => 'assets/images/hero_maghrib.png',
-                    'isha' => 'assets/images/hero_isha.png',
-                    _ => 'assets/images/hero_card_bg.png',
+                    'fajr' => 'assets/images/hero_fajr.webp',
+                    'sunrise' => 'assets/images/hero_fajr.webp',
+                    'dhuhr' => 'assets/images/hero_dhuhr.webp',
+                    'asr' => 'assets/images/hero_asr.webp',
+                    'maghrib' => 'assets/images/hero_maghrib.webp',
+                    'isha' => 'assets/images/hero_isha.webp',
+                    _ => 'assets/images/hero_card_bg.webp',
                   },
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,
                   errorBuilder: (context, error, stackTrace) => Image.asset(
-                    'assets/images/hero_card_bg.png',
+                    'assets/images/hero_card_bg.webp',
                     fit: BoxFit.cover,
                     errorBuilder: (ctx, err, st) => const SizedBox.shrink(),
                   ),

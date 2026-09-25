@@ -1,8 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network Security Config — درة المؤمن
+    ───────────────────────────────────────────────────────────────
+    cleartext مسموح فقط لمجالات البث المباشر التي لا تدعم HTTPS بعد.
+    جميع الاتصالات الأخرى (Firebase، Firestore، APIs) تعمل عبر HTTPS فقط.
+-->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <!-- الإعداد الأساسي: HTTPS فقط لكل المجالات -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+
+    <!-- استثناءات البث المباشر (HTTP radio streams) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- إذاعة القرآن الكريم - القاهرة -->
+        <domain includeSubdomains="true">radiojar.com</domain>
+        <!-- إذاعات holol.com -->
+        <domain includeSubdomains="true">holol.com</domain>
+        <!-- qurango.net reciter streams -->
+        <domain includeSubdomains="true">qurango.net</domain>
+        <!-- mp3quran API -->
+        <domain includeSubdomains="true">mp3quran.net</domain>
+        <!-- KSA Radio streams -->
+        <domain includeSubdomains="true">kwikmotion.com</domain>
+    </domain-config>
 </network-security-config>

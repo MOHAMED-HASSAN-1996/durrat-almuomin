@@ -28,7 +28,7 @@ class PropheticDuaItem {
   int get targetRepeat => repeat;
 }
 
-/// نموذج بيانات صيدلية الروح ودواء القلوب الموسّع
+/// نموذج بيانات صيدلية الروح ودواء القلوب الموسّع والمتناسق مع هوية البراند
 class SoulRemedy {
   const SoulRemedy({
     required this.id,
@@ -36,6 +36,8 @@ class SoulRemedy {
     required this.feelingEn,
     required this.emoji,
     required this.descriptionAr,
+    this.subtitleAr = '',
+    this.categoryKey = 'all',
     required this.accentColor,
     required this.gradientColors,
     required this.ayahs,
@@ -49,6 +51,8 @@ class SoulRemedy {
   final String feelingEn;
   final String emoji;
   final String descriptionAr;
+  final String subtitleAr;
+  final String categoryKey;
   final Color accentColor;
   final List<Color> gradientColors;
   final List<QuranAyahItem> ayahs;
@@ -71,7 +75,7 @@ class SoulRemedy {
     _ => Icons.favorite_rounded,
   };
 
-  // توافق مع أي استدعاءات سابقة
+  // توافق تام مع أي استدعاءات سابقة
   String get quranAyah => ayahs.isNotEmpty ? ayahs.first.ayah : '';
   String get surahReference => ayahs.isNotEmpty ? ayahs.first.surah : '';
   String get propheticDua => duas.isNotEmpty ? duas.first.dua : '';
@@ -81,7 +85,7 @@ class SoulRemedy {
   String get heartSolaceEn => solacePointsEn.isNotEmpty ? solacePointsEn.first : '';
 }
 
-/// قائمة أدوية القلوب الشاملة (تحتوي كل حالة على عدة آيات وأدعية وبلسم)
+/// قائمة أدوية القلوب الشاملة بتناغم كامل مع هوية براند درة المؤمن
 const List<SoulRemedy> soulRemediesList = [
   SoulRemedy(
     id: 'sad',
@@ -89,8 +93,10 @@ const List<SoulRemedy> soulRemediesList = [
     feelingEn: 'Sad or Grieved',
     emoji: '🌧️',
     descriptionAr: 'حين يخيم الحزن على قلبك وتثقل روحك الأيام',
-    accentColor: Color(0xFF3B82F6),
-    gradientColors: [Color(0xFF1E3A8A), Color(0xFF172554)],
+    subtitleAr: 'انشراح الصدر ونزع الحزن',
+    categoryKey: 'distress',
+    accentColor: Color(0xFF2E5B70),
+    gradientColors: [Color(0xFF19323E), Color(0xFF0F2028)],
     ayahs: [
       QuranAyahItem(
         ayah: '﴿لَا تَحْزَنْ إِنَّ اللَّهَ مَعَنَا﴾',
@@ -139,8 +145,10 @@ const List<SoulRemedy> soulRemediesList = [
     feelingEn: 'Anxious or Fearful',
     emoji: '⚡',
     descriptionAr: 'حين يتسارع نبضك وتخشى من الغد أو المجهول',
-    accentColor: Color(0xFFF59E0B),
-    gradientColors: [Color(0xFF78350F), Color(0xFF451A03)],
+    subtitleAr: 'السكينة والأمان القلبي',
+    categoryKey: 'peace',
+    accentColor: Color(0xFF9E7132),
+    gradientColors: [Color(0xFF3D2A11), Color(0xFF241808)],
     ayahs: [
       QuranAyahItem(
         ayah: '﴿أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ﴾',
@@ -189,8 +197,10 @@ const List<SoulRemedy> soulRemediesList = [
     feelingEn: 'In Distress or Crisis',
     emoji: '🤲',
     descriptionAr: 'حين تضيق عليك الأرض بما رحبت وتبحث عن مخرج عاجل',
-    accentColor: Color(0xFF10B981),
-    gradientColors: [Color(0xFF064E3B), Color(0xFF022C22)],
+    subtitleAr: 'تفريج الكرب والفرج القريب',
+    categoryKey: 'distress',
+    accentColor: Color(0xFF235A4C),
+    gradientColors: [Color(0xFF16302B), Color(0xFF0A1612)],
     ayahs: [
       QuranAyahItem(
         ayah: '﴿فَإِنَّ مَعَ الْعُسْرِ يُسْرًا ۝ إِنَّ مَعَ الْعُسْرِ يُسْرًا﴾',
@@ -239,8 +249,10 @@ const List<SoulRemedy> soulRemediesList = [
     feelingEn: 'Confused or Indecisive',
     emoji: '🎯',
     descriptionAr: 'حين تتشعب أمامك الطرق وتتردد في اتخاذ خطوة مصيرية',
-    accentColor: Color(0xFF8B5CF6),
-    gradientColors: [Color(0xFF4C1D95), Color(0xFF2E1065)],
+    subtitleAr: 'نور البصيرة والتوكل',
+    categoryKey: 'peace',
+    accentColor: Color(0xFF6B4E71),
+    gradientColors: [Color(0xFF2D1E31), Color(0xFF180F1B)],
     ayahs: [
       QuranAyahItem(
         ayah: '﴿وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ﴾',
@@ -289,8 +301,10 @@ const List<SoulRemedy> soulRemediesList = [
     feelingEn: 'Angry or Frustrated',
     emoji: '🔥',
     descriptionAr: 'حين تفور نار الغضب في صدرك وتكاد تنطق بما تندم عليه',
-    accentColor: Color(0xFFEF4444),
-    gradientColors: [Color(0xFF7F1D1D), Color(0xFF450A0A)],
+    subtitleAr: 'كظم الغيظ وسكينة النفس',
+    categoryKey: 'distress',
+    accentColor: Color(0xFF964B3D),
+    gradientColors: [Color(0xFF381A14), Color(0xFF210E0A)],
     ayahs: [
       QuranAyahItem(
         ayah: '﴿وَالْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ ۗ وَاللَّهُ يُحِبُّ الْمُحْسِنِينَ﴾',
@@ -339,8 +353,10 @@ const List<SoulRemedy> soulRemediesList = [
     feelingEn: 'Guilty or Repentant',
     emoji: '💔',
     descriptionAr: 'حين تشعر بألم التقصير في حق الله وتطمع في مغفرته ولطفه',
-    accentColor: Color(0xFF6366F1),
-    gradientColors: [Color(0xFF312E81), Color(0xFF1E1B4B)],
+    subtitleAr: 'سعة المغفرة ونور التوبة',
+    categoryKey: 'faith',
+    accentColor: Color(0xFF434A6E),
+    gradientColors: [Color(0xFF1B1E30), Color(0xFF0F111D)],
     ayahs: [
       QuranAyahItem(
         ayah: '﴿قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا عَلَىٰ أَنفُسِهِمْ لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ ۚ إِنَّ اللَّهَ يَغْفِرُ الذُّنُوبَ جَمِيعًا ۚ إِنَّهُ هُوَ الْغَفُورُ الرَّحِيمُ﴾',
@@ -389,8 +405,10 @@ const List<SoulRemedy> soulRemediesList = [
     feelingEn: 'Grateful & Blessed',
     emoji: '🌸',
     descriptionAr: 'حين يفيض قلبك بالحمد والشكر لله على نعمة أو فرحة غمرتك',
-    accentColor: Color(0xFFEC4899),
-    gradientColors: [Color(0xFF831843), Color(0xFF500724)],
+    subtitleAr: 'دوام النعم وزيادة الفضل',
+    categoryKey: 'faith',
+    accentColor: Color(0xFFB88E38),
+    gradientColors: [Color(0xFF3B2D0E), Color(0xFF231A05)],
     ayahs: [
       QuranAyahItem(
         ayah: '﴿لَئِن شَكَرْتُمْ لَأَزِيدَنَّكُمْ﴾',
@@ -439,8 +457,10 @@ const List<SoulRemedy> soulRemediesList = [
     feelingEn: 'Sick or In Pain',
     emoji: '🩺',
     descriptionAr: 'حين ينهك الجسد المرض أو الوجع وتبتغي الشفاء والراحة',
-    accentColor: Color(0xFF06B6D4),
-    gradientColors: [Color(0xFF164E63), Color(0xFF083344)],
+    subtitleAr: 'الشفاء التام والمعافاة',
+    categoryKey: 'wellness',
+    accentColor: Color(0xFF356E56),
+    gradientColors: [Color(0xFF132F24), Color(0xFF0A1C15)],
     ayahs: [
       QuranAyahItem(
         ayah: '﴿وَإِذَا مَرِضْتُ فَهُوَ يَشْفِينِ﴾',
@@ -489,8 +509,10 @@ const List<SoulRemedy> soulRemediesList = [
     feelingEn: 'Lonely or Alienated',
     emoji: '🌌',
     descriptionAr: 'حين تنعزل عن العالم وتشعر بقلة الرفيق وألم الغربة',
-    accentColor: Color(0xFF64748B),
-    gradientColors: [Color(0xFF334155), Color(0xFF0F172A)],
+    subtitleAr: 'أنس بالله ومعية الرحمن',
+    categoryKey: 'peace',
+    accentColor: Color(0xFF6E6351),
+    gradientColors: [Color(0xFF28241C), Color(0xFF17140F)],
     ayahs: [
       QuranAyahItem(
         ayah: '﴿وَهُوَ مَعَكُمْ أَيْنَ مَا كُنتُمْ ۚ وَاللَّهُ بِمَا تَعْمَلُونَ بَصِيرٌ﴾',
@@ -531,6 +553,180 @@ const List<SoulRemedy> soulRemediesList = [
       'How can one be lonely when Allah is with him? Solace with Allah is paradise on earth.',
       'Open the Quran; divine words are the intimate friend of every pure heart.',
       'Blessed are the strangers whose loyalty to truth remains unshakeable.',
+    ],
+  ),
+
+  // ═══════════════════ أدعية متنوعة ═══════════════════
+  SoulRemedy(
+    id: 'duas',
+    feelingAr: 'أدعية متنوعة مختارة',
+    feelingEn: 'Selected Misc. Duas',
+    emoji: '🤲',
+    descriptionAr: 'مجموعة مختارة من الأدعية النبوية المأثورة لحاجات المسلم اليومية والنفسية والروحية',
+    subtitleAr: 'أدعية من الكتاب والسنة لكل وقت وحاجة',
+    categoryKey: 'faith',
+    accentColor: Color(0xFF7C3AED),
+    gradientColors: [Color(0xFF2E1065), Color(0xFF1A0536)],
+    ayahs: [
+      QuranAyahItem(
+        ayah: '﴿وَقَالَ رَبُّكُمُ ادْعُونِي أَسْتَجِبْ لَكُمْ﴾',
+        surah: 'سورة غافر: ٦٠',
+      ),
+      QuranAyahItem(
+        ayah: '﴿ادْعُونِي أَسْتَجِبْ لَكُمْ ۚ إِنَّ الَّذِينَ يَسْتَكْبِرُونَ عَنْ عِبَادَتِي سَيَدْخُلُونَ جَهَنَّمَ دَاخِرِينَ﴾',
+        surah: 'سورة غافر: ٦٠',
+      ),
+      QuranAyahItem(
+        ayah: '﴿رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ﴾',
+        surah: 'سورة البقرة: ٢٠١',
+      ),
+    ],
+    duas: [
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ بَارِكْ لِي فِي عَمَلِي وَاجْعَلْ الْقَبُولَ فِيَّ',
+        source: 'أدعية مأثورة',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ إِنِّي عَبْدُكَ ابْنُ عَبْدِكَ ابْنُ أَمَتِكَ، نَاصِيَتِي بِيَدِكَ، مَاضٍ فِي حُكْمِكَ، عَدْلٌ فِي قَضَائِكَ، أَسْأَلُكَ اللَّهُمَّ بِكُلِّ اسْمٍ هُوَ لَكَ سَمَّيْتَ بِهِ نَفْسَكَ أَوْ أَنْزَلْتَهُ فِي كِتَابِكَ أَوْ اسْتَأْثَرْتَ بِهِ فِي عِلْمِ الْغَيْبِ عِنْدَكَ أَنْ تَجْعَلَ الْقُرْآنَ الْعَظِيمَ رَبِيعَ قَلْبِي وَنُورَ صَدْرِي وَجَلَاءَ هَمِّي وَحُزْنِي',
+        source: 'مسند أحمد — دعاء الهم والحزن',
+        repeat: 1,
+      ),
+      PropheticDuaItem(
+        dua: 'اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ',
+        source: 'سورة الفاتحة: ٦ — أحد الأدعية اليومية',
+        repeat: 1,
+        note: 'من أدعية الاستقامة، والدعاء به مستحب في كل صلاة',
+      ),
+      PropheticDuaItem(
+        dua: 'رَبَّنَا هَبْ لَنَا مِنْ أَزْوَاجِنَا وَذُرِّيَّاتِنَا قُرَّةَ أَعْيُنٍ وَاجْعَلْنَا لِلْمُتَّقِينَ إِمَامًا',
+        source: 'سورة الفرقان: ٧٤',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ يَا مَالِكَ الْمُلْكِ، تُؤْتِي الْمُلْكَ مَنْ تَشَاءُ وَتَنْزِعُ الْمُلْكَ مِمَّنْ تَشَاءُ، وَتُعِزُّ مَنْ تَشَاءُ وَتُذِلُّ مَنْ تَشَاءُ، بِيَدِكَ الْخَيْرُ، إِنَّكَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ، رَحْمَانُ الدُّنْيَا وَالْآخِرَةِ وَرَحِيمُهُمَا، تُعْطِيهِمَا مَنْ تَشَاءُ وَتَمْنَعُ مِنْهُمَا مَنْ تَشَاءُ، ارْحَمْنِي رَحْمَةً تُغْنِينِي بِهَا عَنْ رَحْمَةِ مَنْ سِوَاكَ',
+        source: 'دعاء الرزق والملك — صحيح البخاري',
+        repeat: 1,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ ارْزُقْنَا الْيَقِينَ وَحُسْنَ التَّوَكُّلِ عَلَيْكَ يَا رَبَّ',
+        source: 'أدعية مأثورة',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ',
+        source: 'دعاء يونس عليه السلام — سورة الأنبياء: ٨٧',
+        repeat: 1,
+        note: 'كان النبي ﷺ لا يدع دعاء في أمر يهمه إلا ركع واستقبل الله بهذا الدعاء',
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ دَبِّرْ لِي أَمْرِي فَإِنِّي لَا أُحْسِنُ التَّدْبِيرَ، اللَّهُمَّ قَوِّ جِسْمِي وَعَقْلِي، اللَّهُمَّ ارْزُقْنِي الْحِكْمَةَ وَالْبَصِيرَةَ، اللَّهُمَّ اجْعَلْنِي صَادِقًا مَعَ نَفْسِي وَمَعَ غَيْرِي، اللَّهُمَّ إِنِّي فَوَّضْتُ أَمْرِي إِلَيْكَ، اللَّهُمَّ ارْزُقْنِي الْإِرَادَةَ مِنْ عِنْدِكَ، اللَّهُمَّ إِنِّي تَوَكَّلْتُ عَلَى اللَّهِ، اللَّهُمَّ نُورْ طَرِيقِي',
+        source: 'دعاء التفويض والتيسير — أدعية مأثورة',
+        repeat: 1,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ لَكَ الْحَمْدُ حَتَّى تَرْضَى، وَلَكَ الْحَمْدُ إِذَا رَضِيتَ، وَلَكَ الْحَمْدُ بَعْدَ الرِّضَا، اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ فِي الْأَوَّلِينَ، وَصَلِّ عَلَيْهِ فِي الْآخِرِينَ، وَصَلِّ عَلَيْهِ فِي كُلِّ وَقْتٍ وَحِينٍ، اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ وَأَسْتَقْدِرُكَ بِقُدْرَتِكَ وَأَسْأَلُكَ مِنْ فَضْلِكَ الْعَظِيمِ، فَإِنَّكَ تَقْدِرُ وَلَا أَقْدِرُ، وَتَعْلَمُ وَلَا أَعْلَمُ، وَأَنْتَ عَلَّامُ الْغُيُوبِ، اللَّهُمَّ اقْدُرْ لِي الْخَيْرَ حَيْثُ كَانَ وَأَرْضِنِي بِهِ',
+        source: 'دعاء الاستخارة — صحيح البخاري',
+        repeat: 1,
+      ),
+      PropheticDuaItem(
+        dua: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
+        source: 'سورة آل عمران: ١٧٣ — دعاء التوكل',
+        repeat: 7,
+      ),
+      PropheticDuaItem(
+        dua: 'يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ، أَصْلِحْ لِي شَأْنِي كُلَّهُ، وَلَا تَكِلْنِي إِلَى نَفْسِي طَرْفَةَ عَيْنٍ',
+        source: 'دعاء الاستغاثة — سنن الترمذي وحسنه الألباني',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'رَبِّ إِنِّي لِمَا أَنْزَلْتَ إِلَيَّ مِنْ خَيْرٍ فَقِيرٌ',
+        source: 'دعاء موسى عليه السلام — سورة القصص: ٢٤',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'يَا مُثَبِّتَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ',
+        source: 'دعاء الثبات — صحيح مسلم',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ صَلِّ عَلَى سَيِّدِنَا مُحَمَّدٍ فِي الْأَوَّلِينَ وَصَلِّ عَلَيْهِ فِي الْآخِرِينَ وَصَلِّ عَلَيْهِ فِي كُلِّ وَقْتٍ وَحِينٍ، اللَّهُمَّ صَلِّ عَلَيْهِ وَعَلَى آلِهِ وَسَلِّمْ عَلَيْهِ وَارْحَمْهُ وَبَارِكْ عَلَيْهِ',
+        source: 'الصلاة على النبي ﷺ — صحيح مسلم',
+        repeat: 10,
+        note: 'الصلاة على النبي ﷺ تذهب بها الحزن وتجلب البركة',
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ إِنِّي أَتَبَرَّأُ إِلَيْكَ مِنْ حَوْلِي وَقُوَّتِي وَأَلْجَأُ إِلَى حَوْلِكَ وَقُوَّتِكَ، فَاللَّهُمَّ أَعِنِّي وَلَا تَعِنْ عَلَيَّ، وَانْصُرْنِي وَلَا تَنْصُرْ عَلَيَّ، وَاهْدِنِي وَيَسِّرْ الْهُدَى لِي',
+        source: 'دعاء التبرؤ من الحول والقوة — صحيح مسلم',
+        repeat: 1,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ يَسِّرْ لِي أَمْرِي',
+        source: 'دعاء التيسير — أدعية مأثورة',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ اخْتَرْ لِي وَلَا تُخَيِّرْنِي',
+        source: 'دعاء الاختيار — أدعية مأثورة',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ سِتْرَكَ وَعَفْوَكَ وَرِضَاكَ',
+        source: 'دعاء الستر والعفو — أدعية مأثورة',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ وَمِنْ رَحْمَتِكَ فَإِنَّهُ لَا يَمْلِكُهَا إِلَّا أَنْتَ',
+        source: 'دعاء طلب الفضل والرحمة — أدعية مأثورة',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'أَسْتَغْفِرُ اللَّهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ',
+        source: 'الاستغفار — كان النبي ﷺ يستغفر الله في اليوم أكثر من سبعين مرة',
+        repeat: 100,
+        note: 'من فضائل الاستغفار فتح الأرزاق وذهاب الهموم',
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ إِنَّكَ عَفُوٌّ كَرِيمٌ تُحِبُّ الْعَفْوَ فَاعْفُ عَنَّا',
+        source: 'دعاء العفو — أدعية مأثورة',
+        repeat: 3,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ',
+        source: 'سيد الاستغفار — صحيح البخاري',
+        repeat: 1,
+        note: 'من قاله موقناً به حين يمسي مات على فطرة الإسلام',
+      ),
+      PropheticDuaItem(
+        dua: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
+        source: 'دعاء الحسبلة — سورة آل عمران: ١٧٣',
+        repeat: 7,
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ صَلِّ عَلَى سَيِّدِنَا مُحَمَّدٍ',
+        source: 'الصلاة على النبي ﷺ — كانت تُكَثَّر لجلب الفرج والبركة',
+        repeat: 10,
+        note: 'من كثرت عليه الصلاة على النبي ﷺ لم تحزن',
+      ),
+      PropheticDuaItem(
+        dua: 'اللَّهُمَّ رَحْمَتَكَ أَرْجُو فَلَا تَكِلْنِي إِلَى نَفْسِي طَرْفَةَ عَيْنٍ وَأَصْلِحْ لِي شَأْنِي كُلَّهُ لَا إِلَهَ إِلَّا أَنْتَ',
+        source: 'دعاء الرحمة — سنن أبي داود وصححه الألباني',
+        repeat: 3,
+      ),
+    ],
+    solacePointsAr: [
+      'الدعاء هو سلاح المؤمن، به يدفع البلاء وجلب الخير.',
+      'اللهم يستجيب الدعاء مهما طال الانتظار، فاصبر وتوكل.',
+      'خُتِمَ القرآن بآية الدعاء، فاجعل دعاءك آخر سلاحك في كل أمر.',
+      'الاستغفار يفتح أبواب الأرزاق ويذهاب الهموم ويجبر الكسر.',
+      'الصلاة على النبي ﷺ فرج وبركة ونور في البدن والقلب.',
+    ],
+    solacePointsEn: [
+      'Dua is the believer\'s weapon; it repels calamity and attracts blessings.',
+      'Allah answers dua in His perfect timing, so be patient and trust.',
+      'The Quran ends with a verse of dua; make supplication your ultimate tool.',
+      'Istighfar opens sustenance gates, removes worries, and mends the heart.',
+      'Salawat upon the Prophet brings relief, blessings, and light.',
     ],
   ),
 ];

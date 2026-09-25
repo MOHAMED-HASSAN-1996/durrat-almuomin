@@ -73,6 +73,8 @@ class ShaarawiLesson {
   final String? seriesTitleEn;
   final int? partNumber;
   final String? partTitleAr;
+  final int? displayOrder;
+  final int? seriesOrder;
 
   const ShaarawiLesson({
     required this.id,
@@ -91,6 +93,8 @@ class ShaarawiLesson {
     this.seriesTitleEn,
     this.partNumber,
     this.partTitleAr,
+    this.displayOrder,
+    this.seriesOrder,
   });
 
   /// استخراج الصورة المصغرة الحقيقية من يوتيوب

@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../services/remote_content_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/broadcast_banner.dart';
+import '../widgets/home_cards.dart';
 import '../widgets/home_hero_card.dart';
 import 'anime_stories_screen.dart';
 import 'companions_screen.dart';
@@ -23,7 +27,6 @@ import 'shaarawi_screen.dart';
 import 'soul_remedy_screen.dart';
 import 'zakat_calculator_screen.dart';
 import 'notifications_screen.dart';
-import '../widgets/nawafil_tracker_sheet.dart';
 
 /// The redesigned Home Screen — engineered in RonDesignLab's signature style:
 /// Ultra-curved glass cards (28-32px), subtle depth, atmospheric gradients,
@@ -39,17 +42,30 @@ class HomeScreen extends StatelessWidget {
     final lang = appState.language;
     final isAr = lang == AppLanguage.arabic;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    // ملاحظة أداء: لا نستدعي initialize() داخل build (كانت تُستدعى مع كل
+    // إعادة بناء). التهيئة تتم مرة واحدة من main في الخلفية، وهنا نكتفي
+    // بالاستماع عبر ListenableBuilder أدناه.
+    final popup = RemoteContentService.instance.popupAnnouncement;
+    if (popup != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showPopupIfNeeded(context, popup);
+      });
+    }
 
     return Directionality(
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: dark ? const Color(0xFF0A1612) : const Color(0xFFF7F5F0),
+        backgroundColor: dark
+            ? const Color(0xFF0A1612)
+            : const Color(0xFFF7F5F0),
         body: SafeArea(
           bottom: false,
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 540),
-              child: CustomScrollView(
+              child: ListenableBuilder(
+                listenable: RemoteContentService.instance,
+                builder: (context, _) => CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
                   // ─────────────────────────────────────────────
@@ -62,111 +78,205 @@ class HomeScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           // Left: App Icon + Title
-                          Row(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF0F3B2C).withValues(alpha: 0.3),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF0F3B2C,
+                                        ).withValues(alpha: 0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.asset(
+                                      'assets/images/app_icon.webp',
+                                      width: 32,
+                                      height: 32,
+                                      fit: BoxFit.cover,
                                     ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.asset(
-                                    'assets/images/app_icon.png',
-                                    width: 32,
-                                    height: 32,
-                                    fit: BoxFit.cover,
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                isAr ? 'دُرَّةُ الْمُؤْمِن' : "Durrat Al-Mu'min",
-                                style: TextStyle(
-                                  fontFamily: DhikrTheme.arabicFont,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 20,
-                                  color: dark ? Colors.white : DhikrColors.charcoal,
-                                  height: 1.1,
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    isAr ? 'درة المؤمن' : "Durrat Al-Mu'min",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 20,
+                                      color: dark
+                                          ? Colors.white
+                                          : DhikrColors.charcoal,
+                                      height: 1.1,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           // Right: Dynamic Location Chip + Notifications Button
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Builder(
                                 builder: (context) {
-                                  final savedLoc = appState.storage.getSavedLocation();
-                                  String cityDisplay = isAr ? 'بغداد' : 'Baghdad';
-                                  String countryDisplay = isAr ? 'العراق' : 'Iraq';
+                                  final savedLoc = appState.storage
+                                      .getSavedLocation();
+                                  String cityDisplay = isAr
+                                      ? 'بغداد'
+                                      : 'Baghdad';
+                                  String countryDisplay = isAr
+                                      ? 'العراق'
+                                      : 'Iraq';
 
                                   if (savedLoc != null) {
-                                    final rawAr = (savedLoc['cityAr'] as String?)?.trim() ?? '';
-                                    final rawEn = (savedLoc['cityEn'] as String?)?.trim() ?? '';
-                                    final cAr = (savedLoc['countryAr'] as String?)?.trim() ?? '';
-                                    final cEn = (savedLoc['countryEn'] as String?)?.trim() ?? '';
+                                    final rawAr =
+                                        (savedLoc['cityAr'] as String?)
+                                            ?.trim() ??
+                                        '';
+                                    final rawEn =
+                                        (savedLoc['cityEn'] as String?)
+                                            ?.trim() ??
+                                        '';
+                                    final cAr =
+                                        (savedLoc['countryAr'] as String?)
+                                            ?.trim() ??
+                                        '';
+                                    final cEn =
+                                        (savedLoc['countryEn'] as String?)
+                                            ?.trim() ??
+                                        '';
 
                                     if (isAr) {
-                                      if (rawAr.isNotEmpty && !rawAr.toLowerCase().contains('city')) {
+                                      if (rawAr.isNotEmpty &&
+                                          !rawAr.toLowerCase().contains(
+                                            'city',
+                                          )) {
                                         cityDisplay = rawAr;
-                                      } else if (rawEn.toLowerCase().contains('mit ghamr') || rawAr.toLowerCase().contains('mit ghamr')) {
+                                      } else if (rawEn.toLowerCase().contains(
+                                            'mit ghamr',
+                                          ) ||
+                                          rawAr.toLowerCase().contains(
+                                            'mit ghamr',
+                                          )) {
                                         cityDisplay = 'ميت غمر';
-                                      } else if (rawEn.toLowerCase().contains('baghdad') || rawAr.toLowerCase().contains('baghdad')) {
+                                      } else if (rawEn.toLowerCase().contains(
+                                            'baghdad',
+                                          ) ||
+                                          rawAr.toLowerCase().contains(
+                                            'baghdad',
+                                          )) {
                                         cityDisplay = 'بغداد';
                                       } else {
-                                        cityDisplay = rawAr.isNotEmpty ? rawAr : (rawEn.isNotEmpty ? rawEn : 'بغداد');
+                                        cityDisplay = rawAr.isNotEmpty
+                                            ? rawAr
+                                            : (rawEn.isNotEmpty
+                                                  ? rawEn
+                                                  : 'بغداد');
                                       }
-                                      cityDisplay = cityDisplay.replaceAll(' City', '').replaceAll(' Governorate', '').replaceAll('محافظة', '').trim();
-                                      countryDisplay = cAr.isNotEmpty ? cAr : (cEn.isNotEmpty ? cEn : 'العراق');
-                                      if (countryDisplay.toLowerCase().contains('egypt')) countryDisplay = 'مصر';
-                                      if (countryDisplay.toLowerCase().contains('iraq')) countryDisplay = 'العراق';
+                                      cityDisplay = cityDisplay
+                                          .replaceAll(' City', '')
+                                          .replaceAll(' Governorate', '')
+                                          .replaceAll('محافظة', '')
+                                          .trim();
+                                      countryDisplay = cAr.isNotEmpty
+                                          ? cAr
+                                          : (cEn.isNotEmpty ? cEn : 'العراق');
+                                      if (countryDisplay.toLowerCase().contains(
+                                        'egypt',
+                                      )) {
+                                        countryDisplay = 'مصر';
+                                      }
+                                      if (countryDisplay.toLowerCase().contains(
+                                        'iraq',
+                                      )) {
+                                        countryDisplay = 'العراق';
+                                      }
                                     } else {
-                                      cityDisplay = rawEn.isNotEmpty ? rawEn : (rawAr.isNotEmpty ? rawAr : 'Baghdad');
-                                      cityDisplay = cityDisplay.replaceAll(' City', '').replaceAll(' Governorate', '').trim();
-                                      countryDisplay = cEn.isNotEmpty ? cEn : (cAr.isNotEmpty ? cAr : 'Iraq');
+                                      cityDisplay = rawEn.isNotEmpty
+                                          ? rawEn
+                                          : (rawAr.isNotEmpty
+                                                ? rawAr
+                                                : 'Baghdad');
+                                      cityDisplay = cityDisplay
+                                          .replaceAll(' City', '')
+                                          .replaceAll(' Governorate', '')
+                                          .trim();
+                                      countryDisplay = cEn.isNotEmpty
+                                          ? cEn
+                                          : (cAr.isNotEmpty ? cAr : 'Iraq');
                                     }
                                   }
 
-                                  final locationLabel = countryDisplay.isNotEmpty
+                                  final locationLabel =
+                                      countryDisplay.isNotEmpty
                                       ? '$cityDisplay، $countryDisplay'
                                       : cityDisplay;
 
                                   return Tooltip(
-                                    message: isAr ? 'انقر لتحديد موقعك يدوياً عبر الخريطة' : 'Tap to pick location on map',
+                                    message: isAr
+                                        ? 'انقر لتحديد موقعك يدوياً عبر الخريطة'
+                                        : 'Tap to pick location on map',
                                     child: InkWell(
                                       onTap: () {
                                         HapticFeedback.lightImpact();
                                         Navigator.of(context).push(
                                           MaterialPageRoute(
-                                            builder: (_) => LocationMapPickerScreen(
-                                              initialLat: (savedLoc?['lat'] as num?)?.toDouble(),
-                                              initialLng: (savedLoc?['lng'] as num?)?.toDouble(),
-                                              initialCityAr: savedLoc?['cityAr'] as String?,
-                                              initialCountryAr: savedLoc?['countryAr'] as String?,
-                                            ),
+                                            builder: (_) =>
+                                                LocationMapPickerScreen(
+                                                  initialLat:
+                                                      (savedLoc?['lat'] as num?)
+                                                          ?.toDouble(),
+                                                  initialLng:
+                                                      (savedLoc?['lng'] as num?)
+                                                          ?.toDouble(),
+                                                  initialCityAr:
+                                                      savedLoc?['cityAr']
+                                                          as String?,
+                                                  initialCountryAr:
+                                                      savedLoc?['countryAr']
+                                                          as String?,
+                                                ),
                                           ),
                                         );
                                       },
                                       borderRadius: BorderRadius.circular(20),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: dark
-                                              ? Colors.white.withValues(alpha: 0.08)
-                                              : DhikrColors.sageSoft.withValues(alpha: 0.65),
-                                          borderRadius: BorderRadius.circular(20),
+                                              ? Colors.white.withValues(
+                                                  alpha: 0.08,
+                                                )
+                                              : DhikrColors.sageSoft.withValues(
+                                                  alpha: 0.65,
+                                                ),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
                                           border: Border.all(
                                             color: dark
-                                                ? const Color(0xFF34D399).withValues(alpha: 0.3)
-                                                : DhikrColors.forest.withValues(alpha: 0.22),
+                                                ? const Color(
+                                                    0xFF34D399,
+                                                  ).withValues(alpha: 0.3)
+                                                : DhikrColors.forest.withValues(
+                                                    alpha: 0.22,
+                                                  ),
                                             width: 1,
                                           ),
                                         ),
@@ -182,14 +292,19 @@ class HomeScreen extends StatelessWidget {
                                             ),
                                             const SizedBox(width: 5),
                                             ConstrainedBox(
-                                              constraints: const BoxConstraints(maxWidth: 130),
+                                              constraints: const BoxConstraints(
+                                                maxWidth: 130,
+                                              ),
                                               child: Text(
                                                 locationLabel,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+                                                textDirection: isAr
+                                                    ? TextDirection.rtl
+                                                    : TextDirection.ltr,
                                                 style: TextStyle(
-                                                  fontFamily: DhikrTheme.arabicFont,
+                                                  fontFamily:
+                                                      DhikrTheme.arabicFont,
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w700,
                                                   color: dark
@@ -222,7 +337,8 @@ class HomeScreen extends StatelessWidget {
                                     HapticFeedback.lightImpact();
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (_) => const NotificationsScreen(),
+                                        builder: (_) =>
+                                            const NotificationsScreen(),
                                       ),
                                     );
                                   },
@@ -233,12 +349,18 @@ class HomeScreen extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       color: dark
                                           ? Colors.white.withValues(alpha: 0.08)
-                                          : DhikrColors.sageSoft.withValues(alpha: 0.65),
+                                          : DhikrColors.sageSoft.withValues(
+                                              alpha: 0.65,
+                                            ),
                                       shape: BoxShape.circle,
                                       border: Border.all(
                                         color: dark
-                                            ? const Color(0xFF34D399).withValues(alpha: 0.3)
-                                            : DhikrColors.forest.withValues(alpha: 0.22),
+                                            ? const Color(
+                                                0xFF34D399,
+                                              ).withValues(alpha: 0.3)
+                                            : DhikrColors.forest.withValues(
+                                                alpha: 0.22,
+                                              ),
                                         width: 1,
                                       ),
                                     ),
@@ -264,525 +386,24 @@ class HomeScreen extends StatelessWidget {
                   // ─────────────────────────────────────────────
                   // 2. HERO CARD (RonDesignLab atmospheric card)
                   // ─────────────────────────────────────────────
-                  const SliverToBoxAdapter(
-                    child: HomeHeroCard(),
-                  ),
+                  const SliverToBoxAdapter(child: HomeHeroCard()),
 
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
                   // ─────────────────────────────────────────────
-                  // 3. DAILY ADHKAR (Title Only, 4 Essential Categories)
+                  // 3..7. SECTIONS — كل قسم عنوان + شبكة كروت موحّدة
+                  // (نفس مقاس الكارد، نفس المسافات، نفس ترتيب الصورة/النص)
                   // ─────────────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: _buildSectionHeader(
-                        context,
-                        title: isAr ? 'أذكارك اليومية' : 'Daily Adhkar',
-                        dark: dark,
-                      ),
-                    ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          // Row 1: Morning & Evening
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildAdhkarBentoCard(
-                                  context: context,
-                                  category: DhikrCategory.morning,
-                                  title: isAr ? 'أذكار الصباح' : 'Morning Adhkar',
-                                  icon: LucideIcons.sun,
-                                  isPrimary: true,
-                                  dark: dark,
-                                  isAr: isAr,
-                                  onTap: () => onOpenCategory(DhikrCategory.morning),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildAdhkarBentoCard(
-                                  context: context,
-                                  category: DhikrCategory.evening,
-                                  title: isAr ? 'أذكار المساء' : 'Evening Adhkar',
-                                  icon: LucideIcons.moon,
-                                  isPrimary: true,
-                                  dark: dark,
-                                  isAr: isAr,
-                                  onTap: () => onOpenCategory(DhikrCategory.evening),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Row 2: After Prayer & Ruqyah
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildAdhkarBentoCard(
-                                  context: context,
-                                  category: DhikrCategory.afterPrayer,
-                                  title: isAr ? 'أذكار بعد الصلاة' : 'After Prayer',
-                                  icon: LucideIcons.sparkles,
-                                  isPrimary: false,
-                                  dark: dark,
-                                  isAr: isAr,
-                                  onTap: () => onOpenCategory(DhikrCategory.afterPrayer),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildAdhkarBentoCard(
-                                  context: context,
-                                  category: DhikrCategory.ruqyah,
-                                  title: isAr ? 'الرقية الشرعية' : 'Ruqyah',
-                                  icon: LucideIcons.shieldCheck,
-                                  isPrimary: false,
-                                  dark: dark,
-                                  isAr: isAr,
-                                  onTap: () => onOpenCategory(DhikrCategory.ruqyah),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
-
-                  // ─────────────────────────────────────────────
-                  // 4. ISLAMIC KNOWLEDGE & SCIENCES (المعرفة والعلوم الشرعية)
-                  // ─────────────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
-                      child: _buildSectionHeader(
-                        context,
-                        title: isAr ? 'المعرفة والعلوم الشرعية' : 'Islamic Knowledge',
-                        dark: dark,
-                      ),
-                    ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          // Trio Row 1: [ المصحف الشريف | الأحاديث النبوية | جوامع الذكر ]
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTrioServiceCard(
-                                  context: context,
-                                  title: isAr ? 'المصحف الشريف' : 'Holy Quran',
-                                  imageAsset: 'assets/images/clay_3d_quran.png',
-                                  icon: LucideIcons.bookOpen,
-                                  accentColor: const Color(0xFF059669),
-                                  pastelLightStart: const Color(0xFFECFDF5),
-                                  pastelLightEnd: const Color(0xFFA7F3D0),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const QuranMushafScreen()),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildTrioServiceCard(
-                                  context: context,
-                                  title: isAr ? 'الأحاديث النبوية' : 'Prophetic Hadiths',
-                                  imageAsset: 'assets/images/clay_3d_hadith.png',
-                                  icon: LucideIcons.bookCheck,
-                                  accentColor: const Color(0xFFD97706),
-                                  pastelLightStart: const Color(0xFFFFFBEB),
-                                  pastelLightEnd: const Color(0xFFFDE68A),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const HadithScreen()),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildTrioServiceCard(
-                                  context: context,
-                                  title: isAr ? 'جوامع الذكر' : "Jawami' Dhikr",
-                                  imageAsset: 'assets/images/clay_3d_jawami.png',
-                                  icon: LucideIcons.sparkles,
-                                  accentColor: const Color(0xFF0284C7),
-                                  pastelLightStart: const Color(0xFFF0F9FF),
-                                  pastelLightEnd: const Color(0xFFBAE6FD),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const JawamiDhikrScreen()),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Trio Row 2: [ خواطر الشعراوي | قصص الصحابة | قصص دينية ]
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTrioServiceCard(
-                                  context: context,
-                                  title: isAr ? 'خواطر الشعراوي' : 'Shaarawi Lessons',
-                                  imageAsset: 'assets/images/clay_3d_shaarawi.png',
-                                  icon: LucideIcons.graduationCap,
-                                  accentColor: const Color(0xFF65A30D),
-                                  pastelLightStart: const Color(0xFFF7FEE7),
-                                  pastelLightEnd: const Color(0xFFD9F99D),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ShaarawiScreen()),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildTrioServiceCard(
-                                  context: context,
-                                  title: isAr ? 'قصص الصحابة' : 'Companions',
-                                  imageAsset: 'assets/images/clay_3d_companions.png',
-                                  icon: LucideIcons.users,
-                                  accentColor: const Color(0xFF8B5CF6),
-                                  pastelLightStart: const Color(0xFFF5F3FF),
-                                  pastelLightEnd: const Color(0xFFDDD6FE),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const CompanionsScreen()),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildTrioServiceCard(
-                                  context: context,
-                                  title: isAr ? 'قصص دينية' : 'Religious Stories',
-                                  imageAsset: 'assets/images/clay_3d_stories.png',
-                                  icon: LucideIcons.tvMinimalPlay,
-                                  accentColor: const Color(0xFFEC4899),
-                                  pastelLightStart: const Color(0xFFFDF2F8),
-                                  pastelLightEnd: const Color(0xFFFBCFE8),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const AnimeStoriesScreen()),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                  // ─────────────────────────────────────────────
-                  // 5. WORSHIP & SUPPLICATIONS (العبادات والمناجاة)
-                  // ─────────────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: _buildSectionHeader(
-                        context,
-                        title: isAr ? 'العبادات والمناجاة' : 'Worship & Supplications',
-                        dark: dark,
-                      ),
-                    ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          // Highlight Card: [ صلوات النوافل والسنن الرواتب ]
-                          _buildWideServiceCard(
-                            context: context,
-                            title: isAr ? 'صلوات النوافل والسنن الرواتب' : 'Nawafil & Sunnah Tracker',
-                            imageAsset: 'assets/images/clay_3d_after_prayer.png',
-                            icon: LucideIcons.sparkles,
-                            accentColor: const Color(0xFF059669),
-                            pastelLightStart: const Color(0xFFECFDF5),
-                            pastelLightEnd: const Color(0xFFA7F3D0),
-                            dark: dark,
-                            onTap: () => NawafilTrackerSheet.show(context),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Card 2: [ دعاء بظهر الغيب ]
-                          _buildWideServiceCard(
-                            context: context,
-                            title: isAr ? 'دعاء بظهر الغيب' : 'Dua in Absentia',
-                            imageAsset: 'assets/images/clay_3d_loved_ones.png',
-                            icon: LucideIcons.heartHandshake,
-                            accentColor: const Color(0xFFE11D48),
-                            pastelLightStart: const Color(0xFFFFF1F2),
-                            pastelLightEnd: const Color(0xFFFECDD3),
-                            dark: dark,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const LovedOnesScreen()),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                  // ─────────────────────────────────────────────
-                  // 6. ZAKAT & CHARITIES (الزكاة والصدقات والأضاحي)
-                  // ─────────────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: _buildSectionHeader(
-                        context,
-                        title: isAr ? 'الزكاة والصدقات والأضاحي' : 'Zakat & Charities',
-                        dark: dark,
-                      ),
-                    ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          // Row 1: [ حاسبة | حاسبة ]
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'حاسبة' : 'Zakat',
-                                  titleLine2: isAr ? 'الزكاة' : 'Calculator',
-                                  imageAsset: 'assets/images/clay_3d_zakat_calc.png',
-                                  icon: LucideIcons.calculator,
-                                  accentColor: const Color(0xFF059669),
-                                  pastelLightStart: const Color(0xFFECFDF5),
-                                  pastelLightEnd: const Color(0xFFA7F3D0),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 0)),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'حاسبة' : 'Nisab',
-                                  titleLine2: isAr ? 'النصاب' : 'Calculator',
-                                  imageAsset: 'assets/images/clay_3d_nisab.png',
-                                  icon: LucideIcons.coins,
-                                  accentColor: const Color(0xFFD97706),
-                                  pastelLightStart: const Color(0xFFFFFBEB),
-                                  pastelLightEnd: const Color(0xFFFDE68A),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 1)),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Row 2: [ مستحقو الزكاة | أحكام وتوزيع الأضحية ]
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'مستحقو' : 'Zakat',
-                                  titleLine2: isAr ? 'الزكاة' : 'Beneficiaries',
-                                  imageAsset: 'assets/images/clay_3d_zakat_beneficiaries.png',
-                                  icon: LucideIcons.usersRound,
-                                  accentColor: const Color(0xFF2563EB),
-                                  pastelLightStart: const Color(0xFFEFF6FF),
-                                  pastelLightEnd: const Color(0xFFBFDBFE),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 2)),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'أحكام وتوزيع' : 'Udhiyah &',
-                                  titleLine2: isAr ? 'الأضحية' : 'Distribution',
-                                  imageAsset: 'assets/images/clay_3d_udhiyah.png',
-                                  icon: LucideIcons.gift,
-                                  accentColor: const Color(0xFFDC2626),
-                                  pastelLightStart: const Color(0xFFFEF2F2),
-                                  pastelLightEnd: const Color(0xFFFECACA),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 3)),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                  // ─────────────────────────────────────────────
-                  // 7. MUSLIM TOOLS & SERVICES (أدوات وخدمات المسلم)
-                  // ─────────────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: _buildSectionHeader(
-                        context,
-                        title: isAr ? 'أدوات وخدمات المسلم' : 'Muslim Tools',
-                        dark: dark,
-                      ),
-                    ),
-                  ),
-
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          // Trio Row: [ بوصلة القبلة | أقرب مسجد | مناسك الحج والعمرة ]
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTrioServiceCard(
-                                  context: context,
-                                  title: isAr ? 'بوصلة القبلة' : 'Qibla Compass',
-                                  imageAsset: 'assets/images/tool_qibla_3d.png',
-                                  icon: LucideIcons.compass,
-                                  accentColor: const Color(0xFF0284C7),
-                                  pastelLightStart: const Color(0xFFF0F9FF),
-                                  pastelLightEnd: const Color(0xFFBAE6FD),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const QiblaScreen()),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildTrioServiceCard(
-                                  context: context,
-                                  title: isAr ? 'أقرب مسجد' : 'Nearest Mosque',
-                                  imageAsset: 'assets/images/clay_3d_minaret.png',
-                                  icon: LucideIcons.mapPin,
-                                  accentColor: const Color(0xFF059669),
-                                  pastelLightStart: const Color(0xFFECFDF5),
-                                  pastelLightEnd: const Color(0xFFA7F3D0),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const NearestMosquesScreen()),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildTrioServiceCard(
-                                  context: context,
-                                  title: isAr ? 'الحج والعمرة' : 'Hajj & Umrah',
-                                  imageAsset: 'assets/images/tool_hajj_3d.png',
-                                  icon: LucideIcons.landmark,
-                                  accentColor: const Color(0xFFD97706),
-                                  pastelLightStart: const Color(0xFFFFFBEB),
-                                  pastelLightEnd: const Color(0xFFFDE68A),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const HajjUmrahScreen()),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Wide Feature Card: Quran Live Radio (Title Only)
-                          _buildWideServiceCard(
-                            context: context,
-                            title: isAr ? 'إذاعة القرآن الكريم — القاهرة' : 'Cairo Quran Live Radio',
-                            imageAsset: 'assets/images/clay_3d_radio.png',
-                            icon: LucideIcons.radio,
-                            accentColor: const Color(0xFFE11D48),
-                            pastelLightStart: const Color(0xFFFFF1F2),
-                            pastelLightEnd: const Color(0xFFFECDD3),
-                            dark: dark,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const QuranRadioScreen()),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // 2-Column: [ صيدلية الروح | الالتزام بالصلاة ]
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'صيدلية الروح' : 'Soul Remedy',
-                                  titleLine2: isAr ? 'أدعية لكل شعور' : 'Duas for feelings',
-                                  imageAsset: 'assets/images/clay_3d_soul.png',
-                                  icon: LucideIcons.heart,
-                                  accentColor: const Color(0xFF10B981),
-                                  pastelLightStart: const Color(0xFFECFDF5),
-                                  pastelLightEnd: const Color(0xFFA7F3D0),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const SoulRemedyScreen()),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildCompactServiceCard(
-                                  context: context,
-                                  title: isAr ? 'الالتزام بالصلاة' : 'Prayer Tracking',
-                                  titleLine2: isAr ? 'متابعة الفرائض والسنن' : 'Obligatory & Sunan tracker',
-                                  imageAsset: 'assets/images/clay_3d_minaret.png',
-                                  icon: LucideIcons.calendarCheck,
-                                  accentColor: const Color(0xFF6366F1),
-                                  pastelLightStart: const Color(0xFFEEF2FF),
-                                  pastelLightEnd: const Color(0xFFC7D2FE),
-                                  dark: dark,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const PrayerCommitmentScreen()),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                  ..._buildSectionSlivers(
+                    context: context,
+                    appState: appState,
+                    isAr: isAr,
+                    dark: dark,
                   ),
 
                   // Bottom padding for navigation bar ensuring last cards are completely visible
                   const SliverToBoxAdapter(child: SizedBox(height: 140)),
                 ],
+                ),
               ),
             ),
           ),
@@ -828,514 +449,606 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  /// 3D Pastel Claymorphic Icon Badge — Soft dimensional depth with pastel ambiance or 3D Clay Asset
-  Widget _build3DPastelIconBadge({
-    String? imageAsset,
-    IconData? icon,
-    required Color accentColor,
+  // ══════════════════════════════════════════════════════════════════════════
+  // SECTIONS — الكروت معرّفة كبيانات، وكل قسم يُرسم بنفس الشبكة
+  //
+  // كانت الشاشة تخلط أربعة أنماط كروت (٣ أعمدة / ٢ أعمدة / عريض / بكامل
+  // العرض) بأحجام ومسافات مختلفة، فتبيّن «مساحات غلط» بين الأقسام. الآن كل
+  // قسم شبكة واحدة بمسافات متطابقة، ومقاس الخليّة يتغيّر فقط مع عدد الأعمدة.
+  // ══════════════════════════════════════════════════════════════════════════
+  List<Widget> _buildSectionSlivers({
+    required BuildContext context,
+    required AppState appState,
+    required bool isAr,
     required bool dark,
-    double size = 44,
-    double iconSize = 22,
-    Color? pastelLightStart,
-    Color? pastelLightEnd,
   }) {
-    if (imageAsset != null) {
-      return SizedBox(
-        width: size,
-        height: size,
-        child: Image.asset(
-          imageAsset,
-          width: size,
-          height: size,
-          fit: BoxFit.contain,
-          errorBuilder: (ctx, err, stack) => Icon(
-            icon ?? LucideIcons.sparkles,
-            size: iconSize,
-            color: dark ? Colors.white : accentColor,
+    final slivers = <Widget>[];
+
+    final remote = RemoteContentService.instance;
+    bool cardVisible(HomeCardSpec c) =>
+        c.remoteKey == null || remote.isCardVisible(c.remoteKey!);
+
+    void section(
+      String title,
+      List<HomeCardSpec> cards, {
+      int columns = 3,
+      double cellHeight = 134,
+      double imageSize = 58,
+      bool first = false,
+    }) {
+      final visible = cards.where(cardVisible).toList();
+      if (visible.isEmpty) return;
+      slivers.add(
+        SliverToBoxAdapter(
+          child: Padding(
+            // حافة العنوان = حافة الكروت (16) — كانوا 20/16 فالنص بادٍ
+            // أبعد من الكروت وبيبان «غير متناسق».
+            padding: EdgeInsets.fromLTRB(16, first ? 2 : 22, 16, 10),
+            child: _buildSectionHeader(context, title: title, dark: dark),
+          ),
+        ),
+      );
+      slivers.add(
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: HomeCardGrid(
+              cards: visible,
+              dark: dark,
+              columns: columns,
+              cellHeight: cellHeight,
+              imageSize: imageSize,
+            ),
           ),
         ),
       );
     }
 
-    // True 3D pastel claymorphism fallback:
-    final bgStart = dark
-        ? accentColor.withValues(alpha: 0.35)
-        : (pastelLightStart ?? Color.lerp(Colors.white, accentColor, 0.14)!);
-    final bgEnd = dark
-        ? accentColor.withValues(alpha: 0.14)
-        : (pastelLightEnd ?? Color.lerp(Colors.white, accentColor, 0.30)!);
+    // أذكار التطبيق: الكارد يحمل شريط تقدّم وشارة النسبة بدل بطاقة منفصلة.
+    HomeCardSpec adhkarCard(
+      DhikrCategory category, {
+      required String titleAr,
+      required String titleEn,
+      required IconData icon,
+      required Color accent,
+      required Color pastelStart,
+      required Color pastelEnd,
+      required String imageAsset,
+      String? remoteKey,
+    }) {
+      final progress = appState.categoryProgress(category);
+      final percent = progress.total == 0
+          ? 0
+          : (progress.completed * 100 / progress.total).round();
+      final isCompleted =
+          progress.total > 0 && progress.completed >= progress.total;
+      return HomeCardSpec(
+        title: isAr ? titleAr : titleEn,
+        icon: icon,
+        accent: accent,
+        imageAsset: imageAsset,
+        pastelStart: pastelStart,
+        pastelEnd: pastelEnd,
+        badgeText: isCompleted ? '✓' : '$percent%',
+        progress: progress.total == 0
+            ? 0.0
+            : (progress.completed / progress.total).clamp(0.0, 1.0),
+        remoteKey: remoteKey,
+        onTap: () => onOpenCategory(category),
+      );
+    }
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(size * 0.35),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [bgStart, bgEnd],
+    // ── 1. أذكارك اليومية (شبكة ٢×٢) ──────────────────────────────────────
+    section(
+      isAr ? 'أذكارك اليومية' : 'Daily Adhkar',
+      [
+        adhkarCard(
+          DhikrCategory.morning,
+          titleAr: 'أذكار الصباح',
+          titleEn: 'Morning Adhkar',
+          icon: LucideIcons.sun,
+          accent: dark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+          pastelStart: const Color(0xFFFFFBEB),
+          pastelEnd: const Color(0xFFFDE68A),
+          imageAsset: 'assets/images/clay_3d_morning.webp',
+          remoteKey: 'morningEvening',
         ),
-        border: Border.all(
-          color: dark ? Colors.white.withValues(alpha: 0.22) : Colors.white,
-          width: 1.5,
+        adhkarCard(
+          DhikrCategory.evening,
+          titleAr: 'أذكار المساء',
+          titleEn: 'Evening Adhkar',
+          icon: LucideIcons.moon,
+          accent: dark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED),
+          pastelStart: const Color(0xFFF5F3FF),
+          pastelEnd: const Color(0xFFDDD6FE),
+          imageAsset: 'assets/images/clay_3d_evening.webp',
+          remoteKey: 'morningEvening',
         ),
-        boxShadow: [
-          // Top-left specular highlight (gives the 3D raised clay feel)
-          BoxShadow(
-            color: dark ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.95),
-            blurRadius: 4,
-            offset: const Offset(-2, -2),
+        adhkarCard(
+          DhikrCategory.afterPrayer,
+          titleAr: 'أذكار بعد الصلاة',
+          titleEn: 'After Prayer',
+          icon: LucideIcons.sparkles,
+          accent: dark ? const Color(0xFF34D399) : const Color(0xFF059669),
+          pastelStart: const Color(0xFFECFDF5),
+          pastelEnd: const Color(0xFFA7F3D0),
+          imageAsset: 'assets/images/clay_3d_after_prayer.webp',
+          remoteKey: 'morningEvening',
+        ),
+        adhkarCard(
+          DhikrCategory.ruqyah,
+          titleAr: 'الرقية الشرعية',
+          titleEn: 'Ruqyah',
+          icon: LucideIcons.shieldCheck,
+          accent: dark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+          pastelStart: const Color(0xFFF0F9FF),
+          pastelEnd: const Color(0xFFBAE6FD),
+          imageAsset: 'assets/images/clay_3d_ruqyah.webp',
+          remoteKey: 'morningEvening',
+        ),
+      ],
+      columns: 2,
+      cellHeight: 140,
+      imageSize: 72,
+      first: true,
+    );
+
+    // ── 2. المعرفة والعلوم الشرعية (شبكة ٣×٢) ─────────────────────────────
+    section(
+      isAr ? 'المعرفة والعلوم الشرعية' : 'Islamic Knowledge',
+      [
+        HomeCardSpec(
+          title: isAr ? 'المصحف الشريف' : 'Holy Quran',
+          icon: LucideIcons.bookOpen,
+          accent: const Color(0xFF059669),
+          imageAsset: 'assets/images/clay_3d_quran.webp',
+          pastelStart: const Color(0xFFECFDF5),
+          pastelEnd: const Color(0xFFA7F3D0),
+          remoteKey: 'quranMushaf',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const QuranMushafScreen()),
           ),
-          // Bottom-right soft dimensional shadow
-          BoxShadow(
-            color: accentColor.withValues(alpha: dark ? 0.35 : 0.28),
-            blurRadius: 10,
-            offset: const Offset(3, 4),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'الأحاديث النبوية' : 'Prophetic Hadiths',
+          icon: LucideIcons.bookCheck,
+          accent: const Color(0xFFD97706),
+          imageAsset: 'assets/images/clay_3d_hadith.webp',
+          pastelStart: const Color(0xFFFFFBEB),
+          pastelEnd: const Color(0xFFFDE68A),
+          remoteKey: 'hadith',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const HadithScreen()),
           ),
-          // Ambient spread shadow
-          BoxShadow(
-            color: accentColor.withValues(alpha: dark ? 0.15 : 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'جوامع الذكر' : "Jawami' Dhikr",
+          icon: LucideIcons.sparkles,
+          accent: const Color(0xFF0284C7),
+          imageAsset: 'assets/images/jawami_mosque.png',
+          pastelStart: const Color(0xFFF0F9FF),
+          pastelEnd: const Color(0xFFBAE6FD),
+          remoteKey: 'jawamiDhikr',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const JawamiDhikrScreen()),
           ),
-        ],
-      ),
-      child: Center(
-        child: Container(
-          width: size * 0.70,
-          height: size * 0.70,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: dark ? 0.07 : 0.45),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: dark ? 0.12 : 0.60),
-              width: 1.0,
+        ),
+        HomeCardSpec(
+          title: isAr ? 'خواطر الشعراوي' : 'Shaarawi Lessons',
+          icon: LucideIcons.graduationCap,
+          accent: const Color(0xFF65A30D),
+          imageAsset: 'assets/images/clay_3d_shaarawi.webp',
+          pastelStart: const Color(0xFFF7FEE7),
+          pastelEnd: const Color(0xFFD9F99D),
+          remoteKey: 'shaarawi',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ShaarawiScreen()),
+          ),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'قصص الصحابة' : 'Companions',
+          icon: LucideIcons.users,
+          accent: const Color(0xFF8B5CF6),
+          imageAsset: 'assets/images/clay_3d_companions.webp',
+          pastelStart: const Color(0xFFF5F3FF),
+          pastelEnd: const Color(0xFFDDD6FE),
+          remoteKey: 'companions',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CompanionsScreen()),
+          ),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'انمي اسلامي' : 'Islamic Anime',
+          icon: LucideIcons.tvMinimalPlay,
+          accent: const Color(0xFFEC4899),
+          imageAsset: 'assets/images/clay_3d_stories.webp',
+          pastelStart: const Color(0xFFFDF2F8),
+          pastelEnd: const Color(0xFFFBCFE8),
+          remoteKey: 'animeStories',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AnimeStoriesScreen()),
+          ),
+        ),
+      ],
+    );
+
+    // ── 3. المجتمع والالتزام (شبكة ٢×١) ──────────────────────────────────
+    section(
+      isAr ? 'المجتمع والالتزام' : 'Community & Commitment',
+      [
+        HomeCardSpec(
+          title: isAr ? 'دعاء بظهر الغيب' : 'Dua in Absentia',
+          icon: LucideIcons.heartHandshake,
+          accent: const Color(0xFFE11D48),
+          imageAsset: 'assets/images/clay_3d_loved_ones.webp',
+          pastelStart: const Color(0xFFFFF1F2),
+          pastelEnd: const Color(0xFFFECDD3),
+          remoteKey: 'duaInAbsentia',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const LovedOnesScreen()),
+          ),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'الالتزام بالصلاة' : 'Prayer Tracking',
+          icon: LucideIcons.calendarCheck,
+          accent: const Color(0xFF6366F1),
+          imageAsset: 'assets/images/clay_3d_minaret.webp',
+          pastelStart: const Color(0xFFEEF2FF),
+          pastelEnd: const Color(0xFFC7D2FE),
+          remoteKey: 'commitmentTree',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PrayerCommitmentScreen()),
+          ),
+        ),
+      ],
+      columns: 2,
+      cellHeight: 140,
+      imageSize: 72,
+    );
+
+    // ── 4. الزكاة والصدقات والأضاحي (شبكة ٢×٢) ────────────────────────────
+    section(
+      isAr ? 'الزكاة والصدقات والأضاحي' : 'Zakat & Charities',
+      [
+        HomeCardSpec(
+          title: isAr ? 'حاسبة الزكاة' : 'Zakat Calculator',
+          icon: LucideIcons.calculator,
+          accent: const Color(0xFF059669),
+          imageAsset: 'assets/images/clay_3d_zakat_calc.webp',
+          pastelStart: const Color(0xFFECFDF5),
+          pastelEnd: const Color(0xFFA7F3D0),
+          remoteKey: 'zakatCalc',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 0),
             ),
           ),
-          child: Center(
-            child: Icon(
-              icon ?? LucideIcons.sparkles,
-              size: iconSize,
-              color: dark ? Colors.white : accentColor,
-              shadows: [
-                Shadow(
-                  color: accentColor.withValues(alpha: dark ? 0.60 : 0.38),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'حاسبة النصاب' : 'Nisab Calculator',
+          icon: LucideIcons.coins,
+          accent: const Color(0xFFD97706),
+          imageAsset: 'assets/images/clay_3d_nisab.webp',
+          pastelStart: const Color(0xFFFFFBEB),
+          pastelEnd: const Color(0xFFFDE68A),
+          remoteKey: 'nisabCalc',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 1),
+            ),
+          ),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'مستحقي الزكاة' : 'Zakat Beneficiaries',
+          icon: LucideIcons.usersRound,
+          accent: const Color(0xFF2563EB),
+          imageAsset: 'assets/images/clay_3d_zakat_beneficiaries.webp',
+          pastelStart: const Color(0xFFEFF6FF),
+          pastelEnd: const Color(0xFFBFDBFE),
+          remoteKey: 'zakatBeneficiaries',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 2),
+            ),
+          ),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'مستحقي الأضحية' : 'Udhiyah Beneficiaries',
+          icon: LucideIcons.gift,
+          accent: const Color(0xFFDC2626),
+          imageAsset: 'assets/images/clay_3d_udhiyah.webp',
+          pastelStart: const Color(0xFFFEF2F2),
+          pastelEnd: const Color(0xFFFECACA),
+          remoteKey: 'udhiyahBeneficiaries',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ZakatCalculatorScreen(initialTabIndex: 3),
+            ),
+          ),
+        ),
+      ],
+      columns: 2,
+      cellHeight: 140,
+      imageSize: 72,
+    );
+
+    // ── 5. أدوات وخدمات المسلم (شبكة ٣×٢) ─────────────────────────────────
+    section(
+      isAr ? 'أدوات وخدمات المسلم' : 'Muslim Tools',
+      [
+        HomeCardSpec(
+          title: isAr ? 'إذاعة القرآن' : 'Quran Radio',
+          icon: LucideIcons.radio,
+          accent: const Color(0xFFE11D48),
+          imageAsset: 'assets/images/clay_3d_radio.webp',
+          pastelStart: const Color(0xFFFFF1F2),
+          pastelEnd: const Color(0xFFFECDD3),
+          remoteKey: 'quranRadio',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const QuranRadioScreen()),
+          ),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'الحج والعمرة' : 'Hajj & Umrah',
+          icon: LucideIcons.landmark,
+          accent: const Color(0xFFD97706),
+          imageAsset: 'assets/images/tool_hajj_3d.webp',
+          pastelStart: const Color(0xFFFFFBEB),
+          pastelEnd: const Color(0xFFFDE68A),
+          remoteKey: 'hajjUmrah',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const HajjUmrahScreen()),
+          ),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'صيدلية الروح' : 'Soul Remedy',
+          icon: LucideIcons.heart,
+          accent: const Color(0xFF10B981),
+          imageAsset: 'assets/images/clay_3d_soul.webp',
+          pastelStart: const Color(0xFFECFDF5),
+          pastelEnd: const Color(0xFFA7F3D0),
+          remoteKey: 'soulMedicine',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SoulRemedyScreen()),
+          ),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'بوصلة القبلة' : 'Qibla Compass',
+          icon: LucideIcons.compass,
+          accent: const Color(0xFF0284C7),
+          imageAsset: 'assets/images/tool_qibla_3d.webp',
+          pastelStart: const Color(0xFFF0F9FF),
+          pastelEnd: const Color(0xFFBAE6FD),
+          remoteKey: 'qibla',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const QiblaScreen()),
+          ),
+        ),
+        HomeCardSpec(
+          title: isAr ? 'مساجد معروفة' : 'Famous Mosques',
+          icon: LucideIcons.mapPin,
+          accent: const Color(0xFF059669),
+          imageAsset: 'assets/images/mosque_glow.png',
+          pastelStart: const Color(0xFFECFDF5),
+          pastelEnd: const Color(0xFFA7F3D0),
+          remoteKey: 'nearestMosque',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const NearestMosquesScreen()),
+          ),
+        ),
+      ],
+    );
+
+    return slivers;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Remote-Controlled Featured Dhikr Banner
+// ══════════════════════════════════════════════════════════════════════════
+class _FeaturedDhikrBanner extends StatelessWidget {
+  const _FeaturedDhikrBanner({required this.dark, required this.isAr});
+
+  final bool dark;
+  final bool isAr;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: RemoteContentService.instance,
+      builder: (context, _) {
+        final text = RemoteContentService.instance.featuredDhikr;
+        if (text.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: dark
+                    ? [const Color(0xFF064E3B), const Color(0xFF022C22)]
+                    : [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // Adhkar Bento Card (3D Pastel Clay Asset + Tailored Palette)
-  // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildAdhkarBentoCard({
-    required BuildContext context,
-    required DhikrCategory category,
-    required String title,
-    required IconData icon,
-    required bool isPrimary,
-    required bool dark,
-    required bool isAr,
-    required VoidCallback onTap,
-  }) {
-    final progress = context.watch<AppState>().categoryProgress(category);
-    final percent = progress.total == 0
-        ? 0
-        : (progress.completed * 100 / progress.total).round();
-    final progressValue = progress.total == 0
-        ? 0.0
-        : (progress.completed / progress.total).clamp(0.0, 1.0);
-    final isCompleted = progress.total > 0 && progress.completed >= progress.total;
-
-    final (accentColor, pastelStart, pastelEnd, imageAsset) = switch (category) {
-      DhikrCategory.morning => (
-          dark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
-          const Color(0xFFFFFBEB),
-          const Color(0xFFFDE68A),
-          'assets/images/clay_3d_morning.png',
-        ),
-      DhikrCategory.evening => (
-          dark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED),
-          const Color(0xFFF5F3FF),
-          const Color(0xFFDDD6FE),
-          'assets/images/clay_3d_evening.png',
-        ),
-      DhikrCategory.afterPrayer => (
-          dark ? const Color(0xFF34D399) : const Color(0xFF059669),
-          const Color(0xFFECFDF5),
-          const Color(0xFFA7F3D0),
-          'assets/images/clay_3d_after_prayer.png',
-        ),
-      DhikrCategory.ruqyah => (
-          dark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
-          const Color(0xFFF0F9FF),
-          const Color(0xFFBAE6FD),
-          'assets/images/clay_3d_ruqyah.png',
-        ),
-      _ => (
-          dark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488),
-          const Color(0xFFF0FDFA),
-          const Color(0xFF99F6E4),
-          null,
-        ),
-    };
-
-    final Color surfaceColor = dark
-        ? (isPrimary ? const Color(0xFF132A23) : const Color(0xFF10241E))
-        : (isPrimary ? Colors.white : const Color(0xFFFCFAF7));
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: dark
-                ? Colors.white.withValues(alpha: isPrimary ? 0.14 : 0.08)
-                : Colors.black.withValues(alpha: 0.06),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: dark
-                  ? Colors.black.withValues(alpha: 0.25)
-                  : Colors.black.withValues(alpha: 0.04),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: 3D Pastel Clay Asset & Completion Indicator
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _build3DPastelIconBadge(
-                  imageAsset: imageAsset,
-                  icon: icon,
-                  accentColor: accentColor,
-                  dark: dark,
-                  size: 64,
-                  iconSize: 30,
-                  pastelLightStart: pastelStart,
-                  pastelLightEnd: pastelEnd,
-                ),
-
-                // Percentage Badge / Checkmark
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isCompleted
-                        ? const Color(0xFF10B981).withValues(alpha: 0.18)
-                        : (dark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04)),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: isCompleted
-                          ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                          : Colors.transparent,
-                      width: 1,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            LucideIcons.sparkles,
+                            size: 16,
+                            color: Color(0xFF059669),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isAr ? 'ذكر اليوم المميز' : 'Featured Dhikr',
+                          style: TextStyle(
+                            fontFamily: DhikrTheme.arabicFont,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: dark ? const Color(0xFF34D399) : const Color(0xFF065F46),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  child: Text(
-                    isCompleted ? 'مكتمل ✓' : '$percent%',
-                    style: TextStyle(
-                      fontFamily: DhikrTheme.arabicFont,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: isCompleted
-                          ? const Color(0xFF34D399)
-                          : (dark ? DhikrColors.sage : DhikrColors.charcoalSoft),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 14),
-
-            // Title (Centered, bold, title only)
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: DhikrTheme.arabicFont,
-                fontSize: 15.5,
-                fontWeight: FontWeight.w900,
-                color: dark ? Colors.white : DhikrColors.charcoal,
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // Smooth Rounded Progress Bar matching Category Accent
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: progressValue,
-                minHeight: 4.5,
-                backgroundColor: dark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.06),
-                valueColor: AlwaysStoppedAnimation<Color>(accentColor),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // Wide Highlight Service Card (Title Only, 3D Clay Asset)
-  // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildWideServiceCard({
-    required BuildContext context,
-    required String title,
-    String? imageAsset,
-    required IconData icon,
-    required Color accentColor,
-    required bool dark,
-    required VoidCallback onTap,
-    Color? pastelLightStart,
-    Color? pastelLightEnd,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        decoration: BoxDecoration(
-          color: dark ? const Color(0xFF132A23) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: dark
-                ? Colors.white.withValues(alpha: 0.12)
-                : Colors.black.withValues(alpha: 0.06),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: dark
-                  ? Colors.black.withValues(alpha: 0.25)
-                  : Colors.black.withValues(alpha: 0.04),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // 3D Pastel Clay Icon
-            _build3DPastelIconBadge(
-              imageAsset: imageAsset,
-              icon: icon,
-              accentColor: accentColor,
-              dark: dark,
-              size: 66,
-              iconSize: 30,
-              pastelLightStart: pastelLightStart,
-              pastelLightEnd: pastelLightEnd,
-            ),
-            const SizedBox(width: 16),
-
-            // Content (Title Only)
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: DhikrTheme.arabicFont,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: dark ? Colors.white : DhikrColors.charcoal,
-                ),
-              ),
-            ),
-
-            const SizedBox(width: 8),
-            Icon(
-              LucideIcons.chevronLeft,
-              size: 14,
-              color: dark ? Colors.white38 : Colors.black26,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // Trio Service Card (Title Only, 3 in a row, 3D Clay Asset)
-  // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildTrioServiceCard({
-    required BuildContext context,
-    required String title,
-    String? imageAsset,
-    required IconData icon,
-    required Color accentColor,
-    required bool dark,
-    required VoidCallback onTap,
-    Color? pastelLightStart,
-    Color? pastelLightEnd,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
-        decoration: BoxDecoration(
-          color: dark ? const Color(0xFF10241E) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: dark
-                ? Colors.white.withValues(alpha: 0.08)
-                : Colors.black.withValues(alpha: 0.05),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: dark
-                  ? Colors.black.withValues(alpha: 0.2)
-                  : Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _build3DPastelIconBadge(
-              imageAsset: imageAsset,
-              icon: icon,
-              accentColor: accentColor,
-              dark: dark,
-              size: 62,
-              iconSize: 28,
-              pastelLightStart: pastelLightStart,
-              pastelLightEnd: pastelLightEnd,
-            ),
-            const SizedBox(height: 8),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                title,
-                maxLines: 1,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: DhikrTheme.arabicFont,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: dark ? Colors.white : DhikrColors.charcoal,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // Compact Service Card (Title Only, 3D Clay Asset)
-  // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildCompactServiceCard({
-    required BuildContext context,
-    required String title,
-    String? titleLine2,
-    String? imageAsset,
-    required IconData icon,
-    required Color accentColor,
-    required bool dark,
-    required VoidCallback onTap,
-    Color? pastelLightStart,
-    Color? pastelLightEnd,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: dark ? const Color(0xFF10241E) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: dark
-                ? Colors.white.withValues(alpha: 0.08)
-                : Colors.black.withValues(alpha: 0.05),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: dark
-                  ? Colors.black.withValues(alpha: 0.2)
-                  : Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            _build3DPastelIconBadge(
-              imageAsset: imageAsset,
-              icon: icon,
-              accentColor: accentColor,
-              dark: dark,
-              size: 56,
-              iconSize: 26,
-              pastelLightStart: pastelLightStart,
-              pastelLightEnd: pastelLightEnd,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: DhikrTheme.arabicFont,
-                      fontSize: titleLine2 != null ? 13.5 : 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: dark ? Colors.white : DhikrColors.charcoal,
-                      height: 1.2,
-                    ),
-                  ),
-                  if (titleLine2 != null) ...[
-                    Text(
-                      titleLine2,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: DhikrTheme.arabicFont,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        color: dark ? Colors.white : DhikrColors.charcoal,
-                        height: 1.2,
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: text));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isAr ? 'تم نسخ الذكر بنجاح ✨' : 'Copied to clipboard',
+                              textAlign: TextAlign.center,
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          LucideIcons.copy,
+                          size: 16,
+                          color: dark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                        ),
                       ),
                     ),
                   ],
-                ],
-              ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  text,
+                  textAlign: TextAlign.start,
+                  style: TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.8,
+                    color: dark ? Colors.white : DhikrColors.charcoal,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// Remote-Controlled In-App Popup Announcement Dialog
+// ══════════════════════════════════════════════════════════════════════════
+String? _lastShownPopupId;
+
+void _showPopupIfNeeded(BuildContext context, Map<String, dynamic> popup) {
+  final id = (popup['id'] ?? popup['title'] ?? '').toString();
+  if (id.isEmpty || id == _lastShownPopupId) return;
+  _lastShownPopupId = id;
+
+  final title = (popup['title'] ?? '').toString();
+  final message = (popup['message'] ?? '').toString();
+  final url = (popup['actionUrl'] ?? '').toString().trim();
+  final btnText = (popup['actionText'] ?? '').toString().trim();
+
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(LucideIcons.bellRing, color: Color(0xFF10B981), size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title.isNotEmpty ? title : 'تنبيه من إدارة التطبيق',
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: Text(
+        message,
+        style: TextStyle(
+          fontFamily: DhikrTheme.arabicFont,
+          fontSize: 14.5,
+          height: 1.7,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: Text(
+            'إغلاق',
+            style: TextStyle(
+              fontFamily: DhikrTheme.arabicFont,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        if (url.isNotEmpty)
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final uri = Uri.tryParse(url);
+              if (uri != null && await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: Text(
+              btnText.isNotEmpty ? btnText : 'عرض المزيد',
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+

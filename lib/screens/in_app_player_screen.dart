@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,12 +6,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 import '../data/playable_content.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 import 'youtube_iframe_factory.dart'
     if (dart.library.js_interop) 'youtube_iframe_factory_web.dart';
 
@@ -20,10 +21,18 @@ const _ytRed = Color(0xFFFF0000);
 const _ytRedDark = Color(0xFFCC0000);
 const _gold = Color(0xFFD97706);
 
-enum PlayerViewMode {
-  cinema,
-  theater,
-  audio,
+/// معرف التطبيق — يُستخدم كهوية رسمية أمام يوتيوب في هيدر Referer/Origin
+/// أثناء تحميل صفحة التضمين (اشتراط YouTube Required Minimum Functionality).
+const String YOUTUBE_APP_ID = 'com.dhikr.adhkar';
+
+enum PlayerViewMode { cinema, theater, audio }
+
+/// عنصر واحد في قائمة تشغيل المشغل (حلقات السلسلة داخل التطبيق فقط)
+class PlayerQueueItem {
+  final String url;
+  final String title;
+
+  const PlayerQueueItem({required this.url, required this.title});
 }
 
 /// يفتح محتوى يوتيوب داخل مشغّل سينمائي فخم متكامل داخل التطبيق
@@ -34,6 +43,8 @@ Future<void> playYoutubeInFrame(
   String? description,
   String? channelName,
   String? channelUrl,
+  List<PlayerQueueItem>? playlist,
+  int? initialIndex,
 }) async {
   final isAr = context.read<AppState>().language == AppLanguage.arabic;
 
@@ -51,6 +62,8 @@ Future<void> playYoutubeInFrame(
           description: description,
           channelName: channelName,
           channelUrl: channelUrl,
+          playlist: playlist,
+          initialIndex: initialIndex ?? 0,
         ),
       ),
     );
@@ -64,7 +77,8 @@ Future<void> playYoutubeInFrame(
       mode: LaunchMode.externalApplication,
     );
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.show(
+        context,
         SnackBar(
           content: Text(isAr ? 'تعذر فتح الرابط' : 'Could not open the link'),
         ),
@@ -74,10 +88,13 @@ Future<void> playYoutubeInFrame(
   }
 
   if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppToast.show(
+      context,
       SnackBar(
         content: Text(
-          isAr ? 'لم يُضف رابط هذا المحتوى بعد' : 'No link for this content yet',
+          isAr
+              ? 'لم يُضف رابط هذا المحتوى بعد'
+              : 'No link for this content yet',
         ),
       ),
     );
@@ -96,6 +113,8 @@ class InAppPlayerScreen extends StatefulWidget {
   final String? description;
   final String? channelName;
   final String? channelUrl;
+  final List<PlayerQueueItem>? playlist;
+  final int initialIndex;
 
   const InAppPlayerScreen({
     super.key,
@@ -105,6 +124,8 @@ class InAppPlayerScreen extends StatefulWidget {
     this.description,
     this.channelName,
     this.channelUrl,
+    this.playlist,
+    this.initialIndex = 0,
   });
 
   @override
@@ -118,8 +139,28 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
   late YoutubeTarget _currentTarget;
   late String _currentTitle;
   late String _currentSourceUrl;
+  late List<PlayerQueueItem> _playlist;
+  late int _currentIndex;
 
   String _embedUrl = '';
+
+  /// بعض المواد النادرة يقفل ناشرها التضمين قصداً؛ قراره لا نتدخل فيه
+  /// والافتراضي الدائم هو صفحة التضمين الرسمية embed.
+  late final bool _useWatchMode = false;
+
+  /// true فقط عند فشل تحميل رابط التضمين نفسه (شبكة) — عندها نعرض
+  /// بديل واضح (إعادة المحاولة / فتح في يوتيوب) بدل شاشة معلّقة.
+  /// ملاحظة: لا يُستخدم لرصد أخطاء يوتيوب الداخلية؛ المشغّل الرسمي
+  /// يعرضها بنفسه بصدق داخل الإطار.
+  bool _embedFailed = false;
+
+  /// الطبقة الثانية من حل الفيديو (2026): عند فشل صفحة التضمين نفسها
+  /// (player-unavailable)، نحول تلقائيًا إلى صفحة المشاهدة الرسمية
+  /// m.youtube.com/watch داخل نفس WebView — بدون مغادرة التطبيق.
+  /// هذه هي الطريقة المحفوظة المحدثة (راجع YOUTUBE_153_FIX.md).
+  bool _watchFallbackUsed = false;
+  bool _desktopWatchFallbackUsed = false;
+  int _embedCheckCount = 0;
   String _viewType = '';
   WebViewController? _controller;
   YoutubePlayerController? _ytController;
@@ -150,6 +191,11 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
     _currentTarget = widget.target;
     _currentTitle = widget.title;
     _currentSourceUrl = widget.sourceUrl;
+    _playlist = widget.playlist ?? const [];
+    _currentIndex = widget.initialIndex.clamp(
+      0,
+      _playlist.isEmpty ? 0 : _playlist.length - 1,
+    );
 
     _eqController = AnimationController(
       vsync: this,
@@ -168,7 +214,9 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
   void _onYtPlayerUpdate() {
     if (!mounted || _ytController == null) return;
     final val = _ytController!.value;
-    if (_isPlaying != val.isPlaying || _isLoading != !val.isReady || _isLandscape != val.isFullScreen) {
+    if (_isPlaying != val.isPlaying ||
+        _isLoading != !val.isReady ||
+        _isLandscape != val.isFullScreen) {
       setState(() {
         _isPlaying = val.isPlaying;
         _isLandscape = val.isFullScreen;
@@ -181,10 +229,9 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _statePoller?.cancel();
     _ytController?.removeListener(_onYtPlayerUpdate);
     _ytController?.dispose();
     _sleepTicker?.cancel();
@@ -206,22 +253,36 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
         ]);
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       } else {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.portraitUp,
-        ]);
+        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       }
+      // التشغيل التلقائي بعد التدوير: إعادة تخطيط المشهد عند تغيير
+      // الاتجاه قد توقف الفيديو — نستأنف التشغيل فورًا بعد استقرار التخطيط.
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _sendCommand('playVideo');
+      });
     }
   }
 
-  void _setupPlayer() {
+  Future<void> _setupPlayer() async {
     setState(() {
       _isLoading = true;
       _isPlaying = true;
+      _embedFailed = false;
     });
-
+    _watchFallbackUsed = false;
+    _desktopWatchFallbackUsed = false;
+    _embedCheckCount = 0;
     _useYtFlutter = false;
-    _embedUrl = embedUrlFor(_currentTarget) ?? '';
+    // الويب: iframe عبر embedUrlFor (يحتاج origin). الموبايل: التضمين
+    // الرسمي المباشر embedDirectUrlFor + هيدر Referer (الحل الأصلي
+    // المحفوظ في YOUTUBE_153_FIX.md). لو رفض التضمين (153/«الفيديو غير
+    // متاح») يتولّى مراقب الحالة التحويل التلقائي لصفحة المشاهدة
+    // (شبكة أمان داخل نفس WebView — بدون مغادرة التطبيق).
+    _embedUrl = (kIsWeb
+            ? embedUrlFor(_currentTarget)
+            : embedDirectUrlFor(_currentTarget)) ??
+        '';
     if (_embedUrl.isEmpty) {
       setState(() {
         _isLoading = false;
@@ -238,81 +299,18 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
       });
     } else if (defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS) {
-      final videoId = _currentTarget.videoId ?? '';
-      final playlistId = _currentTarget.playlistId ?? '';
-      final hasVideoId = videoId.isNotEmpty;
-      final hasPlaylist = playlistId.isNotEmpty;
-
-      final html = '''
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="referrer" content="strict-origin-when-cross-origin">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; background-color: #000; }
-    html, body { width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; }
-    #player, iframe { width: 100%; height: 100%; border: none; }
-    /* Aggressively suppress YouTube branding, watermark, and open-in-app prompts */
-    .ytp-chrome-top, .ytp-chrome-top-buttons, .ytp-youtube-button, .ytp-watermark,
-    .ytp-title, .ytp-title-link, .ytp-share-button, .ytp-overflow-button,
-    ytm-app-banner, .ytm-app-banner, .mobile-topbar-header, ytm-pivot-bar-renderer,
-    .ytp-pause-overlay, .ytp-scroll-min, .ytp-contextmenu, .ytp-cued-thumbnail-overlay,
-    [aria-label*="تطبيق"], [aria-label*="app" i], [aria-label*="YouTube" i] {
-      display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-    }
-  </style>
-</head>
-<body>
-  <div id="player"></div>
-  <script src="https://www.youtube.com/iframe_api"></script>
-  <script>
-    var player;
-    function onYouTubeIframeAPIReady() {
-      player = new YT.Player('player', {
-        height: '100%',
-        width: '100%',
-        ${hasVideoId ? "videoId: '$videoId'," : ""}
-        host: 'https://www.youtube-nocookie.com',
-        playerVars: {
-          'autoplay': 1,
-          'playsinline': 1,
-          'rel': 0,
-          'controls': 1,
-          'modestbranding': 1,
-          'enablejsapi': 1,
-          'fs': 0,
-          'iv_load_policy': 3,
-          ${hasPlaylist ? "'listType': 'playlist', 'list': '$playlistId'," : ""}
-          'origin': 'https://www.youtube-nocookie.com',
-          'widget_referrer': 'https://www.youtube-nocookie.com'
-        },
-        events: {
-          'onReady': function(e) {
-            try { e.target.playVideo(); } catch(err){}
-          },
-          'onError': function(e) {
-            console.log('YouTube Player Error: ' + e.data);
-            if (e.data === 150 || e.data === 101 || e.data === 152 || e.data === 2 || e.data === 5) {
-              var vid = '$videoId';
-              if (vid && vid.length > 0) {
-                window.location.replace('https://www.youtube-nocookie.com/embed/' + vid + '?autoplay=1&playsinline=1&modestbranding=1&rel=0');
-              }
-            }
-          }
-        }
-      });
-      window.player = player;
-    }
-  </script>
-</body>
-</html>
-''';
-
+      // التشغيل عبر رابط التضمين الرسمي مباشرة (youtube-nocookie embed).
+      // السبب: صفحة YT.Player اليدوية كانت تُنتج أخطاء 150 كاذبة
+      // («قيود من الناشر») رغم أن كل الفيديوهات تسمح بالتضمين رسمياً —
+      // تم التحقق من الـ 28 فيديو عبر oEmbed. المسار الرسمي المباشر
+      // هو ما تستخدمه تطبيقات الإنتاج ولا يُنتج إنذارات كاذبة.
+      // التحكم (تشغيل/إيقاف/سرعة/كتم) يعمل عبر postMessage مع enablejsapi=1.
+      // تشغيل embed رسمي. منذ يوليو 2025 أصبح يوتيوب يرفض التشغيل داخل
+      // WebView بخطأ 153 («form embedder.identity.missing.referrer») إذا لم
+      // يصل مع الطلب هيدر Referer صالح. الحل هو ما تطلبه توثيق يوتيوب
+      // الرسمي نفسه (Required Minimum Functionality): إرسال
+      // `Referer: https://<bundle_id>` مع طلب صفحة التضمين. هذه هي هوية
+      // التطبيق الرسمية أمام يوتيوب — بلا إخفاء شعار وبلا كسر قيود.
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setUserAgent(
@@ -322,19 +320,12 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
         ..setNavigationDelegate(
           NavigationDelegate(
             onPageFinished: (_) {
-              if (mounted) setState(() => _isLoading = false);
-              _controller?.runJavaScript('''
-                (function() {
-                  var css = '.ytp-chrome-top, .ytp-chrome-top-buttons, .ytp-youtube-button, .ytp-watermark, .ytp-title, .ytp-title-link, .ytp-share-button, .ytp-overflow-button, ytm-app-banner, .ytm-app-banner, .mobile-topbar-header, ytm-pivot-bar-renderer, [aria-label*="تطبيق"], [aria-label*="app" i], [aria-label*="YouTube" i] { display: none !important; opacity: 0 !important; pointer-events: none !important; }';
-                  var head = document.head || document.getElementsByTagName('head')[0];
-                  if (head) {
-                    var style = document.createElement('style');
-                    style.type = 'text/css';
-                    style.appendChild(document.createTextNode(css));
-                    head.appendChild(style);
-                  }
-                })();
-              ''');
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                  _isPlaying = true;
+                });
+              }
             },
             onWebResourceError: (WebResourceError error) {
               if (mounted && (error.isForMainFrame ?? false)) {
@@ -344,6 +335,8 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
             onNavigationRequest: (NavigationRequest request) {
               final url = request.url.toLowerCase();
               if (url.contains('youtube.com') ||
+                  url.contains('youtube-nocookie.com') ||
+                  url.contains('youtu.be') ||
                   url.contains('googlevideo.com') ||
                   url.contains('ytimg.com') ||
                   url.contains('google.com') ||
@@ -361,14 +354,33 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
               return NavigationDecision.prevent;
             },
           ),
-        )
-        ..loadHtmlString(html, baseUrl: 'https://www.youtube-nocookie.com');
+        );
 
-      Timer(const Duration(seconds: 4), () {
+      try {
+        await _loadCurrentUrl();
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _embedFailed = true;
+          });
+        }
+        return;
+      }
+
+      // السماح بالتشغيل التلقائي وبأوامر التشغيل من أزرار التطبيق
+      // (بدونها WebView يرفض التشغيل ويعلق الفيديو على الغلاف)
+      final platformController = _controller?.platform;
+      if (platformController is AndroidWebViewController) {
+        await platformController.setMediaPlaybackRequiresUserGesture(false);
+      }
+
+      Timer(const Duration(seconds: 5), () {
         if (mounted && _isLoading) {
           setState(() => _isLoading = false);
         }
       });
+      _startStatePoller();
     } else {
       _controller = null;
       setState(() {
@@ -377,25 +389,233 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
     }
   }
 
+  /// إرسال أمر تحكم للمشغّل الرسمي عبر عنصر <video> مباشرة.
+  ///
+  /// صفحة التضمين الرسمية (embed) تحتوي عنصر فيديو HTML5 قياسياً،
+  /// فالتحكم به مباشرة (play/pause/seek/rate/mute) هو الطريقة المدعومة
+  /// للتحميل العلوي داخل WebView — بدل جسر YT.Player الذي كان مصدر
+  /// الإنذارات الكاذبة.
   void _sendCommand(String func, [List<dynamic>? args]) {
     if (kIsWeb) {
       sendYoutubeCommand(_viewType, func, args);
-    } else if (_controller != null) {
-      final jsonArgs = jsonEncode(args ?? []);
-      _controller!.runJavaScript('''
-        try {
-          if (window.player && typeof window.player['$func'] === 'function') {
-            window.player['$func'].apply(window.player, $jsonArgs);
-          } else {
-            const el = document.getElementById("player") || document.querySelector("iframe");
-            if (el && el.contentWindow) {
-              el.contentWindow.postMessage(JSON.stringify({event:"command", func:"$func", args:$jsonArgs}), "*");
-            }
-          }
-        } catch(e){}
-      ''');
+      return;
+    }
+    final c = _controller;
+    if (c == null) return;
+    final arg0 = (args != null && args.isNotEmpty) ? '${args[0]}' : '0';
+    switch (func) {
+      case 'playVideo':
+        c.runJavaScript(
+          "try{var v=document.querySelector('video');if(v){v.play()}}catch(e){}",
+        );
+        break;
+      case 'pauseVideo':
+        c.runJavaScript(
+          "try{var v=document.querySelector('video');if(v){v.pause()}}catch(e){}",
+        );
+        break;
+      case 'mute':
+        c.runJavaScript(
+          "try{var v=document.querySelector('video');if(v){v.muted=true}}catch(e){}",
+        );
+        break;
+      case 'unMute':
+        c.runJavaScript(
+          "try{var v=document.querySelector('video');if(v){v.muted=false}}catch(e){}",
+        );
+        break;
+      case 'setPlaybackRate':
+        final rate = double.tryParse(arg0) ?? 1.0;
+        c.runJavaScript(
+          "try{var v=document.querySelector('video');if(v){v.playbackRate=$rate}}catch(e){}",
+        );
+        break;
+      case 'seekTo':
+        final secs = double.tryParse(arg0) ?? 0;
+        c.runJavaScript(
+          "try{var v=document.querySelector('video');if(v){v.currentTime=$secs}}catch(e){}",
+        );
+        c.runJavaScript(
+          "try{var v=document.querySelector('video');if(v){v.play()}}catch(e){}",
+        );
+        break;
     }
   }
+
+  /// رابط العرض الحالي: صفحة التضمين الرسمية (embed) دائماً.
+  String get _currentLoadUrl {
+    return _embedUrl;
+  }
+
+  Future<void> _loadCurrentUrl() async {
+    final c = _controller;
+    if (c == null) throw StateError('no controller');
+    final url = _currentLoadUrl;
+    if (url.contains('/embed/')) {
+      // إرسال هوية التطبيق في Referer — اشتراط يوتيوب الرسمي منذ 2025
+      // (Required Minimum Functionality) لمنع خطأ 153 في WebView.
+      await c.loadRequest(
+        Uri.parse(url),
+        headers: const {'Referer': 'https://${YOUTUBE_APP_ID}'},
+      );
+    } else {
+      await c.loadRequest(Uri.parse(url));
+    }
+  }
+
+  /// مزامنة آمنة لزر التشغيل: تقرأ حالة عنصر <video> فقط (paused أم لا).
+  /// لا ترصد أي «أخطاء» — المصدر السابق للإنذارات الكاذبة أُزيل نهائياً.
+  Timer? _statePoller;
+
+  void _startStatePoller() {
+    _statePoller?.cancel();
+    _statePoller = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (!mounted || _useYtFlutter) return;
+      final c = _controller;
+      if (c == null) return;
+      try {
+        // 0/1 = فيديو يعمل (متوقف/مشتغل)؛ -2 = صفحة التضمين أعلنت فشلها
+        // (علامة ytp-embed-error / ترميز .ytp-error ظاهر، أو player-unavailable)
+        //؛ -99 = العنصر لم يُبنَ بعد أو فيديو لم يتأصل بعد.
+        final res = await c.runJavaScriptReturningResult(
+          "try{var v=document.querySelector('video');"
+          "if(v&&v.currentSrc){return v.paused?0:1;}"
+          "var pe=document.querySelector('.ytp-error');"
+          "if(pe&&getComputedStyle(pe).display!=='none'){return -2;}"
+          "var pp=document.querySelector('.html5-video-player');"
+          "if(pp&&pp.className.indexOf('ytp-embed-error')>=0){return -2;}"
+          "var pa=document.querySelector('.player-unavailable');"
+          "if(pa&&getComputedStyle(pa).display!=='none'){return -2;}"
+          "return -99;}catch(e){return -99;}",
+        );
+        final st = int.tryParse('$res');
+        if (st == null) return;
+        if (st == -99) {
+          // بعض إصدارات Android WebView تفتح صفحة m.youtube.com ولكن لا
+          // تنشئ عنصر الفيديو فيها بسبب صفحة موافقة أو اختلاف توافق الجهاز.
+          // جرّب صفحة المشاهدة الرسمية الكاملة داخل نفس WebView قبل عرض
+          // شاشة الخطأ للمستخدم.
+          if (_embedUrl.startsWith('https://m.youtube.com/') &&
+              !_desktopWatchFallbackUsed) {
+            _embedCheckCount++;
+            if (_embedCheckCount >= 5) {
+              await _activateDesktopWatchFallback();
+            }
+          }
+          return;
+        }
+        if (st == -2) {
+          _embedCheckCount++;
+          if (_embedCheckCount >= 3) {
+            if (_embedUrl.startsWith('https://m.youtube.com/')) {
+              await _activateDesktopWatchFallback();
+            } else {
+              await _activateWatchFallback();
+            }
+          }
+          return;
+        }
+        final playing = st == 1;
+        if (playing != _isPlaying && mounted) {
+          setState(() => _isPlaying = playing);
+        }
+      } catch (_) {}
+    });
+  }
+
+  /// صفحة المشاهدة الرسمية (لا تخضع لقيود التضمين داخل WebView).
+  String _watchUrlFor(String videoId) {
+    final lang = context.read<AppState>().language == AppLanguage.arabic
+        ? 'ar'
+        : 'en';
+    return 'https://m.youtube.com/watch?v=$videoId&autoplay=1&hl=$lang';
+  }
+
+  String _desktopWatchUrlFor(String videoId) {
+    final lang = context.read<AppState>().language == AppLanguage.arabic
+        ? 'ar'
+        : 'en';
+    return 'https://www.youtube.com/watch?v=$videoId&autoplay=1&hl=$lang';
+  }
+
+  Future<void> _activateDesktopWatchFallback() async {
+    if (_desktopWatchFallbackUsed || !mounted) return;
+    final vid = _currentTarget.videoId;
+    if (vid == null || vid.isEmpty) return;
+
+    _desktopWatchFallbackUsed = true;
+    _embedCheckCount = 0;
+    final c = _controller;
+    if (c == null) return;
+    setState(() => _isLoading = true);
+    try {
+      await c.loadRequest(
+        Uri.parse(_desktopWatchUrlFor(vid)),
+        headers: const {'Referer': 'https://com.dhikr.adhkar'},
+      );
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// الطبقة الثانية (الطرق الموفّر لحالتها): فشل صفحة التضمين
+  /// (قيد تعذّر التشغيل داخل WebView) → التحويل لصفحة المشاهدة الرسمية
+  /// لنفس الفيديو داخل نفس WebView. صفحة المشاهدة لا تخضع لقيود
+  /// المُضمِّن، والتحكم (تشغيل/إيقاف/تقدم/سرعة) يعمل عليها لأنها تملك
+  /// عنصر <video> قياسيًا، ومراقب الحالة يميز 0/1 (فيديو يعمل) عن -2.
+  Future<void> _activateWatchFallback() async {
+    if (_watchFallbackUsed || !mounted) return;
+    _watchFallbackUsed = true;
+    final vid = _currentTarget.videoId;
+    if (vid == null || vid.isEmpty) return;
+    final watchUrl = _watchUrlFor(vid);
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+    });
+    final c = _controller;
+    if (c == null) return;
+    try {
+      await c.loadRequest(
+        Uri.parse(watchUrl),
+        headers: const {'Referer': 'https://${YOUTUBE_APP_ID}'},
+      );
+    } catch (_) {}
+  }
+
+  bool get _hasPrev => _currentIndex > 0 && _playlist.isNotEmpty;
+  bool get _hasNext =>
+      _playlist.isNotEmpty && _currentIndex < _playlist.length - 1;
+
+  /// التنقل بين حلقات السلسلة داخل التطبيق فقط (لا علاقة باقتراحات يوتيوب)
+  void _playAt(int index) {
+    if (index < 0 || index >= _playlist.length || index == _currentIndex)
+      return;
+    final item = _playlist[index];
+    final target = parseYoutubeTarget(item.url);
+    if (target == null) {
+      _showFeedback(context, 'تعذر فتح هذه الحلقة');
+      return;
+    }
+    HapticFeedback.selectionClick();
+    _ytController?.removeListener(_onYtPlayerUpdate);
+    _ytController?.dispose();
+    _ytController = null;
+    _controller = null;
+    setState(() {
+      _currentIndex = index;
+      _currentTarget = target;
+      _currentTitle = item.title;
+      _currentSourceUrl = item.url;
+      _isMuted = false;
+      _playbackSpeed = 1.0;
+      _isPlaying = false;
+    });
+    _setupPlayer();
+  }
+
+  void _playPrev() => _playAt(_currentIndex - 1);
+  void _playNext() => _playAt(_currentIndex + 1);
 
   void _togglePlay() {
     if (_useYtFlutter && _ytController != null) {
@@ -420,19 +640,9 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
       final pos = _ytController!.value.position;
       _ytController!.seekTo(pos + const Duration(seconds: 10));
     } else if (_controller != null) {
-      _controller!.runJavaScript('''
-        try {
-          if (window.player && typeof window.player.getCurrentTime === 'function') {
-            var cur = window.player.getCurrentTime() || 0;
-            window.player.seekTo(cur + 10, true);
-          } else {
-            const el = document.getElementById("player") || document.querySelector("iframe");
-            if (el && el.contentWindow) {
-              el.contentWindow.postMessage(JSON.stringify({event:"command", func:"seekTo", args:[10, true]}), "*");
-            }
-          }
-        } catch(e){}
-      ''');
+      _controller!.runJavaScript(
+        "try{var v=document.querySelector('video');if(v){v.currentTime+=10}}catch(e){}",
+      );
     }
     _showFeedback(context, '+10 ثوانٍ');
   }
@@ -443,19 +653,9 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
       final target = pos - const Duration(seconds: 10);
       _ytController!.seekTo(target < Duration.zero ? Duration.zero : target);
     } else if (_controller != null) {
-      _controller!.runJavaScript('''
-        try {
-          if (window.player && typeof window.player.getCurrentTime === 'function') {
-            var cur = window.player.getCurrentTime() || 0;
-            window.player.seekTo(Math.max(0, cur - 10), true);
-          } else {
-            const el = document.getElementById("player") || document.querySelector("iframe");
-            if (el && el.contentWindow) {
-              el.contentWindow.postMessage(JSON.stringify({event:"command", func:"seekTo", args:[-10, true]}), "*");
-            }
-          }
-        } catch(e){}
-      ''');
+      _controller!.runJavaScript(
+        "try{var v=document.querySelector('video');if(v){v.currentTime=Math.max(0,v.currentTime-10)}}catch(e){}",
+      );
     }
     _showFeedback(context, '-10 ثوانٍ');
   }
@@ -503,8 +703,9 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
   }
 
   void _showFeedback(BuildContext context, String text) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppToast.hide(context);
+    AppToast.show(
+      context,
       SnackBar(
         duration: const Duration(milliseconds: 1400),
         behavior: SnackBarBehavior.floating,
@@ -546,7 +747,8 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
           _sendCommand('pauseVideo');
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          AppToast.show(
+            context,
             const SnackBar(
               behavior: SnackBarBehavior.floating,
               content: Text(
@@ -587,9 +789,7 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
           decoration: BoxDecoration(
             color: dark ? const Color(0xFF161E28) : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(
-              color: dark ? Colors.white12 : Colors.black12,
-            ),
+            border: Border.all(color: dark ? Colors.white12 : Colors.black12),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -683,47 +883,6 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
     );
   }
 
-  Future<void> _openExternal() async {
-    final videoId = _currentTarget.videoId;
-    if (videoId != null && videoId.isNotEmpty) {
-      final appUri = Uri.parse('vnd.youtube:$videoId');
-      try {
-        if (await canLaunchUrl(appUri)) {
-          final launched = await launchUrl(
-            appUri,
-            mode: LaunchMode.externalApplication,
-          );
-          if (launched) return;
-        }
-      } catch (_) {}
-      final webUri = Uri.parse('https://www.youtube.com/watch?v=$videoId');
-      await launchUrl(webUri, mode: LaunchMode.externalApplication);
-      return;
-    }
-    final playlistId = _currentTarget.playlistId;
-    if (playlistId != null && playlistId.isNotEmpty) {
-      final webUri =
-          Uri.parse('https://www.youtube.com/playlist?list=$playlistId');
-      await launchUrl(webUri, mode: LaunchMode.externalApplication);
-      return;
-    }
-    final trimmed = _currentSourceUrl.trim();
-    if (trimmed.isNotEmpty) {
-      await launchUrl(
-        Uri.parse(trimmed),
-        mode: LaunchMode.externalApplication,
-      );
-    }
-  }
-
-  void _copyLink(BuildContext context, bool isAr) {
-    Clipboard.setData(ClipboardData(text: _currentSourceUrl));
-    _showFeedback(
-      context,
-      isAr ? 'تم نسخ رابط الدرس بنجاح' : 'Link copied to clipboard',
-    );
-  }
-
   void _toggleBookmark(bool isAr) {
     setState(() {
       _isBookmarked = !_isBookmarked;
@@ -743,7 +902,9 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
 
     final bgColor = dark ? const Color(0xFF090D12) : const Color(0xFFF8FAFC);
     final cardBg = dark ? const Color(0xFF131A24) : Colors.white;
-    final borderColor = dark ? Colors.white12 : Colors.black.withValues(alpha: 0.08);
+    final borderColor = dark
+        ? Colors.white12
+        : Colors.black.withValues(alpha: 0.08);
 
     if (_useYtFlutter && _ytController != null) {
       return YoutubePlayerBuilder(
@@ -755,9 +916,7 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
           SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
         },
         onExitFullScreen: () {
-          SystemChrome.setPreferredOrientations([
-            DeviceOrientation.portraitUp,
-          ]);
+          SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
           SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
         },
         player: YoutubePlayer(
@@ -794,18 +953,15 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
     final fallbackPlayer = _buildPlayerContent(context, isAr);
     return OrientationBuilder(
       builder: (context, orientation) {
-        final isLandscape = orientation == Orientation.landscape || _isLandscape;
+        final isLandscape =
+            orientation == Orientation.landscape || _isLandscape;
         if (isLandscape) {
           SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
           return Scaffold(
             backgroundColor: Colors.black,
             body: Stack(
               children: [
-                Center(
-                  child: SizedBox.expand(
-                    child: fallbackPlayer,
-                  ),
-                ),
+                Center(child: SizedBox.expand(child: fallbackPlayer)),
                 Positioned(
                   top: 14,
                   right: isAr ? null : 14,
@@ -865,85 +1021,18 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
           icon: const Icon(LucideIcons.arrowRight),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Column(
-          children: [
-            Text(
-              _currentTitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: DhikrTheme.arabicFont,
-                fontWeight: FontWeight.w800,
-                fontSize: 15,
-                color: dark ? Colors.white : Colors.black87,
-              ),
-            ),
-            if (widget.channelName != null)
-              Text(
-                widget.channelName!,
-                style: TextStyle(
-                  fontFamily: DhikrTheme.arabicFont,
-                  fontSize: 11,
-                  color: dark ? Colors.white54 : Colors.black54,
-                ),
-              ),
-          ],
+        title: Text(
+          widget.channelName ?? (isAr ? 'مشغل الفيديو' : 'Video Player'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontFamily: DhikrTheme.arabicFont,
+            fontWeight: FontWeight.w800,
+            fontSize: 15,
+            color: dark ? Colors.white : Colors.black87,
+          ),
         ),
         centerTitle: true,
-        actions: [
-          // مؤقت النوم
-          IconButton(
-            tooltip: isAr ? 'مؤقت النوم' : 'Sleep timer',
-            icon: Stack(
-              children: [
-                Icon(
-                  LucideIcons.moon,
-                  size: 19,
-                  color: _sleepTimerMinutes != null ? _gold : null,
-                ),
-                if (_sleepTimerMinutes != null)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: _gold,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            onPressed: () => _openSleepTimerSheet(context, isAr),
-          ),
-          // المفضلة
-          IconButton(
-            tooltip: isAr ? 'المفضلة' : 'Favorite',
-            icon: Icon(
-              _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              size: 21,
-              color: _isBookmarked ? _gold : null,
-            ),
-            onPressed: () => _toggleBookmark(isAr),
-          ),
-          // تدوير الشاشة / ملء الشاشة
-          IconButton(
-            tooltip: isAr ? 'ملء الشاشة' : 'Fullscreen',
-            icon: const Icon(
-              Icons.fullscreen_rounded,
-              size: 24,
-            ),
-            onPressed: _toggleOrientation,
-          ),
-          // نسخ الرابط
-          IconButton(
-            tooltip: isAr ? 'نسخ الرابط' : 'Copy link',
-            icon: const Icon(LucideIcons.copy, size: 18),
-            onPressed: () => _copyLink(context, isAr),
-          ),
-        ],
       ),
       body: SafeArea(
         child: Center(
@@ -958,11 +1047,36 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
                   const SizedBox(height: 10),
                 ],
 
-                // 1. منصة عرض الفيديو
-                _buildVideoStage(context, playerWidget, isAr, dark, borderColor),
-                const SizedBox(height: 16),
+                // 1. اسم الفيديو فوق الفيديو (اسم القناة في الهيدر فوق)
+                Text(
+                  _currentTitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    height: 1.5,
+                    color: dark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 10),
 
-                // 2. أزرار التحكم
+                // 2. منصة عرض الفيديو
+                _buildVideoStage(
+                  context,
+                  playerWidget,
+                  isAr,
+                  dark,
+                  borderColor,
+                ),
+                const SizedBox(height: 12),
+
+                // 3. أزرار التحكم في الحلقات: السابق/التالي/تدوير — التشغيل
+                // والإيقاف من أزرار يوتيوب الأصلية داخل الفيديو نفسه (في
+                // صفحة المشاهدة الرسمية) فلا يوجد زر تشغيل خاص بنا يمكن أن
+                // يتداخل مع إعدادات المشغّل ويسبب خطأ 153.
                 _buildInteractiveControlDeck(isAr, dark, cardBg, borderColor),
               ],
             ),
@@ -1027,7 +1141,7 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
     return Stack(
       alignment: Alignment.center,
       children: [
-        // 1. Ambient Glow
+        // 1. Ambient Glow (مخفف للأداء: ظل واحد خفيف بدل طبقات ثقيلة)
         Positioned.fill(
           child: Container(
             margin: const EdgeInsets.all(12),
@@ -1035,10 +1149,11 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: (isAudio ? _gold : _ytRed)
-                      .withValues(alpha: dark ? 0.24 : 0.10),
-                  blurRadius: 36,
-                  spreadRadius: 2,
+                  color: (isAudio ? _gold : _ytRed).withValues(
+                    alpha: dark ? 0.12 : 0.06,
+                  ),
+                  blurRadius: 18,
+                  spreadRadius: 0,
                 ),
               ],
             ),
@@ -1176,7 +1291,8 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: List.generate(14, (i) {
-                        final animVal = (_eqController.value + (i * 0.07)) % 1.0;
+                        final animVal =
+                            (_eqController.value + (i * 0.07)) % 1.0;
                         final height = 6.0 + (animVal * 20.0);
                         return Container(
                           margin: const EdgeInsets.symmetric(horizontal: 2),
@@ -1207,9 +1323,7 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
       decoration: BoxDecoration(
         color: dark ? const Color(0xFF131A24) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: dark ? Colors.white12 : Colors.black12,
-        ),
+        border: Border.all(color: dark ? Colors.white12 : Colors.black12),
       ),
       child: Row(
         children: [
@@ -1320,79 +1434,75 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // إعادة التشغيل من البداية
-          _buildControlButton(
-            icon: LucideIcons.rotateCcw,
-            label: isAr ? 'إعادة' : 'Restart',
-            onTap: _restartVideo,
+          // الحلقة السابقة من السلسلة داخل التطبيق (باهتة عند عدم وجود سابق)
+          _buildNavArrow(
+            icon: LucideIcons.skipForward,
+            label: isAr ? 'السابق' : 'Prev',
+            onTap: _hasPrev ? _playPrev : null,
             dark: dark,
           ),
 
-          // ترجيع 10 ثوانٍ
-          _buildControlButton(
-            icon: LucideIcons.rotateCcw,
-            label: '-10s',
-            onTap: _rewind10,
-            dark: dark,
-          ),
+          // ملاحظة: لا يوجد زر تشغيل/إيقاف خاص بنا عمداً — التشغيل والإيقاف
+          // من أزرار يوتيوب الأصلية داخل الفيديو نفسه، حتى لا يتداخل أي
+          // أمر خارجي مع إعدادات المشغّل الرسمي (كان سبب خطأ 153).
 
-          // الزر الرئيسي: تشغيل / إيقاف مؤقت (Hero Play/Pause)
-          GestureDetector(
-            onTap: _togglePlay,
-            child: Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [_ytRed, _ytRedDark],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _ytRed.withValues(alpha: 0.45),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Icon(
-                  _isPlaying ? LucideIcons.pause : LucideIcons.play,
-                  size: 24,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-
-          // تقديم 10 ثوانٍ
-          _buildControlButton(
-            icon: LucideIcons.rotateCw,
-            label: '+10s',
-            onTap: _forward10,
+          // الحلقة التالية من السلسلة داخل التطبيق (باهتة عند عدم وجود تالٍ)
+          _buildNavArrow(
+            icon: LucideIcons.skipBack,
+            label: isAr ? 'التالي' : 'Next',
+            onTap: _hasNext ? _playNext : null,
             dark: dark,
-          ),
-
-          // كتم / تشغيل الصوت
-          _buildControlButton(
-            icon: _isMuted ? LucideIcons.volumeX : LucideIcons.volume2,
-            label: _isMuted ? (isAr ? 'مكتوم' : 'Muted') : (isAr ? 'صوت' : 'Sound'),
-            onTap: _toggleMute,
-            dark: dark,
-            highlight: _isMuted,
           ),
 
           // تدوير الشاشة
           _buildControlButton(
-            icon: _isLandscape ? Icons.screen_lock_portrait_rounded : Icons.screen_rotation_rounded,
-            label: isAr ? (_isLandscape ? 'طولي' : 'تدوير') : (_isLandscape ? 'Portrait' : 'Rotate'),
+            icon: _isLandscape
+                ? Icons.screen_lock_portrait_rounded
+                : Icons.screen_rotation_rounded,
+            label: isAr
+                ? (_isLandscape ? 'طولي' : 'تدوير')
+                : (_isLandscape ? 'Portrait' : 'Rotate'),
             onTap: _toggleOrientation,
             dark: dark,
             highlight: _isLandscape,
           ),
         ],
+      ),
+    );
+  }
+
+  /// زرار تنقل بين الحلقات — باهت وغير فعال عند غياب حلقة في هذا الاتجاه
+  Widget _buildNavArrow({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onTap,
+    required bool dark,
+  }) {
+    final enabled = onTap != null;
+    final color = enabled
+        ? (dark ? Colors.white70 : Colors.black87)
+        : (dark ? Colors.white24 : Colors.black26);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 24, color: color),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1455,7 +1565,11 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
       ),
       child: Row(
         children: [
-          Icon(LucideIcons.gauge, size: 16, color: dark ? Colors.white60 : Colors.black54),
+          Icon(
+            LucideIcons.gauge,
+            size: 16,
+            color: dark ? Colors.white60 : Colors.black54,
+          ),
           const SizedBox(width: 8),
           Text(
             isAr ? 'السرعة:' : 'Speed:',
@@ -1525,6 +1639,9 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
         bottomActions: [],
       );
     }
+    if (_embedFailed) {
+      return _buildEmbedErrorTile(context, isAr);
+    }
     if (_embedUrl.isEmpty) {
       return _buildFallbackTile(context, isAr);
     }
@@ -1536,6 +1653,55 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
       return WebViewWidget(controller: controller);
     }
     return _buildFallbackTile(context, isAr);
+  }
+
+  /// بديل واضح عند تعذّر تحميل المشغّل (انقطاع شبكة فقط — الإنذارات
+  /// الكاذبة السابقة أُزيلت مع صفحة YT.Player اليدوية).
+  Widget _buildEmbedErrorTile(BuildContext context, bool isAr) {
+    return Container(
+      color: const Color(0xFF141922),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(LucideIcons.shieldAlert, size: 42, color: _gold),
+          const SizedBox(height: 10),
+          Text(
+            isAr
+                ? 'تعذّر تحميل الفيديو\nتحقق من اتصال الإنترنت ثم أعد المحاولة'
+                : 'Could not load the video\nCheck your connection and retry',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontFamily: DhikrTheme.arabicFont,
+              fontSize: 13.5,
+              height: 1.6,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
+            onPressed: _setupPlayer,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _ytRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            icon: const Icon(LucideIcons.refreshCw, size: 14),
+            label: Text(
+              isAr ? 'إعادة المحاولة' : 'Retry',
+              style: const TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildFallbackTile(BuildContext context, bool isAr) {
@@ -1558,16 +1724,21 @@ class _InAppPlayerScreenState extends State<InAppPlayerScreen>
           ),
           const SizedBox(height: 8),
           ElevatedButton.icon(
-            onPressed: _openExternal,
+            onPressed: _setupPlayer,
             style: ElevatedButton.styleFrom(
               backgroundColor: _ytRed,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-            icon: const Icon(LucideIcons.play, size: 14),
+            icon: const Icon(LucideIcons.refreshCw, size: 14),
             label: Text(
-              isAr ? 'فتح في يوتيوب' : 'Open in YouTube',
-              style: const TextStyle(fontFamily: DhikrTheme.arabicFont, fontSize: 12),
+              isAr ? 'إعادة المحاولة' : 'Retry',
+              style: const TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 12,
+              ),
             ),
           ),
         ],

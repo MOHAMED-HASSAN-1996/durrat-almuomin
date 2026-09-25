@@ -46,7 +46,6 @@ class Dhikr {
     required this.source,
     this.virtue,
     this.virtueEn,
-    this.audio,
     this.quranAudio,
   });
 
@@ -59,10 +58,8 @@ class Dhikr {
   /// فضل الذكر — short authentic virtue text shown next to source.
   final String? virtue;
   final String? virtueEn;
-  /// Path to a bundled audio asset (TTS voice), when one ships.
-  final String? audio;
   /// Ordered URLs of real recorded recitation (Quranic adhkar only).
-  /// When present the "listen" button streams these instead of [audio].
+  /// When present the "listen" button streams these.
   final List<String>? quranAudio;
 
   /// True when this dhikr has a real-recitation stream to play.
@@ -70,7 +67,7 @@ class Dhikr {
 
   /// Stable identifier of the playable source, used by the audio button to
   /// know whether this dhikr is the one currently playing.
-  String? get audioKey => hasQuranAudio ? 'quran:$id' : audio;
+  String? get audioKey => hasQuranAudio ? 'quran:$id' : null;
 
   /// Raw JSON key mapping, so the same shape is used for stored/imported data.
   factory Dhikr.fromJson(Map<String, dynamic> json) {
@@ -87,7 +84,6 @@ class Dhikr {
       source: json['source'] as String? ?? '',
       virtue: json['virtue'] as String?,
       virtueEn: json['virtueEn'] as String?,
-      audio: json['audio'] as String?,
       quranAudio: (json['quranAudio'] as List<dynamic>?)?.cast<String>(),
     );
   }
@@ -101,7 +97,6 @@ class Dhikr {
         'source': source,
         if (virtue != null) 'virtue': virtue,
         if (virtueEn != null) 'virtueEn': virtueEn,
-        if (audio != null) 'audio': audio,
         if (quranAudio != null) 'quranAudio': quranAudio,
       };
 }

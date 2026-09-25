@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'firebase_auth_service.dart';
+import '../data/radio_live_stations_data.dart';
 import 'radio_audio_handler.dart';
 
 typedef RadioStation = ({int id, String name, String url, String category});
@@ -64,28 +67,48 @@ class QuranRadioService {
   static const String _channelId = 'sakinah_radio_playback_channel';
 
   // ── Hardcoded live stations ────────────────────────────────────────────
-  static const _cairoStation = (
-    id: 1,
-    name: 'إذاعة القرآن الكريم — القاهرة',
-    url: 'https://n07.radiojar.com/8s5u5tpdtwzuv',
-    category: 'live',
-  );
-  static const _madinaStation = (
-    id: 2,
-    name: 'إذاعة القرآن الكريم — المدينة المنورة',
-    url: 'https://win.holol.com/live/quran/playlist.m3u8',
-    category: 'live',
-  );
-  static const _sunnahStation = (
-    id: 3,
-    name: 'السنة النبوية',
-    url: 'https://win.holol.com/live/sunnah/playlist.m3u8',
-    category: 'live',
-  );
+  // These resolve from the dedicated links file; each id matches the admin
+  // dashboard `radio` collection so panel edits override the built-in live
+  // stations automatically.
+  static const Map<String, int> _panelLiveIds = {
+    'radio_cairo': 1001,
+    'radio_madina': 1002,
+    'radio_sunnah': 1003,
+  };
+
+  static RadioStation _builtInStation(String panelId) {
+    final entry = builtInLiveStations.firstWhere((s) => s.id == panelId);
+    return (
+      id: _panelLiveIds[panelId] ?? 999,
+      name: entry.name,
+      url: entry.url,
+      category: entry.category,
+    );
+  }
+
+  static final RadioStation _cairoStation = _builtInStation('radio_cairo');
+  static final RadioStation _madinaStation = _builtInStation('radio_madina');
+  static final RadioStation _sunnahStation = _builtInStation('radio_sunnah');
+  static final List<RadioStation> _defaultLive = [
+    _cairoStation,
+    _madinaStation,
+    _sunnahStation,
+  ];
 
   RadioStation get cairoStation => _cairoStation;
-  RadioStation get makkahStation => _madinaStation;
-  List<RadioStation> get liveStations => const [_cairoStation, _madinaStation, _sunnahStation];
+  RadioStation get madinaStation => _madinaStation;
+  RadioStation get sunnahStation => _sunnahStation;
+
+  /// All live stations actually available: built-ins plus any station added or
+  /// edited from the admin dashboard (Firestore). Keeps built-ins until the
+  /// merged list is ready.
+  List<RadioStation> get liveStations {
+    if (_initialized && _stations.isNotEmpty) {
+      return _stations.where((s) => s.category == 'live').toList();
+    }
+    return _defaultLive;
+  }
+
   List<RadioStation> get reciterStations =>
       _stations.where((s) => s.category != 'live').toList();
   bool isLiveStation(RadioStation s) => s.category == 'live';
@@ -137,7 +160,7 @@ class QuranRadioService {
       builder: () => RadioAudioHandler(_player),
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.dhikr.adhkar.radio.channel',
-        androidNotificationChannelName: 'دُرَّةُ الْمُؤْمِن',
+        androidNotificationChannelName: 'درة المؤمن',
         androidNotificationChannelDescription: 'تشغيل البث المباشر في الخلفية',
         androidNotificationOngoing: true,
         androidStopForegroundOnPause: true,
@@ -176,6 +199,9 @@ class QuranRadioService {
   Future<List<RadioStation>> fetchStations() async {
     // Always keep live stations first
     _stations = List.from(_defaultLive);
+
+    // Admin-managed stations from Firestore (best-effort, never blocking).
+    await _mergeRemoteStations();
 
     try {
       final res = await http
@@ -218,7 +244,106 @@ class QuranRadioService {
     return List.unmodifiable(_stations);
   }
 
-  static const _defaultLive = [_cairoStation, _madinaStation, _sunnahStation];
+  /// Merges admin-managed stations from the Firestore `radio` collection.
+  /// Remote live stations with the same id as a built-in one (radio_cairo,
+  /// radio_madina, radio_sunnah) override its name/url, so a link edited in
+  /// the control panel takes effect in the app on next refresh. New stations
+  /// are appended (de-duplicated by URL). Any failure keeps the current list.
+  Future<void> _mergeRemoteStations() async {
+    try {
+      final ok = await FirebaseAuthService.instance.initialize();
+      if (!ok) return;
+      final snap = await FirebaseFirestore.instance
+          .collection('radio')
+          .limit(100)
+          .get()
+          .timeout(const Duration(seconds: 6));
+      if (snap.docs.isEmpty) return;
+
+      final current = List.of(_stations);
+      final known = current.map((s) => s.url).toSet();
+      final replacements = <int, RadioStation>{};
+      final extra = <RadioStation>[];
+      var fallbackId = 100000;
+
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final name = (data['name'] ?? '').toString().trim();
+        var url = (data['url'] ?? '').toString().trim();
+        if (name.isEmpty || url.isEmpty) continue;
+        if (url.startsWith('http://')) {
+          url = url.replaceFirst('http://', 'https://');
+        }
+        if (!url.startsWith('https://')) continue;
+
+        final rawId = (data['id'] ?? doc.id).toString();
+        final panelId = _panelLiveIds[rawId];
+
+        // Override matching built-in live station (position preserved).
+        // Only applied when the new link answers a HEAD/GET so a stale dead
+        // link stored in Firestore never replaces a working built-in one.
+        if (panelId != null) {
+          final idx = current.indexWhere((s) => s.id == panelId);
+          if (idx != -1) {
+            if (data['isActive'] != false &&
+                url != current[idx].url &&
+                await _isUrlAlive(url)) {
+              replacements[idx] = (
+                id: panelId,
+                name: name,
+                url: url,
+                category: 'live',
+              );
+            }
+            continue;
+          }
+        }
+
+        if (data['isActive'] == false) continue;
+        if (known.contains(url)) continue;
+        known.add(url);
+        final parsedId = int.tryParse(rawId) ?? fallbackId++;
+        final rawCat = (data['category'] ?? 'radio').toString().trim();
+        extra.add((
+          id: parsedId,
+          name: name,
+          url: url,
+          category: rawCat.isEmpty ? 'radio' : rawCat,
+        ));
+      }
+
+      if (replacements.isEmpty && extra.isEmpty) return;
+      final merged = List.of(current);
+      replacements.forEach((idx, station) {
+        if (idx >= 0 && idx < merged.length) merged[idx] = station;
+      });
+      merged.addAll(extra);
+      _stations = merged;
+    } catch (e) {
+      debugPrint('[Radio] remote stations note: $e');
+    }
+  }
+
+  /// Quick reachability probe used before replacing a working built-in link
+  /// with a control-panel link, so stale/dead panel entries are ignored.
+  Future<bool> _isUrlAlive(String url) async {
+    try {
+      final res = await http
+          .head(Uri.parse(url), headers: {'User-Agent': 'DhikrApp/1.0'})
+          .timeout(const Duration(seconds: 4));
+      if (res.statusCode > 0 && res.statusCode < 400) return true;
+      // Some stream servers reject HEAD; fall back to a tiny ranged GET.
+      final get = await http
+          .get(
+            Uri.parse(url),
+            headers: {'User-Agent': 'DhikrApp/1.0', 'Range': 'bytes=0-0'},
+          )
+          .timeout(const Duration(seconds: 4));
+      return get.statusCode >= 200 && get.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   //  PLAY — simple, fast, single player
@@ -244,37 +369,22 @@ class QuranRadioService {
     final idx = _stations.indexWhere((s) => s.url == targetUrl);
     if (idx != -1) _currentIndex = idx;
 
-    // Stop cleanly first
+    // Stop cleanly first — bounded so switching never stalls.
     try {
-      await _player.stop();
+      await _player.stop().timeout(const Duration(seconds: 2));
     } catch (_) {}
 
     if (session != _sessionId || _userStopped) return false;
 
-    // Play the URL directly
-    try {
-      debugPrint('[Radio] Playing: $targetUrl');
-      await _player.play(UrlSource(targetUrl));
+    // Play the URL, then mirrors on failure/timeout.
+    for (final candidate in [targetUrl, ..._getMirrors(targetUrl)]) {
       if (session != _sessionId || _userStopped) return false;
-      debugPrint('[Radio] OK: $targetUrl');
+      final started = await _tryPlay(candidate, session);
+      if (!started) continue;
+      if (session != _sessionId || _userStopped) return false;
+      _currentUrl = candidate;
+      debugPrint('[Radio] OK: $candidate');
       return true;
-    } catch (e) {
-      debugPrint('[Radio] FAILED $targetUrl: $e');
-    }
-
-    // Try mirrors
-    for (final mirror in _getMirrors(targetUrl)) {
-      if (session != _sessionId || _userStopped) return false;
-      try {
-        debugPrint('[Radio] Trying mirror: $mirror');
-        await _player.play(UrlSource(mirror));
-        if (session != _sessionId || _userStopped) return false;
-        _currentUrl = mirror;
-        debugPrint('[Radio] MIRROR OK: $mirror');
-        return true;
-      } catch (e) {
-        debugPrint('[Radio] Mirror failed: $mirror: $e');
-      }
     }
 
     if (session == _sessionId) {
@@ -284,6 +394,56 @@ class QuranRadioService {
     return false;
   }
 
+  /// Starts a URL and waits until playback actually begins (or fails/bails),
+  /// so callers get a truthful result instead of hanging on a dead stream.
+  Future<bool> _tryPlay(String url, int session) async {
+    final completer = Completer<bool>();
+    StreamSubscription<PlayerState>? stateSub;
+    Timer? timer;
+
+    void finish(bool ok) {
+      if (completer.isCompleted) return;
+      stateSub?.cancel();
+      timer?.cancel();
+      completer.complete(ok);
+    }
+
+    stateSub = _player.onPlayerStateChanged.listen((s) {
+      if (session != _sessionId || _userStopped) {
+        finish(false);
+        return;
+      }
+      if (s == PlayerState.playing) {
+        debugPrint('[Radio] Playing: $url');
+        finish(true);
+      } else if (s == PlayerState.completed || s == PlayerState.stopped) {
+        finish(false);
+      }
+    });
+
+    try {
+      debugPrint('[Radio] Starting: $url');
+      await _player.play(UrlSource(url));
+    } catch (e) {
+      debugPrint('[Radio] Start failed: $url -> $e');
+      finish(false);
+    }
+
+    // Bail out after this long even if the stream never enters playing state.
+    timer = Timer(const Duration(seconds: 7), () {
+      debugPrint('[Radio] Start timeout: $url');
+      finish(false);
+    });
+
+    final ok = await completer.future;
+    if (!ok) {
+      try {
+        await _player.stop().timeout(const Duration(seconds: 2));
+      } catch (_) {}
+    }
+    return ok;
+  }
+
   List<String> _getMirrors(String url) {
     if (url.contains('radiojar') || url.contains('radio/mix')) {
       return [
@@ -291,14 +451,6 @@ class QuranRadioService {
         'https://backup.qurango.net/radio/mix',
         'https://qurango.net/radio/mix',
       ];
-    }
-    if (url.contains('holol.com/live/quran')) {
-      return [
-        'https://live.kwikmotion.com/sbrksaquranradiolive/ksaquranradio/playlist.m3u8',
-      ];
-    }
-    if (url.contains('holol.com/live/sunnah')) {
-      return [];
     }
     // Reciter fallback: try qurango.net version
     if (url.contains('backup.qurango.net')) {
@@ -342,7 +494,7 @@ class QuranRadioService {
   Future<bool> playCairo() => play(
       url: _cairoStation.url, name: _cairoStation.name, category: 'live');
 
-  Future<bool> playMakkah() => play(
+  Future<bool> playMadina() => play(
       url: _madinaStation.url, name: _madinaStation.name, category: 'live');
 
   Future<bool> nextLive() {
@@ -451,7 +603,7 @@ class QuranRadioService {
         await android.createNotificationChannel(
           const AndroidNotificationChannel(
             _channelId,
-            'درّة المؤمن — بث مباشر',
+            'درة المؤمن — بث مباشر',
             description: 'إشعار البث المباشر',
             importance: Importance.high,
             playSound: false,
@@ -471,12 +623,12 @@ class QuranRadioService {
     try {
       await _notif.show(
         id: _notifId,
-        title: 'درّة المؤمن — بث مباشر',
+        title: 'درة المؤمن — بث مباشر',
         body: _stationName ?? 'إذاعة القرآن الكريم',
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             _channelId,
-            'درّة المؤمن — بث مباشر',
+            'درة المؤمن — بث مباشر',
             channelDescription: 'إشعار البث المباشر',
             importance: Importance.high,
             priority: Priority.high,
@@ -489,7 +641,7 @@ class QuranRadioService {
             largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
             styleInformation: BigTextStyleInformation(
               _stationName ?? '',
-              contentTitle: 'درّة المؤمن — بث مباشر',
+              contentTitle: 'درة المؤمن — بث مباشر',
               summaryText: 'تلاوات القرآن الكريم',
             ),
             actions: [

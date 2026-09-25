@@ -3,11 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:provider/provider.dart';
 
 import '../models/loved_one.dart';
+import '../services/image_upload_service.dart';
 import '../services/loved_ones_service.dart';
 import '../services/profanity_filter_service.dart';
+import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../types/adhkar.dart';
+import 'auth_screen.dart';
+import '../widgets/app_toast.dart';
 
 class AddLovedOneScreen extends StatefulWidget {
   const AddLovedOneScreen({super.key, this.itemToEdit});
@@ -21,7 +27,6 @@ class AddLovedOneScreen extends StatefulWidget {
 class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _relationController = TextEditingController();
   final _duaController = TextEditingController();
 
   LovedOneCategory _selectedCategory = LovedOneCategory.deceased;
@@ -36,7 +41,6 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
     if (widget.itemToEdit != null) {
       final it = widget.itemToEdit!;
       _nameController.text = it.name;
-      _relationController.text = it.relation;
       _selectedCategory = it.category;
       _imagePath = it.imagePath;
       _duaController.text = it.customDua ?? it.category.defaultDuaAr;
@@ -48,7 +52,6 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _relationController.dispose();
     _duaController.dispose();
     super.dispose();
   }
@@ -154,9 +157,37 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
     );
   }
 
+  Future<bool> _ensureLoggedIn() async {
+    final appState = context.read<AppState>();
+    if (appState.isLoggedIn) return true;
+
+    final ok = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AuthScreen(
+          canSkip: false,
+          onSuccess: () {
+            Navigator.of(context).pop(true);
+          },
+        ),
+      ),
+    );
+    if (!mounted) return false;
+    if (ok == true) {
+      await context.read<AppState>().load();
+      return mounted && context.read<AppState>().isLoggedIn;
+    }
+    return false;
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     HapticFeedback.mediumImpact();
+
+    final loggedIn = await _ensureLoggedIn();
+    if (!loggedIn || !mounted) return;
+
+    final profile = context.read<AppState>().userProfile;
     setState(() => _isSaving = true);
 
     // Rate limiting: max 2 prayers per day
@@ -171,18 +202,45 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
       }
     }
 
+    var remoteImage = _imagePath;
+    if (remoteImage != null && remoteImage.isNotEmpty) {
+      final uploaded =
+          await ImageUploadService.instance.ensureRemote(remoteImage, folder: 'posts');
+      if (uploaded == null) {
+        if (mounted) {
+          setState(() => _isSaving = false);
+          AppToast.show(context, 
+            const SnackBar(
+              content: Text('تعذر رفع الصورة، تحقق من الاتصال وحاول مجدداً.'),
+            ),
+          );
+        }
+        return;
+      }
+      remoteImage = uploaded;
+    }
+
+    var authorPhoto = widget.itemToEdit?.authorPhoto ?? (profile?['photo'] ?? '');
+    if (authorPhoto.isNotEmpty && !authorPhoto.startsWith('http')) {
+      authorPhoto =
+          await ImageUploadService.instance.ensureRemote(authorPhoto, folder: 'avatars') ??
+              authorPhoto;
+    }
+
     final id = widget.itemToEdit?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
     final item = LovedOneItem(
       id: id,
       name: _nameController.text.trim(),
-      relation: _relationController.text.trim(),
+      relation: '',
       category: _selectedCategory,
-      imagePath: _imagePath,
+      imagePath: remoteImage,
       customDua: _duaController.text.trim(),
       fatihaCount: widget.itemToEdit?.fatihaCount ?? 0,
       loveCount: widget.itemToEdit?.loveCount ?? 0,
       comments: widget.itemToEdit?.comments,
       createdAt: widget.itemToEdit?.createdAt,
+      authorName: widget.itemToEdit?.authorName ?? (profile?['name'] ?? ''),
+      authorPhoto: authorPhoto,
     );
 
     if (widget.itemToEdit != null) {
@@ -203,11 +261,12 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
 
   Future<void> _showThankYouDialog(BuildContext context, {required bool isEdit}) async {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = context.watch<AppState>().language == AppLanguage.arabic;
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
         child: AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           backgroundColor: dark ? const Color(0xFF14241E) : Colors.white,
@@ -303,10 +362,11 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
 
   Future<void> _showRateLimitDialog(BuildContext context) async {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = context.watch<AppState>().language == AppLanguage.arabic;
     await showDialog(
       context: context,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
         child: AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
           backgroundColor: dark ? const Color(0xFF14241E) : Colors.white,
@@ -347,9 +407,10 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = context.watch<AppState>().language == AppLanguage.arabic;
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: dark ? const Color(0xFF0D1612) : const Color(0xFFF7FBF9),
         appBar: AppBar(
@@ -399,10 +460,21 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
                             ? Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  Image.file(
-                                    File(_imagePath!),
-                                    fit: BoxFit.cover,
-                                  ),
+                                  _imagePath!.startsWith('http')
+                                      ? Image.network(
+                                          _imagePath!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, _, _) =>
+                                              const Center(
+                                            child: Icon(LucideIcons.image,
+                                                size: 40,
+                                                color: Color(0xFF0F3B2C)),
+                                          ),
+                                        )
+                                      : Image.file(
+                                          File(_imagePath!),
+                                          fit: BoxFit.cover,
+                                        ),
                                   Container(
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
@@ -607,57 +679,6 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
                         borderSide: const BorderSide(color: Color(0xFF0F3B2C), width: 1.4),
                       ),
                       prefixIcon: const Icon(LucideIcons.user, size: 18, color: Color(0xFF0F3B2C)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Relationship field
-                  Text(
-                    'صلة القرابة (اختياري):',
-                    style: TextStyle(
-                      fontFamily: DhikrTheme.arabicFont,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13.5,
-                      color: dark ? Colors.white70 : DhikrColors.charcoal,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _relationController,
-                    validator: (v) => ProfanityFilterService.validateText(v, fieldName: 'صلة القرابة'),
-                    style: TextStyle(
-                      fontFamily: DhikrTheme.arabicFont,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: dark ? Colors.white : DhikrColors.charcoal,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'مثال: أب، أم، أخ، صديق، معلم...',
-                      hintStyle: TextStyle(
-                        fontFamily: DhikrTheme.arabicFont,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w300,
-                        color: dark ? Colors.white.withValues(alpha: 0.35) : const Color(0xFF94A3B8),
-                      ),
-                      filled: true,
-                      fillColor: dark ? const Color(0xFF15221C) : Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: dark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: dark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: Color(0xFF0F3B2C), width: 1.4),
-                      ),
-                      prefixIcon: const Icon(LucideIcons.heart, size: 18, color: Color(0xFF0F3B2C)),
                     ),
                   ),
                   const SizedBox(height: 16),

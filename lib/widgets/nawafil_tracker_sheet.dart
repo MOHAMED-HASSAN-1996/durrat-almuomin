@@ -248,11 +248,6 @@ class NawafilTrackerSheet extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Text(
-                      '🤲',
-                      style: TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         '«من صلى في يوم وليلة ثنتي عشرة ركعة بنى له بيت في الجنة»',
@@ -308,13 +303,13 @@ class NawafilTrackerSheet extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            // Circle Checkbox
+                            // Square Checkbox
                             AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               width: 28,
                               height: 28,
                               decoration: BoxDecoration(
-                                shape: BoxShape.circle,
+                                borderRadius: BorderRadius.circular(8),
                                 color: isDone ? greenDark : Colors.transparent,
                                 border: Border.all(
                                   color: isDone ? greenDark : (dark ? Colors.white.withValues(alpha: 0.2) : const Color(0xFFD0D5D1)),

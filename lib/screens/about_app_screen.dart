@@ -89,7 +89,7 @@ class AboutAppScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          isAr ? 'دُرَّةُ الْمُؤْمِن' : "Durrat Al-Mu'min",
+                          isAr ? 'درة المؤمن' : "Durrat Al-Mu'min",
                           style: const TextStyle(
                             fontFamily: DhikrTheme.arabicFont,
                             fontWeight: FontWeight.w900,
@@ -146,7 +146,7 @@ class AboutAppScreen extends StatelessWidget {
                     iconColor: const Color(0xFF0F766E),
                     title: isAr ? 'عن التطبيق' : 'About',
                     body: isAr
-                        ? 'دُرَّة المؤمن هو تطبيق إسلامي شامل يهدف إلى مساعدة المسلم على إحياء وردِه اليومي من الأذكار والأدعية، ومتابعة ختماته القرآنية، ومعرفة مواقيت الصلاة بدقة، مع تنبيهات الأذان في أوقاتها المحددة. صُمِّم التطبيق بعناية ليكون رفيقاً روحانياً يومياً للمؤمن في رحلته مع الله.'
+                        ? 'درة المؤمن هو تطبيق إسلامي شامل يهدف إلى مساعدة المسلم على إحياء وردِه اليومي من الأذكار والأدعية، ومتابعة ختماته القرآنية، ومعرفة مواقيت الصلاة بدقة، مع تنبيهات الأذان في أوقاتها المحددة. صُمِّم التطبيق بعناية ليكون رفيقاً روحانياً يومياً للمؤمن في رحلته مع الله.'
                         : 'Durrat Al-Mu\'min is a comprehensive Islamic app designed to help Muslims revive their daily dhikr routine, track their Quran khatmahs, view accurate prayer times, and receive Adhan alerts at the right moment. Crafted with care to be a daily spiritual companion.',
                   ),
                   const SizedBox(height: 12),
@@ -346,15 +346,15 @@ class AboutAppScreen extends StatelessWidget {
                           icon: LucideIcons.mail,
                           label: isAr ? 'تواصل معنا عبر البريد' : 'Email Us',
                           color: const Color(0xFF059669),
-                          url: 'mailto:support@durratalmumin.app',
+                          onTap: () => _showEmailFormSheet(context, isAr, dark),
                         ),
                         const SizedBox(height: 8),
                         _ContactButton(
                           dark: dark,
-                          icon: LucideIcons.share2,
-                          label: isAr ? 'تابعنا على إنستجرام' : 'Follow on Instagram',
-                          color: const Color(0xFFDB2777),
-                          url: 'https://instagram.com/durratalmumin',
+                          icon: LucideIcons.messageCircle,
+                          label: isAr ? 'راسلنا على واتساب' : 'Chat on WhatsApp',
+                          color: const Color(0xFF25D366),
+                          url: 'https://wa.me/201273232035',
                         ),
                       ],
                     ),
@@ -480,6 +480,162 @@ class AboutAppScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showEmailFormSheet(BuildContext context, bool isAr, bool dark) {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final messageController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: dark ? DhikrColors.darkSurface : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          20,
+          24,
+          MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  isAr ? 'راسلنا عبر البريد' : 'Email Us',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isAr
+                      ? 'املأ النموذج وسنفتح تطبيق البريد لديك'
+                      : 'Fill the form and we will open your email app',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontSize: 13,
+                    color: dark
+                        ? DhikrColors.darkMuted
+                        : DhikrColors.charcoalSoft,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _FormLabeledField(
+                  isAr: isAr,
+                  dark: dark,
+                  label: isAr ? 'الاسم' : 'Name',
+                  controller: nameController,
+                  keyboardType: TextInputType.name,
+                ),
+                const SizedBox(height: 12),
+                _FormLabeledField(
+                  isAr: isAr,
+                  dark: dark,
+                  label: isAr ? 'بريدك الإلكتروني' : 'Your Email',
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) {
+                    final value = (v ?? '').trim();
+                    if (value.isEmpty || !value.contains('@')) {
+                      return isAr
+                          ? 'أدخل بريدًا صحيحًا'
+                          : 'Enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                _FormLabeledField(
+                  isAr: isAr,
+                  dark: dark,
+                  label: isAr ? 'الرسالة' : 'Message',
+                  controller: messageController,
+                  maxLines: 5,
+                  validator: (v) {
+                    if ((v ?? '').trim().isEmpty) {
+                      return isAr ? 'اكتب رسالتك' : 'Write your message';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () async {
+                      if (!(formKey.currentState?.validate() ?? false)) return;
+                      HapticFeedback.mediumImpact();
+                      final name = nameController.text.trim();
+                      final email = emailController.text.trim();
+                      final message = messageController.text.trim();
+                      final subject =
+                          isAr ? 'رسالة من تطبيق درة المؤمن' : 'Message from Durrat Al-Mu\'min';
+                      final body = isAr
+                          ? 'الاسم: $name\nالبريد: $email\n\n$message'
+                          : 'Name: $name\nEmail: $email\n\n$message';
+                      final uri = Uri(
+                        scheme: 'mailto',
+                        path: 'durratalmumin.app@gmail.com',
+                        queryParameters: {
+                          'subject': subject,
+                          'body': body,
+                        },
+                      );
+                      Navigator.pop(ctx);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    child: Text(
+                      isAr ? 'إرسال' : 'Send',
+                      style: const TextStyle(
+                        fontFamily: DhikrTheme.arabicFont,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).whenComplete(() {
+      nameController.dispose();
+      emailController.dispose();
+      messageController.dispose();
+    });
   }
 }
 
@@ -666,14 +822,16 @@ class _ContactButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.color,
-    required this.url,
+    this.url,
+    this.onTap,
   });
 
   final bool dark;
   final IconData icon;
   final String label;
   final Color color;
-  final String url;
+  final String? url;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -682,7 +840,13 @@ class _ContactButton extends StatelessWidget {
       child: InkWell(
         onTap: () async {
           HapticFeedback.lightImpact();
-          final uri = Uri.parse(url);
+          if (onTap != null) {
+            onTap!();
+            return;
+          }
+          final link = url;
+          if (link == null) return;
+          final uri = Uri.parse(link);
           if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
           }
@@ -714,6 +878,90 @@ class _ContactButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _FormLabeledField extends StatelessWidget {
+  const _FormLabeledField({
+    required this.isAr,
+    required this.dark,
+    required this.label,
+    required this.controller,
+    this.keyboardType,
+    this.maxLines = 1,
+    this.validator,
+  });
+
+  final bool isAr;
+  final bool dark;
+  final String label;
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final int maxLines;
+  final String? Function(String?)? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = dark
+        ? Colors.white.withValues(alpha: 0.1)
+        : DhikrColors.charcoal.withValues(alpha: 0.1);
+    final fillColor = dark
+        ? Colors.white.withValues(alpha: 0.04)
+        : const Color(0xFFF4F7F5);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: DhikrTheme.arabicFont,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          validator: validator,
+          style: TextStyle(
+            fontFamily: DhikrTheme.arabicFont,
+            fontSize: 14,
+            color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+          ),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: fillColor,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: borderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: borderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(
+                color: Color(0xFF059669),
+                width: 1.6,
+              ),
+            ),
+            errorStyle: TextStyle(
+              fontFamily: DhikrTheme.arabicFont,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

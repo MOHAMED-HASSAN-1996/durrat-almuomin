@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/strings.dart';
+import '../services/prayer_alert_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 
 /// Electronic Tasbih — independent from morning/evening progress.
 /// Persistent, haptic, custom dhikr support, and fully offline.
@@ -20,7 +22,9 @@ class _TasbihScreenState extends State<TasbihScreen> {
   int _count = 0;
   int _total = 0;
   int _target = 33;
-  final bool _vibrate = true;
+
+  /// اهتزاز النقر مفعّل دائماً — الاهتزاز جزء من إحساس السبحة نفسها.
+  bool get _vibrate => true;
   int _phraseIndex = 0;
 
   final List<String> _customPhrasesAr = [];
@@ -46,18 +50,26 @@ class _TasbihScreenState extends State<TasbihScreen> {
   List<String> get _allPhrasesAr => [..._basePhrasesAr, ..._customPhrasesAr];
   List<String> get _allPhrasesEn => [..._basePhrasesEn, ..._customPhrasesEn];
 
+  /// نبضة النقرة: انفجار قوي مُحسوس عبر الطبقة الأصلية عند الإمكان،
+  /// وإلا نرجع لهزة فلاتر القوية + الاهتزاز النظامي حتى ما تفقد النقرة إحساسها.
+  Future<void> _tapHaptic() async {
+    if (!_vibrate) return;
+    HapticFeedback.heavyImpact();
+    final handled = await PlatformPermissions.tapVibration();
+    if (!handled) {
+      HapticFeedback.vibrate();
+    }
+  }
+
   void _increment() {
     setState(() {
       _count++;
       _total++;
       if (_target > 0 && _count >= _target) {
-        HapticFeedback.heavyImpact();
-        if (_vibrate) {
-          HapticFeedback.vibrate();
-        }
+        _tapHaptic();
         // auto reset cycle but keep total
         _count = 0;
-        ScaffoldMessenger.of(context).showSnackBar(
+        AppToast.show(context, 
           SnackBar(
             content: Text(AppStrings.t(
                 context.read<AppState>().language, 'completed')),
@@ -66,10 +78,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
           ),
         );
       } else {
-        HapticFeedback.selectionClick();
-        if (_vibrate) {
-          HapticFeedback.vibrate();
-        }
+        _tapHaptic();
       }
     });
   }
@@ -80,7 +89,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
         _count--;
         if (_total > 0) _total--;
       });
-      HapticFeedback.selectionClick();
+      _tapHaptic();
     }
   }
 
@@ -219,7 +228,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                   });
                   HapticFeedback.mediumImpact();
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  AppToast.show(context, 
                     SnackBar(
                       content: Text(
                         isAr ? 'تمت إضافة الذكر بنجاح ✨' : 'Dhikr added successfully ✨',
@@ -493,17 +502,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // Total counter
-                Text(
-                  '${AppStrings.t(lang, 'total_count')}: $_total',
-                  style: TextStyle(
-                    fontFamily: DhikrTheme.arabicFont,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: dark ? DhikrColors.darkMuted : const Color(0xFF386452),
-                    height: 1.2,
-                  ),
-                ),
+                const SizedBox.shrink(),
 
                 // Center area with circular counter
                 Expanded(
@@ -598,17 +597,6 @@ class _TasbihScreenState extends State<TasbihScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          Text(
-                            AppStrings.t(lang, 'count'),
-                            style: TextStyle(
-                              fontFamily: DhikrTheme.arabicFont,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: dark
-                                  ? DhikrColors.darkMuted
-                                  : const Color(0xFF4A7360),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -631,7 +619,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                             onTap: _reset,
                             onLongPress: () {
                               _resetAll();
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              AppToast.show(context, 
                                 SnackBar(
                                   content: Text(
                                     isAr ? 'تم تصفير العداد الإجمالي' : 'Total count reset',
@@ -710,12 +698,15 @@ class _TasbihScreenState extends State<TasbihScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Icon(
-                                    Icons.undo_rounded,
-                                    size: 20,
-                                    color: dark
-                                        ? DhikrColors.darkMuted
-                                        : const Color(0xFF6B8074),
+                                  Transform.flip(
+                                    flipX: true,
+                                    child: Icon(
+                                      Icons.undo_rounded,
+                                      size: 20,
+                                      color: dark
+                                          ? DhikrColors.darkMuted
+                                          : const Color(0xFF6B8074),
+                                    ),
                                   ),
                                 ],
                               ),

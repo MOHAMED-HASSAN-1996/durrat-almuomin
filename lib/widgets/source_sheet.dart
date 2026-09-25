@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
+import '../services/arabic_text_utils.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
 
@@ -78,7 +79,7 @@ class SourceSheet {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          virtue,
+                          ArabicTextUtils.stripTashkeel(virtue),
                           style: TextStyle(
                             fontFamily: DhikrTheme.arabicFont,
                             fontWeight: FontWeight.w600,

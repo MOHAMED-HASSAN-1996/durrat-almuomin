@@ -17,6 +17,7 @@ import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
 import '../widgets/nawafil_tracker_sheet.dart';
+import '../widgets/app_toast.dart';
 
 class PrayerTimesScreen extends StatefulWidget {
   const PrayerTimesScreen({super.key});
@@ -33,6 +34,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   String _cityEn = 'Baghdad';
   String _country = 'العراق';
   String _countryEn = 'Iraq';
+  String _resolvedCountryCode = '';
 
   bool _locating = false;
   bool _locateFailed = false;
@@ -641,6 +643,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   }
 
   void _checkPrayerArrival(DateTime now) {
+    // Only update prayer arrival UI state.
+    // Audio alerts and full-screen intents are cleanly and reliably handled
+    // by PrayerAlertService to prevent multiple overlapping adhans!
     if (_isPlayingAdhan) return;
     final today = DateTime(now.year, now.month, now.day);
     final localTimes = PrayerCalculator.calculate(
@@ -668,43 +673,16 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         final key = '${now.year}_${now.month}_${now.day}_${p.$1}';
         if (_lastTriggeredPrayerKey != key) {
           _lastTriggeredPrayerKey = key;
-          _triggerPrayerAdhan(p.$2, p.$3);
+          if (mounted) {
+            setState(() {
+              _activePrayerNameAr = p.$2;
+              _activePrayerNameEn = p.$3;
+            });
+          }
           break;
         }
       }
     }
-  }
-
-  Future<void> _triggerPrayerAdhan(String nameAr, String nameEn) async {
-    if (!mounted) return;
-    setState(() {
-      _activePrayerNameAr = nameAr;
-      _activePrayerNameEn = nameEn;
-    });
-    // 1) تشغيل صوت الأذان داخل التطبيق
-    await _playAdhan();
-    if (!mounted) return;
-    // 2) إظهار إشعار نظام فوري (Heads-Up) حتى لو التطبيق مفتوح
-    try {
-      final isAr = language == AppLanguage.arabic;
-      final shortAr = nameAr.replaceAll('صلاة ', '');
-      final shortEn = nameEn.replaceAll(' Prayer', '');
-      await PrayerAlertService.instance.showTestNotification(
-        isArabic: isAr,
-        prayerNameAr: shortAr,
-        prayerNameEn: shortEn,
-      );
-    } catch (_) {}
-    // 3) نافذة منبثقة داخل التطبيق مع زر إيقاف (الصوت شغال بالفعل)
-    if (!mounted) return;
-    try {
-      await PrayerAlertService.instance.showAzanPopup(
-        context,
-        prayerNameAr: nameAr,
-        prayerNameEn: nameEn,
-        playSound: false,
-      );
-    } catch (_) {}
   }
 
   @override
@@ -726,6 +704,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     }).join();
   }
 
+  // ignore: unused_element
   Future<void> _playAdhan([String? directUrl]) async {
     try {
       final index = _selectedAdhanIndex.clamp(0, _adhanOptions.length - 1);
@@ -751,6 +730,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   Future<void> _stopAdhan() async {
     try {
       await _adhanPlayer?.stop();
+      await PrayerAlertService.instance.stopAzan();
+      await PlatformPermissions.stopAdhanVibration();
       if (mounted) {
         setState(() {
           _isPlayingAdhan = false;
@@ -1059,6 +1040,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       resolvedCityEn = names.$2;
       resolvedCountryAr = names.$3;
       resolvedCountryEn = names.$4;
+      _resolvedCountryCode = names.$5;
     }
 
     if (!mounted) return;
@@ -1079,6 +1061,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       cityEn: resolvedCityEn,
       countryAr: resolvedCountryAr,
       countryEn: resolvedCountryEn,
+      countryCode: _resolvedCountryCode,
     );
 
     // Refresh API prayer times whenever location changes
@@ -1086,7 +1069,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     _fetchApiPrayerTimes();
   }
 
-  Future<(String cityAr, String cityEn, String countryAr, String countryEn)>
+  Future<(String cityAr, String cityEn, String countryAr, String countryEn, String countryCode)>
   _reverseGeocode(double lat, double lng) async {
     // Tier 1: Photon by Komoot (blazing fast, open-source OSM geocoder, no API key, native Arabic)
     try {
@@ -1105,21 +1088,23 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         if (features.isNotEmpty) {
           final props =
               (features.first['properties'] as Map<String, dynamic>?) ?? {};
-          final name =
-              (props['name'] as String?) ??
+          // ⚠️ مهم: متاخدش اسم الشارع (name) — خد المدينة الأول عشان ميحصلش overflow
+          final city =
               (props['city'] as String?) ??
-              (props['state'] as String?) ??
+              (props['locality'] as String?) ??
+              (props['district'] as String?) ??
               '';
           final state = (props['state'] as String?) ?? '';
           final country = (props['country'] as String?) ?? '';
 
-          final cityCandidate = name.isNotEmpty ? name : state;
+          final cityCandidate = city.isNotEmpty ? city : state;
           if (cityCandidate.isNotEmpty || country.isNotEmpty) {
             return (
               cityCandidate.isNotEmpty ? cityCandidate : _city,
               cityCandidate.isNotEmpty ? cityCandidate : _cityEn,
               country.isNotEmpty ? country : _country,
               country.isNotEmpty ? country : _countryEn,
+              ((props['countrycode'] as String?) ?? '').toString().trim().toUpperCase(),
             );
           }
         }
@@ -1176,6 +1161,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
             cityEn.isNotEmpty ? cityEn : _cityEn,
             countryAr.isNotEmpty ? countryAr : _country,
             countryEn.isNotEmpty ? countryEn : _countryEn,
+            ((dataAr['countryCode'] as String?) ?? '').toString().trim().toUpperCase(),
           );
         }
       }
@@ -1210,6 +1196,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                     '')
                 as String;
         final countryAr = (addr['country'] ?? '') as String;
+        final cc = ((addr['country_code'] as String?) ?? '')
+            .toString()
+            .trim()
+            .toUpperCase();
 
         String cityEn = cityAr;
         String countryEn = countryAr;
@@ -1249,11 +1239,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           cityEn.isNotEmpty ? cityEn : _cityEn,
           countryAr.isNotEmpty ? countryAr : _country,
           countryEn.isNotEmpty ? countryEn : _countryEn,
+          cc,
         );
       }
     } catch (_) {}
 
-    return (_city, _cityEn, _country, _countryEn);
+    return (_city, _cityEn, _country, _countryEn, '');
   }
 
   void _showCitySearchSheet(BuildContext context) {
@@ -1300,7 +1291,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
 
   void _toast({required String arabic, required String english}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppToast.show(context, 
       SnackBar(
         content: Text(
           language == AppLanguage.arabic ? arabic : english,
@@ -1690,17 +1681,28 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                                     : DhikrColors.forest,
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                displayCountry.isNotEmpty
-                                    ? '$displayCity، $displayCountry'
-                                    : displayCity,
-                                style: TextStyle(
-                                  fontFamily: DhikrTheme.arabicFont,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 17,
-                                  color: dark
-                                      ? DhikrColors.darkText
-                                      : DhikrColors.charcoal,
+                              Flexible(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 250,
+                                  ),
+                                  child: Text(
+                                    displayCountry.isNotEmpty
+                                        ? '$displayCity، $displayCountry'
+                                        : displayCity,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 17,
+                                      color: dark
+                                          ? DhikrColors.darkText
+                                          : DhikrColors.charcoal,
+                                    ),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 4),
@@ -2033,7 +2035,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         bool asr = currentPrefs['asr'] as bool? ?? true;
         bool maghrib = currentPrefs['maghrib'] as bool? ?? true;
         bool isha = currentPrefs['isha'] as bool? ?? true;
-        String sound = currentPrefs['sound'] as String? ?? 'adhan';
         bool vibration = currentPrefs['vibration'] as bool? ?? true;
 
         return StatefulBuilder(
@@ -2228,73 +2229,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                isAr ? 'صوت التنبيه' : 'Alert Sound',
-                                style: TextStyle(
-                                  fontFamily: DhikrTheme.arabicFont,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  color: dark
-                                      ? DhikrColors.darkText
-                                      : DhikrColors.charcoal,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  ChoiceChip(
-                                    label: Text(
-                                      isAr ? 'الأذان 🕌' : 'Adhan 🕌',
-                                    ),
-                                    selected: sound == 'adhan',
-                                    onSelected: enabled
-                                        ? (_) => setSheetState(
-                                            () => sound = 'adhan',
-                                          )
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ChoiceChip(
-                                    label: Text(
-                                      isAr ? 'نغمة هادئة 🔔' : 'Chime 🔔',
-                                    ),
-                                    selected: sound == 'beep',
-                                    onSelected: enabled
-                                        ? (_) => setSheetState(
-                                            () => sound = 'beep',
-                                          )
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ChoiceChip(
-                                    label: Text(isAr ? 'صامت 📳' : 'Silent 📳'),
-                                    selected: sound == 'silent',
-                                    onSelected: enabled
-                                        ? (_) => setSheetState(
-                                            () => sound = 'silent',
-                                          )
-                                        : null,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Opacity(
-                        opacity: enabled ? 1.0 : 0.45,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color:
-                                (dark ? DhikrColors.sage : DhikrColors.forest)
-                                    .withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
                                 isAr ? 'اهتزاز الجهاز' : 'Device Vibration',
                                 style: TextStyle(
                                   fontFamily: DhikrTheme.arabicFont,
@@ -2398,14 +2332,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                                 asr: asr,
                                 maghrib: maghrib,
                                 isha: isha,
-                                sound: sound,
                                 vibration: vibration,
                                 prayerTimes: timesMap,
                                 isArabic: isAr,
                               );
 
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            AppToast.show(context, 
                               SnackBar(
                                 content: Text(
                                   isAr
@@ -2423,36 +2356,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                               );
                             }
                           },
-                      ),
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFD97706),
-                          side: const BorderSide(color: Color(0xFFF59E0B)),
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        icon: const Icon(Icons.notifications_active_rounded, size: 18),
-                        label: Text(
-                          isAr ? 'معاينة تنبيه الأذان على الشاشة 🔔' : 'Test Adhan Alert on Screen 🔔',
-                          style: const TextStyle(
-                            fontFamily: DhikrTheme.arabicFont,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          showAdhanPreviewSheet(
-                            context,
-                            prayerNameAr: 'المغرب',
-                            prayerNameEn: 'Maghrib',
-                            isArabic: isAr,
-                            dark: dark,
-                          );
-                        },
                       ),
                     ],
                   ),

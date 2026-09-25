@@ -156,7 +156,7 @@ class _PinnedAudioPlayerWidgetState extends State<PinnedAudioPlayerWidget>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      isAr ? 'محطات وقراء درّة المؤمن' : "Durrat Al-Mu'min Radios",
+                      isAr ? 'محطات وقراء درة المؤمن' : "Durrat Al-Mu'min Radios",
                       style: const TextStyle(
                         fontFamily: DhikrTheme.arabicFont,
                         color: Colors.white,
@@ -412,7 +412,7 @@ class _PinnedAudioPlayerWidgetState extends State<PinnedAudioPlayerWidget>
                             const SizedBox(width: 8),
                             Text(
                               isAr
-                                  ? 'تلاوة وبث مباشر — درّة المؤمن'
+                                  ? 'تلاوة وبث مباشر — درة المؤمن'
                                   : "Durrat Al-Mu'min Live Audio",
                               style: TextStyle(
                                 fontFamily: DhikrTheme.arabicFont,

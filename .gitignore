@@ -52,6 +52,13 @@ app.*.map.json
 .firebase/
 .freebuff/
 node_modules/
+.env
+**/.env
 screen_*.png
 store_screenshots/
 
+# ⚠️ Android Signing — لا ترفع هذه الملفات على GitHub أبداً
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+KEYSTORE_INFO.txt

@@ -26,21 +26,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'titleEn': 'The Holy Quran & Reflection',
       'descAr': 'قراءة المصحف العثماني برسم المدينة المنورة، بتنسيق ١٥ سطراً لكل صفحة مع مظاهر مريحة للعين.',
       'descEn': 'Read the Medina Mushaf with standard 15 lines per page and soothing reading themes.',
-      'image': 'assets/images/onboarding_quran.jpg',
+      'image': 'assets/images/onboarding_quran.webp',
     },
     {
       'titleAr': 'مواقيت الصلاة وإذاعة القرآن',
       'titleEn': 'Prayer Times & Quran Radio',
       'descAr': 'مواقيت صلاة دقيقة بحسب موقعك وبث مباشر لإذاعة القرآن الكريم من القاهرة وكبار القراء على مدار الساعة.',
       'descEn': 'Accurate prayer times according to your location, with 24/7 Cairo Quran Radio and legendary reciters.',
-      'image': 'assets/images/onboarding_athan.jpg',
+      'image': 'assets/images/onboarding_athan.webp',
     },
     {
       'titleAr': 'أذكار صحيحة وطمأنينة القلب',
       'titleEn': 'Authentic Adhkar & Serenity',
       'descAr': 'أذكار الصباح والمساء والرقية الشرعية وجوامع الكلم مراجعة ومحققة من أصح كتب السنة النبوية الشريفة.',
       'descEn': 'Verified morning and evening adhkar, Ruqyah, and supplications from authenticated Sunnah sources.',
-      'image': 'assets/images/onboarding_adhkar.jpg',
+      'image': 'assets/images/onboarding_adhkar.webp',
     },
   ];
 
@@ -237,7 +237,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: Image.asset(
-                              'assets/images/app_icon.png',
+                              'assets/images/app_icon.webp',
                               width: 34,
                               height: 34,
                               fit: BoxFit.cover,
@@ -245,7 +245,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            isAr ? 'دُرَّةُ الْمُؤْمِن' : "Durrat Al-Mu'min",
+                            isAr ? 'درة المؤمن' : "Durrat Al-Mu'min",
                             style: TextStyle(
                               fontFamily: DhikrTheme.arabicFont,
                               fontSize: isAr ? 24 : 22,

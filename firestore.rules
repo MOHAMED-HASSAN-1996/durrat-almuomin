@@ -1,0 +1,209 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'admin@durrat-al-mumin.app';
+    }
+
+    function ownsRequest(requestId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/prayer_requests/$(requestId))
+          .data.ownerId == request.auth.uid;
+    }
+
+    function isValidHttpsUrl(s) {
+      return s is string && s.matches('https://.*');
+    }
+
+    // ── App config (feature flags, maintenance, home cards) ─────────────
+    match /app_config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Remote content collections (public read, admin write) ───────────
+    // These mirror the admin dashboard tabs consumed by the app.
+    match /anime_stories/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /shaarawi_lessons/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /adhkar/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /radio/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /broadcasts/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /companions/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /soul_remedies/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /hadith/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /riyad_hadith/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /quran_surahs/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Ratings: users submit, admin moderates ──────────────────────────
+    match /ratings/{docId} {
+      allow create: if signedIn()
+        && request.resource.data.stars is int
+        && request.resource.data.stars >= 1
+        && request.resource.data.stars <= 5
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 2000;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ── Feedback: users submit, admin replies ───────────────────────────
+    match /feedback/{docId} {
+      allow create: if signedIn()
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 3000;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ── User profiles ───────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      // Admin dashboard needs list/search of all users
+      allow read: if isAdmin();
+      allow create, update: if signedIn()
+        && (request.auth.uid == userId || isAdmin());
+      allow delete: if signedIn()
+        && (request.auth.uid == userId || isAdmin());
+    }
+
+    // ── Community: prayer requests (دعاء بظهر الغيب) ────────────────────
+    match /prayer_requests/{requestId} {
+      allow read: if isAdmin()
+        || resource.data.status == 'active'
+        || (signedIn()
+          && get(/databases/$(database)/documents/prayer_requests/$(requestId))
+            .data.ownerId == request.auth.uid);
+
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.status == 'active'
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.customDua is string
+        && request.resource.data.customDua.size() > 0
+        && request.resource.data.customDua.size() <= 3000
+        && request.resource.data.category in ['deceased', 'sick', 'need', 'absent']
+        && request.resource.data.authorName is string
+        && request.resource.data.authorName.size() > 0
+        && request.resource.data.authorName.size() <= 80
+        && request.resource.data.authorPhoto is string
+        && request.resource.data.authorPhoto.size() <= 500
+        && ('imageUrl' in request.resource.data
+          ? (request.resource.data.imageUrl == null
+            || isValidHttpsUrl(request.resource.data.imageUrl))
+          : true)
+        && ('imagePath' in request.resource.data
+          ? (request.resource.data.imagePath == null
+            || isValidHttpsUrl(request.resource.data.imagePath))
+          : true)
+        && request.resource.data.fatihaCount == 0
+        && request.resource.data.loveCount == 0
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt.toMillis()
+          - request.resource.data.createdAt.toMillis() >= 2592000000
+        && request.resource.data.expiresAt.toMillis()
+          - request.resource.data.createdAt.toMillis() <= 2678400000;
+
+      allow update: if isAdmin()
+        || ownsRequest(requestId)
+        || (signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['fatihaCount', 'loveCount'])
+          && request.resource.data.fatihaCount is int
+          && request.resource.data.loveCount is int
+          && request.resource.data.fatihaCount >= 0
+          && request.resource.data.loveCount >= 0
+          && request.resource.data.fatihaCount
+            >= resource.data.get('fatihaCount', 0) - 1
+          && request.resource.data.fatihaCount
+            <= resource.data.get('fatihaCount', 0) + 1
+          && request.resource.data.loveCount
+            >= resource.data.get('loveCount', 0) - 1
+          && request.resource.data.loveCount
+            <= resource.data.get('loveCount', 0) + 1);
+
+      allow delete: if isAdmin() || ownsRequest(requestId);
+
+      match /interactions/{userId} {
+        allow read: if isAdmin();
+        allow create: if signedIn()
+          && userId == request.auth.uid
+          && request.resource.data.type in ['ameen', 'fatiha'];
+        allow delete: if signedIn() && userId == request.auth.uid;
+        allow update: if false;
+      }
+
+      match /comments/{commentId} {
+        allow read: if signedIn() || isAdmin();
+        allow create: if signedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500
+          && request.resource.data.status == 'visible';
+        allow update, delete: if isAdmin()
+          || (signedIn() && resource.data.userId == request.auth.uid);
+      }
+    }
+
+    // ── Reports (بلاغات) ───────────────────────────────────────────────
+    match /reports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.requestId is string
+        && request.resource.data.reason is string;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ── Admin: full control (fallback, kept last) ───────────────────────
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

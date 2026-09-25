@@ -1,4 +1,4 @@
-name: qcf_quran
+﻿name: qcf_quran
 description: "High-fidelity Quran Mushaf (QCF) rendering with per-page bundled fonts. Includes widgets for a single ayah (QcfVerse) and a full RTL PageView mushaf (PageviewQuran), plus search and helpers."
 version: 0.0.5
 homepage: https://github.com/m4hmoud-atef/qcf_quran
@@ -10,12 +10,6 @@ topics:
   - arabic
   - fonts
   - qcf
-screenshots:
-  - description: Quran page view
-    path: assets/Screenshot_1756290211.png
-  - description: Search and verse
-    path: assets/Screenshot_1756290218.png
-
 environment:
   sdk: ">=3.7.0 <4.0.0"
   flutter: ">=1.17.0"
@@ -35,8 +29,6 @@ dev_dependencies:
 flutter:
   assets:
     - assets/mainframe.png
-    - assets/mainpagenum.png
-    - assets/mainpagenum_no.png
   fonts:
 
     - family: "surahname"

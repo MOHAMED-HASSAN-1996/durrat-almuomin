@@ -4,9 +4,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/companions_stories_data.dart';
+import '../services/remote_content_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 
 /// شاشة قصص رجال ونساء حول رسول الله ﷺ
 class CompanionsScreen extends StatefulWidget {
@@ -26,13 +28,20 @@ class _CompanionsScreenState extends State<CompanionsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    RemoteContentService.instance.initialize();
+    RemoteContentService.instance.addListener(_onRemoteContent);
   }
 
   @override
   void dispose() {
+    RemoteContentService.instance.removeListener(_onRemoteContent);
     _tabController.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onRemoteContent() {
+    if (mounted) setState(() {});
   }
 
   List<CompanionStory> _filterStories(List<CompanionStory> list, bool isAr) {
@@ -63,8 +72,22 @@ class _CompanionsScreenState extends State<CompanionsScreen>
     final isAr = lang == AppLanguage.arabic;
     final dark = Theme.of(context).brightness == Brightness.dark;
 
-    final filteredMen = _filterStories(menCompanionsList, isAr);
-    final filteredWomen = _filterStories(womenCompanionsList, isAr);
+    // Local stories merged with admin-managed remote ones by id, so the
+    // dashboard can edit any story (remote version wins) or add new ones.
+    final menById = {
+      for (final s in menCompanionsList) s.id: s,
+      for (final s in RemoteContentService.instance.remoteMenCompanions)
+        s.id: s,
+    };
+    final womenById = {
+      for (final s in womenCompanionsList) s.id: s,
+      for (final s in RemoteContentService.instance.remoteWomenCompanions)
+        s.id: s,
+    };
+    final allMen = menById.values.toList();
+    final allWomen = womenById.values.toList();
+    final filteredMen = _filterStories(allMen, isAr);
+    final filteredWomen = _filterStories(allWomen, isAr);
 
     return Scaffold(
       backgroundColor: dark ? DhikrColors.darkBg : DhikrColors.ivory,
@@ -105,33 +128,41 @@ class _CompanionsScreenState extends State<CompanionsScreen>
               labelStyle: const TextStyle(
                 fontFamily: DhikrTheme.arabicFont,
                 fontWeight: FontWeight.w700,
-                fontSize: 14,
+                fontSize: 13,
               ),
               tabs: [
                 Tab(
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('⚔️', style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 8),
-                      Text(
-                        isAr
-                            ? 'رجال حول الرسول (${filteredMen.length})'
-                            : 'Men (${filteredMen.length})',
+                      const Text('⚔️', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          isAr
+                              ? 'رجال حول الرسول (${filteredMen.length})'
+                              : 'Men (${filteredMen.length})',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 Tab(
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('🌸', style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 8),
-                      Text(
-                        isAr
-                            ? 'نساء حول الرسول (${filteredWomen.length})'
-                            : 'Women (${filteredWomen.length})',
+                      const Text('🌸', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          isAr
+                              ? 'نساء حول الرسول (${filteredWomen.length})'
+                              : 'Women (${filteredWomen.length})',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                     ],
                   ),
@@ -439,7 +470,7 @@ class _CompanionDetailScreenState extends State<_CompanionDetailScreen> {
       for (final l in s.lessonsAr) {
         buffer.writeln('• $l');
       }
-      buffer.writeln('\n— تم المشاركة من تطبيق ذكر');
+      buffer.writeln('\n— تم المشاركة من تطبيق درة المؤمن');
     } else {
       buffer.writeln('«${s.nameEn} — ${s.titleEn}» 🌟\n');
       buffer.writeln('${s.summaryEn}\n');
@@ -462,13 +493,13 @@ class _CompanionDetailScreenState extends State<_CompanionDetailScreen> {
       for (final l in s.lessonsEn) {
         buffer.writeln('• $l');
       }
-      buffer.writeln('\n— Shared from Dhikr App');
+      buffer.writeln('\n— Shared from Durrat Al-Mu\'min');
     }
 
     final text = buffer.toString();
 
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppToast.show(context, 
       SnackBar(
         content: Text(
           widget.isAr

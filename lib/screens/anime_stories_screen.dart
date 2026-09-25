@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../data/anime_stories_data.dart';
 import '../screens/in_app_player_screen.dart';
+import '../services/remote_content_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
@@ -23,15 +24,27 @@ class _AnimeStoriesScreenState extends State<AnimeStoriesScreen> {
   String _searchQuery = '';
 
   @override
+  void initState() {
+    super.initState();
+    RemoteContentService.instance.initialize();
+    RemoteContentService.instance.addListener(_onRemoteContent);
+  }
+
+  @override
   void dispose() {
+    RemoteContentService.instance.removeListener(_onRemoteContent);
     _searchController.dispose();
     super.dispose();
   }
 
+  void _onRemoteContent() {
+    if (mounted) setState(() {});
+  }
 
   List<AnimeSeriesGroup> get _filteredSeriesGroups {
     final q = _searchQuery.trim().toLowerCase();
-    return animeSeriesGroups
+    // Merged local + admin-managed remote stories (remote first).
+    return RemoteContentService.instance.getAnimeSeriesGroups()
         .map((group) {
           final matchesCategory =
               _selectedCategory == AnimeCategory.all ||
@@ -116,36 +129,10 @@ class _AnimeStoriesScreenState extends State<AnimeStoriesScreen> {
         const SizedBox(height: 14),
         if (isEmpty)
           _buildEmptyState(isAr, dark)
-        else ...[
-          Row(
-            children: [
-              Container(
-                width: 4,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: DhikrColors.forest,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                isAr
-                    ? 'سلاسل الرسوم المتحركة المنظمة (${seriesGroups.length})'
-                    : 'Structured Animated Series (${seriesGroups.length})',
-                style: TextStyle(
-                  fontFamily: DhikrTheme.arabicFont,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+        else
           ...seriesGroups.map(
             (group) => _buildSeriesGroupCard(group, isAr, dark),
           ),
-        ],
       ],
     );
   }
@@ -476,8 +463,16 @@ class _AnimeStoriesScreenState extends State<AnimeStoriesScreen> {
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
               childAspectRatio: 1.1,
-              children: List.generate(group.episodes.length, (idx) {
+                  children: List.generate(group.episodes.length, (idx) {
                 final episode = group.episodes[idx];
+                final queue = group.episodes
+                    .map(
+                      (e) => PlayerQueueItem(
+                        url: e.videoUrl,
+                        title: isAr ? e.titleAr : e.titleEn,
+                      ),
+                    )
+                    .toList();
                 return _buildEpisodeCard(
                   title: isAr ? episode.titleAr : episode.titleEn,
                   description: isAr
@@ -486,6 +481,8 @@ class _AnimeStoriesScreenState extends State<AnimeStoriesScreen> {
                   duration: episode.durationOrEpisodes,
                   thumbnailUrl: episode.thumbnailUrl,
                   videoUrl: episode.videoUrl,
+                  playlist: queue,
+                  playlistIndex: idx,
                   partBadge:
                       episode.episodeTitleAr ??
                       (isAr
@@ -510,6 +507,8 @@ class _AnimeStoriesScreenState extends State<AnimeStoriesScreen> {
     required String duration,
     required String thumbnailUrl,
     required String videoUrl,
+    List<PlayerQueueItem>? playlist,
+    int playlistIndex = 0,
     required String? partBadge,
     required Color accentColor,
     required bool isAr,
@@ -529,6 +528,8 @@ class _AnimeStoriesScreenState extends State<AnimeStoriesScreen> {
                 ? 'بتاع أنمي (قصص القرآن والتاريخ)'
                 : 'Betaa Anime (Quran & History)',
             channelUrl: animeChannelUrl,
+            playlist: playlist,
+            initialIndex: playlistIndex,
           );
         },
         borderRadius: BorderRadius.circular(16),
@@ -545,6 +546,8 @@ class _AnimeStoriesScreenState extends State<AnimeStoriesScreen> {
                     Image.network(
                       thumbnailUrl,
                       fit: BoxFit.cover,
+                      cacheWidth: 480,
+                      filterQuality: FilterQuality.low,
                       errorBuilder: (_, _, _) => Container(
                         color: accentColor.withValues(alpha: 0.15),
                         child: Icon(

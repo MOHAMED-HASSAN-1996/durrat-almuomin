@@ -3,15 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../services/loved_ones_service.dart';
 import '../state/app_state.dart';
-import '../types/adhkar.dart';
 import '../theme/app_theme.dart';
+import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 import 'loved_ones_screen.dart';
 import 'location_map_picker_screen.dart';
 
 enum NotifFilter { all, lovedOnes, system }
 
-enum NotifType { lovedOnesFatiha, lovedOnesAmeen, lovedOnesComment, lovedOnesNewPost, systemLocation, systemZakat, systemQuran, systemRadio }
+enum NotifType {
+  lovedOnesFatiha,
+  lovedOnesAmeen,
+  lovedOnesComment,
+  systemLocation,
+}
 
 class NotificationItem {
   final String id;
@@ -41,8 +48,8 @@ class NotificationItem {
   });
 }
 
-/// Notifications Screen — Displays Loved Ones (دعاء بظهر الغيب) community interactions
-/// and App/System notifications (excluding prayer times which have their own alerts).
+/// Notifications Screen — real Loved Ones interactions + location status.
+/// Prayer alerts are excluded (they have their own system).
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -52,113 +59,144 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   NotifFilter _selectedFilter = NotifFilter.all;
+  final List<NotificationItem> _notifications = [];
+  bool _loading = true;
 
-  late final List<NotificationItem> _notifications = [
-    NotificationItem(
-      id: 'n1',
-      type: NotifType.lovedOnesFatiha,
-      titleAr: 'قراءة الفاتحة مهداة لأحبائك',
-      titleEn: 'Al-Fatihah recitation for your loved one',
-      subtitleAr: 'أحد المصلين قرأ سورة الفاتحة وأهداها لوالدتك الغالية 🤲',
-      subtitleEn: 'A fellow believer recited Al-Fatihah for your loved one',
-      timeAr: 'منذ ١٠ دقائق',
-      timeEn: '10m ago',
-      icon: LucideIcons.bookOpen,
-      color: const Color(0xFF0F766E),
-      isRead: false,
-    ),
-    NotificationItem(
-      id: 'n2',
-      type: NotifType.lovedOnesAmeen,
-      titleAr: 'تفاعل دعاء بظهر الغيب (آمين)',
-      titleEn: 'Dua Interaction (Ameen)',
-      subtitleAr: 'تفاعل ٥ مصلين بـ "آمين" على طلب الدعاء لوالدك الحبيب 🌿',
-      subtitleEn: '5 believers interacted with "Ameen" on your prayer request',
-      timeAr: 'منذ نصف ساعة',
-      timeEn: '30m ago',
-      icon: LucideIcons.heartHandshake,
-      color: const Color(0xFFE11D48),
-      isRead: false,
-    ),
-    NotificationItem(
-      id: 'n3',
-      type: NotifType.lovedOnesComment,
-      titleAr: 'خاطرة ودعاء طيب جديد',
-      titleEn: 'New heartfelt prayer comment',
-      subtitleAr: 'كتب أحدهم: "اللهم اشفها شفاءً تاماً واجعل ما أصابها رفعة لدرجاتها" 💬',
-      subtitleEn: 'Someone commented: "May Allah grant full healing and patience"',
-      timeAr: 'منذ ساعتين',
-      timeEn: '2h ago',
-      icon: LucideIcons.messageSquare,
-      color: const Color(0xFF0F3B2C),
-      isRead: false,
-    ),
-    NotificationItem(
-      id: 'n4',
-      type: NotifType.systemLocation,
-      titleAr: 'مزامنة الموقع الجغرافي والقبلة',
-      titleEn: 'Location & Qibla Synchronized',
-      subtitleAr: 'تم تثبيت وتوحيد موقعك الجغرافي عبر كافة شاشات التطبيق بنجاح 📍',
-      subtitleEn: 'Your location has been unified and synchronized across all screens',
-      timeAr: 'اليوم',
-      timeEn: 'Today',
-      icon: LucideIcons.mapPin,
-      color: const Color(0xFF10B981),
-      isRead: true,
-    ),
-    NotificationItem(
-      id: 'n5',
-      type: NotifType.lovedOnesNewPost,
-      titleAr: 'طلب دعاء بظهر الغيب في المجتمع',
-      titleEn: 'New prayer request in community',
-      subtitleAr: 'أخ لك في الله يسأل الدعاء لأخيه المريض بالشفاء العاجل 🕊️',
-      subtitleEn: 'A brother requests prayers for his ailing brother',
-      timeAr: 'منذ ٤ ساعات',
-      timeEn: '4h ago',
-      icon: LucideIcons.heart,
-      color: const Color(0xFFD97706),
-      isRead: true,
-    ),
-    NotificationItem(
-      id: 'n6',
-      type: NotifType.systemZakat,
-      titleAr: 'حاسبة الزكاة والنصاب',
-      titleEn: 'Zakat Calculation Log',
-      subtitleAr: 'تم حفظ وتوثيق عمليات احتساب زكاة المال وعروض التجارة بنجاح 💾',
-      subtitleEn: 'Your Zakat calculation record has been saved successfully',
-      timeAr: 'أمس',
-      timeEn: 'Yesterday',
-      icon: LucideIcons.badgePercent,
-      color: const Color(0xFF0F766E),
-      isRead: true,
-    ),
-    NotificationItem(
-      id: 'n7',
-      type: NotifType.systemQuran,
-      titleAr: 'تحديث المصحف الشريف 📖',
-      titleEn: 'Holy Quran Landscape View',
-      subtitleAr: 'أصبح بإمكانك الآن تدوير الشاشة وتلاوة المصحف بالعرض الكامل بانسيابية تامة ✨',
-      subtitleEn: 'You can now rotate your device for full-width Quran reading',
-      timeAr: 'منذ يومين',
-      timeEn: '2d ago',
-      icon: LucideIcons.sparkles,
-      color: const Color(0xFF7C3AED),
-      isRead: true,
-    ),
-    NotificationItem(
-      id: 'n8',
-      type: NotifType.systemRadio,
-      titleAr: 'إذاعة القرآن الكريم 📻',
-      titleEn: 'Quran Radio Update',
-      subtitleAr: 'تم إضافة أزرار التبديل للمحطة السابقة والتالية مع بث سلس هادئ 🌿',
-      subtitleEn: 'Previous and Next station controls are now active in notifications',
-      timeAr: 'منذ ٣ أيام',
-      timeEn: '3d ago',
-      icon: LucideIcons.radio,
-      color: const Color(0xFF0F3B2C),
-      isRead: true,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadRealNotifications();
+  }
+
+  String _agoAr(DateTime t) {
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return 'الآن';
+    if (d.inMinutes < 60) return 'منذ ${d.inMinutes} دقائق';
+    if (d.inHours < 24) return 'منذ ${d.inHours} ساعات';
+    if (d.inDays < 30) return 'منذ ${d.inDays} أيام';
+    return 'منذ ${d.inDays ~/ 30} أشهر';
+  }
+
+  String _agoEn(DateTime t) {
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return 'Just now';
+    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+    if (d.inHours < 24) return '${d.inHours}h ago';
+    if (d.inDays < 30) return '${d.inDays}d ago';
+    return '${d.inDays ~/ 30}mo ago';
+  }
+
+  Future<void> _loadRealNotifications() async {
+    final items = <NotificationItem>[];
+    try {
+      final appState = context.read<AppState>();
+      final savedLoc = appState.storage.getSavedLocation();
+      if (savedLoc != null) {
+        final city = (savedLoc['cityAr'] as String?) ??
+            (savedLoc['city'] as String?) ??
+            '';
+        items.add(
+          NotificationItem(
+            id: 'loc',
+            type: NotifType.systemLocation,
+            titleAr: 'تم ضبط الموقع والقبلة',
+            titleEn: 'Location & Qibla ready',
+            subtitleAr: city.isNotEmpty
+                ? 'الموقع الحالي: $city — مواقيت الصلاة والقبلة تعمل الآن'
+                : 'تم حفظ إحداثيات موقعك لمواقيت الصلاة والقبلة',
+            subtitleEn: city.isNotEmpty
+                ? 'Current location: $city — prayer times & qibla active'
+                : 'Your coordinates are saved for prayer times & qibla',
+            timeAr: 'عند الإعداد',
+            timeEn: 'At setup',
+            icon: LucideIcons.mapPin,
+            color: const Color(0xFF10B981),
+            isRead: true,
+          ),
+        );
+      }
+
+      final service = LovedOnesService.instance;
+      final myIds = await service.getMyCreatedIds();
+      final lovedOnes = await service.loadLovedOnes();
+      final mine = lovedOnes
+          .where((i) => myIds.contains(i.id))
+          .toList(growable: false);
+
+      for (final item in mine) {
+        if (item.fatihaCount > 0) {
+          items.add(
+            NotificationItem(
+              id: '${item.id}_fatiha',
+              type: NotifType.lovedOnesFatiha,
+              titleAr: 'قراءة الفاتحة لأحبائك',
+              titleEn: 'Al-Fatihah for your loved one',
+              subtitleAr:
+                  'قرأ ${item.fatihaCount} مصلٍّ سورة الفاتحة وأهداها لـ${item.name}',
+              subtitleEn:
+                  '${item.fatihaCount} believer(s) recited Al-Fatihah for ${item.name}',
+              timeAr: _agoAr(item.createdAt),
+              timeEn: _agoEn(item.createdAt),
+              icon: LucideIcons.bookOpen,
+              color: const Color(0xFF0F766E),
+              isRead: false,
+            ),
+          );
+        }
+        if (item.loveCount > 0) {
+          items.add(
+            NotificationItem(
+              id: '${item.id}_ameen',
+              type: NotifType.lovedOnesAmeen,
+              titleAr: 'دعا بظهر الغيب',
+              titleEn: 'Dua interactions (Ameen)',
+              subtitleAr:
+                  '${item.loveCount} شخص دعا لـ${item.name} — تقبّل الله من الجميع',
+              subtitleEn:
+                  '${item.loveCount} believer(s) made dua for ${item.name}',
+              timeAr: _agoAr(item.createdAt),
+              timeEn: _agoEn(item.createdAt),
+              icon: LucideIcons.heartHandshake,
+              color: const Color(0xFFE11D48),
+              isRead: false,
+            ),
+          );
+        }
+
+        final comments = await service.loadComments(item.id);
+        final otherComments = comments.length;
+        if (otherComments > 0) {
+          items.add(
+            NotificationItem(
+              id: '${item.id}_comments',
+              type: NotifType.lovedOnesComment,
+              titleAr: 'خواطر ودعوات على منشورك',
+              titleEn: 'Prayer comments on your post',
+              subtitleAr:
+                  '$otherComments تعليق دعائي على طلبك من أجل ${item.name}',
+              subtitleEn:
+                  '$otherComments prayer comment(s) on your request for ${item.name}',
+              timeAr: _agoAr(item.createdAt),
+              timeEn: _agoEn(item.createdAt),
+              icon: LucideIcons.messageSquare,
+              color: const Color(0xFF0F3B2C),
+              isRead: false,
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      // Keep whatever was collected; empty list → empty state below.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _notifications
+        ..clear()
+        ..addAll(items);
+      _loading = false;
+    });
+  }
 
   void _markAllAsRead() {
     HapticFeedback.selectionClick();
@@ -167,7 +205,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         n.isRead = true;
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
+    AppToast.show(
+      context,
       const SnackBar(
         content: Text(
           'تم تعيين جميع الإشعارات كمقروءة ✓',
@@ -187,7 +226,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case NotifType.lovedOnesFatiha:
       case NotifType.lovedOnesAmeen:
       case NotifType.lovedOnesComment:
-      case NotifType.lovedOnesNewPost:
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const LovedOnesScreen()),
         );
@@ -205,11 +243,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         );
         break;
-      case NotifType.systemZakat:
-      case NotifType.systemQuran:
-      case NotifType.systemRadio:
-        // Already read
-        break;
     }
   }
 
@@ -225,14 +258,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (_selectedFilter == NotifFilter.lovedOnes) {
         return n.type == NotifType.lovedOnesFatiha ||
             n.type == NotifType.lovedOnesAmeen ||
-            n.type == NotifType.lovedOnesComment ||
-            n.type == NotifType.lovedOnesNewPost;
+            n.type == NotifType.lovedOnesComment;
       }
       if (_selectedFilter == NotifFilter.system) {
-        return n.type == NotifType.systemLocation ||
-            n.type == NotifType.systemZakat ||
-            n.type == NotifType.systemQuran ||
-            n.type == NotifType.systemRadio;
+        return n.type == NotifType.systemLocation;
       }
       return true;
     }).toList();
@@ -240,13 +269,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Directionality(
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: dark ? const Color(0xFF0A1612) : const Color(0xFFF7F5F0),
+        backgroundColor:
+            dark ? const Color(0xFF0A1612) : const Color(0xFFF7F5F0),
         appBar: PreferredSize(
           preferredSize: const Size.fromHeight(kToolbarHeight),
           child: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            systemOverlayStyle: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+            systemOverlayStyle:
+                dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
             leading: IconButton(
               icon: Icon(
                 LucideIcons.arrowRight,
@@ -269,7 +300,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 IconButton(
                   icon: const Icon(LucideIcons.checkCheck, size: 20),
                   tooltip: isAr ? 'تعيين الكل كمقروء' : 'Mark all as read',
-                  color: dark ? DhikrColors.sage : const Color(0xFF0F3B2C),
+                  color:
+                      dark ? DhikrColors.sage : const Color(0xFF0F3B2C),
                   onPressed: _markAllAsRead,
                 ),
               const SizedBox(width: 4),
@@ -282,74 +314,106 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               constraints: const BoxConstraints(maxWidth: 540),
               child: Column(
                 children: [
-                  // Filter Chips
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
                         _buildFilterChip(
-                          label: isAr ? 'الكل (${_notifications.length})' : 'All',
+                          label: isAr
+                              ? 'الكل (${_notifications.length})'
+                              : 'All',
                           filter: NotifFilter.all,
                           dark: dark,
                         ),
                         const SizedBox(width: 8),
                         _buildFilterChip(
-                          label: isAr ? 'دعاء بظهر الغيب 🤲' : 'Loved Ones',
+                          label:
+                              isAr ? 'دعاء بظهر الغيب 🤲' : 'Loved Ones',
                           filter: NotifFilter.lovedOnes,
                           dark: dark,
                         ),
                         const SizedBox(width: 8),
                         _buildFilterChip(
-                          label: isAr ? 'تنبيهات النظام ⚙️' : 'System',
+                          label: isAr ? 'النظام ⚙️' : 'System',
                           filter: NotifFilter.system,
                           dark: dark,
                         ),
                       ],
                     ),
                   ),
-
-                  // Feed list
                   Expanded(
-                    child: filteredList.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  LucideIcons.bellOff,
-                                  size: 48,
-                                  color: dark
-                                      ? Colors.white.withValues(alpha: 0.15)
-                                      : Colors.black.withValues(alpha: 0.15),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  isAr ? 'لا توجد إشعارات في هذا القسم' : 'No notifications in this section',
-                                  style: TextStyle(
-                                    fontFamily: DhikrTheme.arabicFont,
-                                    fontSize: 14,
-                                    color: dark
-                                        ? DhikrColors.darkMuted
-                                        : DhikrColors.charcoalSoft,
-                                  ),
-                                ),
-                              ],
+                    child: _loading
+                        ? const Center(
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
                             ),
                           )
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(16, 6, 16, 90),
-                            itemCount: filteredList.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 10),
-                            itemBuilder: (ctx, i) {
-                              final item = filteredList[i];
-                              return _buildNotifCard(
-                                item: item,
-                                isAr: isAr,
-                                dark: dark,
-                                onTap: () => _onTapNotification(item),
-                              );
-                            },
-                          ),
+                        : filteredList.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      LucideIcons.bellOff,
+                                      size: 48,
+                                      color: dark
+                                          ? Colors.white
+                                              .withValues(alpha: 0.15)
+                                          : Colors.black
+                                              .withValues(alpha: 0.15),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      isAr
+                                          ? 'لا توجد إشعارات بعد'
+                                          : 'No notifications yet',
+                                      style: TextStyle(
+                                        fontFamily: DhikrTheme.arabicFont,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: dark
+                                            ? DhikrColors.darkMuted
+                                            : DhikrColors.charcoalSoft,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      isAr
+                                          ? 'سيظهر هنا ما يخص منشوراتك عند تفاعل الآخرين'
+                                          : 'Activity on your posts will appear here',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontFamily: DhikrTheme.arabicFont,
+                                        fontSize: 12.5,
+                                        color: dark
+                                            ? DhikrColors.darkMuted
+                                                .withValues(alpha: 0.7)
+                                            : DhikrColors.charcoalSoft
+                                                .withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.separated(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 6, 16, 90),
+                                itemCount: filteredList.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 10),
+                                itemBuilder: (ctx, i) {
+                                  final item = filteredList[i];
+                                  return _buildNotifCard(
+                                    item: item,
+                                    isAr: isAr,
+                                    dark: dark,
+                                    onTap: () => _onTapNotification(item),
+                                  );
+                                },
+                              ),
                   ),
                 ],
               ),
@@ -382,13 +446,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           border: Border.all(
             color: isSelected
                 ? (dark ? DhikrColors.sage : const Color(0xFF0F3B2C))
-                : (dark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06)),
+                : (dark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.06)),
             width: 1.1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF0F3B2C).withValues(alpha: dark ? 0.3 : 0.12),
+                    color: const Color(0xFF0F3B2C)
+                        .withValues(alpha: dark ? 0.3 : 0.12),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -429,12 +496,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
             color: dark
-                ? (item.isRead ? const Color(0xFF111E18) : const Color(0xFF142B22))
+                ? (item.isRead
+                    ? const Color(0xFF111E18)
+                    : const Color(0xFF142B22))
                 : (item.isRead ? Colors.white : const Color(0xFFF6FBF8)),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: item.isRead
-                  ? (dark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05))
+                  ? (dark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.05))
                   : item.color.withValues(alpha: dark ? 0.35 : 0.22),
               width: 1.2,
             ),
@@ -449,7 +520,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Icon Badge
               Container(
                 width: 42,
                 height: 42,
@@ -460,7 +530,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 child: Icon(item.icon, color: item.color, size: 20),
               ),
               const SizedBox(width: 12),
-              // Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,9 +543,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontFamily: DhikrTheme.arabicFont,
-                              fontWeight: item.isRead ? FontWeight.w700 : FontWeight.w900,
+                              fontWeight: item.isRead
+                                  ? FontWeight.w700
+                                  : FontWeight.w900,
                               fontSize: 14,
-                              color: dark ? Colors.white : DhikrColors.charcoal,
+                              color:
+                                  dark ? Colors.white : DhikrColors.charcoal,
                             ),
                           ),
                         ),
@@ -498,7 +570,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         fontFamily: DhikrTheme.arabicFont,
                         fontSize: 12.5,
                         height: 1.45,
-                        color: dark ? Colors.white70 : const Color(0xFF4B5563),
+                        color: dark
+                            ? Colors.white70
+                            : const Color(0xFF4B5563),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -506,9 +580,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2.5),
                           decoration: BoxDecoration(
-                            color: item.color.withValues(alpha: dark ? 0.15 : 0.08),
+                            color:
+                                item.color.withValues(alpha: dark ? 0.15 : 0.08),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -517,14 +593,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               fontFamily: DhikrTheme.arabicFont,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: dark ? DhikrColors.sage : item.color,
+                              color:
+                                  dark ? DhikrColors.sage : item.color,
                             ),
                           ),
                         ),
-                        if (item.type == NotifType.lovedOnesFatiha ||
-                            item.type == NotifType.lovedOnesAmeen ||
-                            item.type == NotifType.lovedOnesComment ||
-                            item.type == NotifType.lovedOnesNewPost)
+                        if (item.type != NotifType.systemLocation)
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -534,14 +608,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                   fontFamily: DhikrTheme.arabicFont,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: dark ? DhikrColors.sage : const Color(0xFF0F766E),
+                                  color: dark
+                                      ? DhikrColors.sage
+                                      : const Color(0xFF0F766E),
                                 ),
                               ),
                               const SizedBox(width: 2),
                               Icon(
-                                isAr ? LucideIcons.chevronLeft : LucideIcons.chevronRight,
+                                isAr
+                                    ? LucideIcons.chevronLeft
+                                    : LucideIcons.chevronRight,
                                 size: 13,
-                                color: dark ? DhikrColors.sage : const Color(0xFF0F766E),
+                                color: dark
+                                    ? DhikrColors.sage
+                                    : const Color(0xFF0F766E),
                               ),
                             ],
                           ),

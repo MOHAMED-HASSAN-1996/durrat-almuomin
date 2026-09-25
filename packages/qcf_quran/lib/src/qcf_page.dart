@@ -5,6 +5,73 @@ import 'package:qcf_quran/src/header_widget.dart';
 // ignore: implementation_imports
 import 'package:qcf_quran/src/data/page_font_size.dart';
 
+/// Forwards pointer events to both [DoubleTapGestureRecognizer] and
+/// [LongPressGestureRecognizer].
+///
+/// [TextSpan.recognizer] accepts only one recognizer, and the old
+/// if/else chain registered at most one of the two — so long-press never
+/// fired when double-tap (tafseer) was enabled. This mirrors how
+/// [GestureDetector] supports onDoubleTap and onLongPress together:
+/// each child joins the gesture arena on its own, and the arena picks
+/// long-press vs double-tap vs drag by timing/movement.
+class _DoubleTapLongPressRecognizer extends GestureRecognizer {
+  _DoubleTapLongPressRecognizer({
+    required VoidCallback onDoubleTap,
+    required VoidCallback onLongPress,
+    void Function(LongPressStartDetails details)? onLongPressStart,
+    VoidCallback? onLongPressUp,
+    void Function(LongPressEndDetails details)? onLongPressEnd,
+  }) {
+    _doubleTap =
+        DoubleTapGestureRecognizer()
+          ..onDoubleTap = onDoubleTap;
+    _longPress =
+        LongPressGestureRecognizer()
+          ..onLongPressStart = onLongPressStart
+          ..onLongPress = onLongPress
+          ..onLongPressUp = onLongPressUp
+          ..onLongPressEnd = onLongPressEnd;
+  }
+
+  late final DoubleTapGestureRecognizer _doubleTap;
+  late final LongPressGestureRecognizer _longPress;
+
+  @override
+  String get debugDescription => 'DoubleTapLongPress';
+
+  @override
+  bool isPointerAllowed(PointerDownEvent event) {
+    // Children apply their own button/kind filters inside addPointer.
+    return true;
+  }
+
+  @override
+  void addPointer(PointerDownEvent event) {
+    // Intentionally not calling super: this composite must not join the
+    // arena itself — only the two children do.
+    _doubleTap.addPointer(event);
+    _longPress.addPointer(event);
+  }
+
+  @override
+  void acceptGesture(int pointer) {
+    // Never registered in the arena; nothing to accept.
+  }
+
+  @override
+  void rejectGesture(int pointer) {
+    _doubleTap.rejectGesture(pointer);
+    _longPress.rejectGesture(pointer);
+  }
+
+  @override
+  void dispose() {
+    _doubleTap.dispose();
+    _longPress.dispose();
+    super.dispose();
+  }
+}
+
 /// A widget that renders a single page of the Quran.
 ///
 /// Use this if you want to build your own [PageView] or layout
@@ -136,17 +203,29 @@ class QcfPage extends StatelessWidget {
         }
 
         // Gesture Handling
+        final wantsLongPress =
+            onLongPress != null ||
+            onLongPressDown != null ||
+            onLongPressUp != null;
         GestureRecognizer? recognizer;
-        if (onDoubleTap != null) {
+        if (onDoubleTap != null && wantsLongPress) {
+          recognizer = _DoubleTapLongPressRecognizer(
+            onDoubleTap: () => onDoubleTap?.call(surah, v),
+            onLongPress: () => onLongPress?.call(surah, v),
+            onLongPressStart:
+                (d) => onLongPressDown?.call(surah, v, d),
+            onLongPressUp: () => onLongPressUp?.call(surah, v),
+            onLongPressEnd:
+                (d) => onLongPressCancel?.call(surah, v),
+          );
+        } else if (onDoubleTap != null) {
           final doubleTapRecognizer = DoubleTapGestureRecognizer();
           doubleTapRecognizer.onDoubleTap = () => onDoubleTap?.call(surah, v);
           recognizer = doubleTapRecognizer;
         } else if (onTap != null) {
           recognizer =
               TapGestureRecognizer()..onTap = () => onTap?.call(surah, v);
-        } else if (onLongPress != null ||
-            onLongPressDown != null ||
-            onLongPressUp != null) {
+        } else if (wantsLongPress) {
           final longPressRecognizer = LongPressGestureRecognizer();
           longPressRecognizer.onLongPress = () => onLongPress?.call(surah, v);
           longPressRecognizer.onLongPressStart =

@@ -347,6 +347,7 @@ class DhikrStorage {
     required String cityEn,
     String? countryAr,
     String? countryEn,
+    String? countryCode,
   }) async {
     final encoded = jsonEncode({
       'lat': lat,
@@ -355,6 +356,7 @@ class DhikrStorage {
       'cityEn': cityEn,
       'countryAr': countryAr ?? '',
       'countryEn': countryEn ?? '',
+      'countryCode': (countryCode ?? '').toUpperCase(),
     });
     await _set(_locationKey, encoded);
   }

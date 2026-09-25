@@ -25,7 +25,7 @@ class LanguagePickerScreen extends StatelessWidget {
                 children: [
                   const Spacer(),
                   Text(
-                    'ذكر',
+                    'درة المؤمن',
                     style: TextStyle(
                       fontFamily: DhikrTheme.arabicFont,
                       fontWeight: FontWeight.w800,
@@ -36,7 +36,7 @@ class LanguagePickerScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'DHIKR',
+                    "Durrat Al-Mu'min",
                     style: TextStyle(
                       fontFamily: DhikrTheme.arabicFont,
                       fontWeight: FontWeight.w700,

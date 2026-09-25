@@ -9,13 +9,33 @@ class ZakatService {
 
   static const _calcKey = 'adhkar.zakat_calc_v1';
   static const _beneficiariesKey = 'adhkar.zakat_beneficiaries_v1';
+  static const _groupsKey = 'adhkar.ben_groups_v1';
+  static const defaultGroup = 'عام';
 
   ZakatCalculationState _calcState = ZakatCalculationState();
   final List<ZakatBeneficiary> _beneficiaries = [];
+  final List<String> _groups = [defaultGroup];
   bool _loaded = false;
 
   ZakatCalculationState get calcState => _calcState;
   List<ZakatBeneficiary> get beneficiaries => List.unmodifiable(_beneficiaries);
+
+  /// Custom groups (tabs). Always contains at least [defaultGroup].
+  List<String> get beneficiaryGroups => List.unmodifiable(_groups);
+
+  /// Distinct groups actually used by non-udhiyah beneficiaries, in stable order.
+  List<String> usedGroups({bool includeUdhiyah = false}) {
+    final ordered = <String>[];
+    for (final g in _groups) {
+      if (!ordered.contains(g)) ordered.add(g);
+    }
+    for (final b in _beneficiaries) {
+      if (!includeUdhiyah && b.isUdhiyahType) continue;
+      if (!ordered.contains(b.group)) ordered.add(b.group);
+    }
+    if (ordered.isEmpty) ordered.add(defaultGroup);
+    return ordered;
+  }
 
   Future<void> load() async {
     if (_loaded) return;
@@ -40,6 +60,24 @@ class ZakatService {
           }
         }
       }
+
+      final groupsRaw = prefs.getString(_groupsKey);
+      _groups.clear();
+      if (groupsRaw != null && groupsRaw.isNotEmpty) {
+        try {
+          final list = jsonDecode(groupsRaw) as List;
+          for (final g in list) {
+            final name = (g as String?)?.trim() ?? '';
+            if (name.isNotEmpty && !_groups.contains(name)) _groups.add(name);
+          }
+        } catch (_) {}
+      }
+      // Merge groups found on beneficiaries (migration / safety).
+      for (final b in _beneficiaries) {
+        if (!_groups.contains(b.group)) _groups.add(b.group);
+      }
+      if (_groups.isEmpty) _groups.add(defaultGroup);
+      await _persistGroups();
     } catch (e) {
       debugPrint('Error loading Zakat data: $e');
     }
@@ -59,6 +97,10 @@ class ZakatService {
   Future<void> addBeneficiary(ZakatBeneficiary b) async {
     await load();
     _beneficiaries.insert(0, b);
+    if (!_groups.contains(b.group)) {
+      _groups.add(b.group);
+      await _persistGroups();
+    }
     await _persistBeneficiaries();
   }
 
@@ -67,6 +109,10 @@ class ZakatService {
     final idx = _beneficiaries.indexWhere((e) => e.id == b.id);
     if (idx != -1) {
       _beneficiaries[idx] = b;
+      if (!_groups.contains(b.group)) {
+        _groups.add(b.group);
+        await _persistGroups();
+      }
       await _persistBeneficiaries();
     }
   }
@@ -84,6 +130,56 @@ class ZakatService {
     await load();
     _beneficiaries.removeWhere((e) => e.id == id);
     await _persistBeneficiaries();
+  }
+
+  // ── Groups (tabs) ──────────────────────────────────────────────
+
+  Future<bool> addGroup(String name) async {
+    await load();
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || _groups.contains(trimmed)) return false;
+    _groups.add(trimmed);
+    await _persistGroups();
+    return true;
+  }
+
+  Future<bool> renameGroup(String oldName, String newName) async {
+    await load();
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || trimmed == oldName || _groups.contains(trimmed)) return false;
+    final idx = _groups.indexOf(oldName);
+    if (idx == -1) return false;
+    _groups[idx] = trimmed;
+    for (final b in _beneficiaries) {
+      if (b.group == oldName) b.group = trimmed;
+    }
+    await _persistGroups();
+    await _persistBeneficiaries();
+    return true;
+  }
+
+  /// Deletes a group and moves its cards to [defaultGroup].
+  /// Returns false when it is the last remaining group.
+  Future<bool> deleteGroup(String name) async {
+    await load();
+    if (!_groups.contains(name) || _groups.length <= 1) return false;
+    _groups.remove(name);
+    if (!_groups.contains(defaultGroup)) _groups.insert(0, defaultGroup);
+    for (final b in _beneficiaries) {
+      if (b.group == name) b.group = defaultGroup;
+    }
+    await _persistGroups();
+    await _persistBeneficiaries();
+    return true;
+  }
+
+  Future<void> _persistGroups() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_groupsKey, jsonEncode(_groups));
+    } catch (e) {
+      debugPrint('Error saving ben groups: $e');
+    }
   }
 
   Future<void> _persistBeneficiaries() async {

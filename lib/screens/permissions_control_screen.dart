@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -20,7 +22,8 @@ class PermissionsControlScreen extends StatefulWidget {
   final VoidCallback? onFinished;
 
   @override
-  State<PermissionsControlScreen> createState() => _PermissionsControlScreenState();
+  State<PermissionsControlScreen> createState() =>
+      _PermissionsControlScreenState();
 }
 
 class _PermissionsControlScreenState extends State<PermissionsControlScreen>
@@ -29,16 +32,17 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
   bool _locationGranted = false;
   bool _batteryExempted = false;
   bool _exactAlarmGranted = false;
-  bool _fullScreenIntentGranted = true;
   bool _backgroundAudioEnabled = true;
 
   bool _isLocating = false;
+  bool _isEnablingAll = false;
   String? _currentCity;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _backgroundAudioEnabled = context.read<AppState>().audioEnabled;
     _refreshAllStatuses();
   }
 
@@ -57,62 +61,74 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
 
   /// قراءة الحالة الحية والفعلية من نظام التشغيل لجميع الصلاحيات
   Future<void> _refreshAllStatuses() async {
+    if (!mounted) return;
     final storage = context.read<AppState>().storage;
 
-    final isBatteryIgnored = await PlatformPermissions.isIgnoringBatteryOptimizations();
+    final isBatteryIgnored =
+        await PlatformPermissions.isIgnoringBatteryOptimizations();
     final canExact = await PlatformPermissions.canScheduleExactAlarms();
-    final canOverlay = await PlatformPermissions.canDrawOverlays();
-    final notifsEnabled = await PrayerAlertService.instance.areNotificationsEnabled();
+    final notifsEnabled = await PrayerAlertService.instance
+        .areNotificationsEnabled();
 
     // فحص صلاحية الموقع
     bool locGranted = false;
     try {
       final locPerm = await Geolocator.checkPermission();
-      locGranted = locPerm == LocationPermission.always || locPerm == LocationPermission.whileInUse;
+      locGranted =
+          locPerm == LocationPermission.always ||
+          locPerm == LocationPermission.whileInUse;
     } catch (_) {}
 
     final savedLoc = storage.getSavedLocation();
-    final cityName = (savedLoc?['cityAr'] as String?) ?? (savedLoc?['cityEn'] as String?);
+    final cityName =
+        (savedLoc?['cityAr'] as String?) ?? (savedLoc?['cityEn'] as String?);
 
     if (!mounted) return;
     setState(() {
       _notificationsGranted = notifsEnabled;
       _batteryExempted = isBatteryIgnored;
       _exactAlarmGranted = canExact;
-      _fullScreenIntentGranted = canOverlay;
-      _locationGranted = locGranted || (savedLoc != null);
+      _locationGranted = locGranted;
       _currentCity = cityName;
     });
   }
 
   Future<void> _requestNotificationPermission() async {
     HapticFeedback.selectionClick();
-    if (!_notificationsGranted) {
-      await PlatformPermissions.openNotificationSettings();
-    } else {
-      await PrayerAlertService.instance.init();
-    }
-    await Future.delayed(const Duration(milliseconds: 500));
+    await PrayerAlertService.instance.requestNotificationPermission();
     await _refreshAllStatuses();
 
     // تأكيد جدولة تنبيهات الصلوات فور تفعيل الإشعارات
-    if (_notificationsGranted) {
+    if (await PrayerAlertService.instance.areNotificationsEnabled()) {
       await _schedulePrayersNow();
+    }
+  }
+
+  Future<void> _setNotificationPermission(bool enabled) async {
+    HapticFeedback.selectionClick();
+    if (enabled) {
+      await _requestNotificationPermission();
+    } else {
+      await PlatformPermissions.openNotificationSettings();
+      await _refreshAllStatuses();
     }
   }
 
   Future<void> _requestLocationPermission() async {
     HapticFeedback.selectionClick();
+    if (!mounted) return;
     setState(() => _isLocating = true);
     try {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
+
       if (permission == LocationPermission.deniedForever) {
         await Geolocator.openAppSettings();
       }
-      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+      if (permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always) {
         final pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.medium,
@@ -121,19 +137,63 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
         );
         if (!mounted) return;
         final storage = context.read<AppState>().storage;
+        // Resolve the GPS coordinates to a country + ISO code so the
+        // zakat/nisab calculator can pick the correct local currency.
+        String countryAr = '';
+        String countryEn = '';
+        String cc = '';
+        try {
+          final res = await http
+              .get(
+                Uri.parse(
+                    'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.latitude}&longitude=${pos.longitude}&localityLanguage=ar'),
+              )
+              .timeout(const Duration(seconds: 5));
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body) as Map<String, dynamic>;
+            countryAr = (data['countryName'] as String?) ?? '';
+            cc = ((data['countryCode'] as String?) ?? '').trim().toUpperCase();
+          }
+        } catch (_) {}
+        if (cc.isEmpty) {
+          try {
+            final res = await http
+                .get(
+                  Uri.parse(
+                      'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.latitude}&longitude=${pos.longitude}&localityLanguage=en'),
+                )
+                .timeout(const Duration(seconds: 4));
+            if (res.statusCode == 200) {
+              final data = jsonDecode(res.body) as Map<String, dynamic>;
+              countryEn = (data['countryName'] as String?) ?? '';
+              cc = ((data['countryCode'] as String?) ?? '').trim().toUpperCase();
+            }
+          } catch (_) {}
+        }
         await storage.saveLocation(
           lat: pos.latitude,
           lng: pos.longitude,
           cityAr: 'موقعي الحالي',
           cityEn: 'Current Location',
-          countryAr: '',
-          countryEn: '',
+          countryAr: countryAr,
+          countryEn: countryEn,
+          countryCode: cc,
         );
         await _schedulePrayersNow();
       }
     } catch (_) {}
     if (mounted) {
       setState(() => _isLocating = false);
+      await _refreshAllStatuses();
+    }
+  }
+
+  Future<void> _setLocationPermission(bool enabled) async {
+    HapticFeedback.selectionClick();
+    if (enabled) {
+      await _requestLocationPermission();
+    } else {
+      await Geolocator.openAppSettings();
       await _refreshAllStatuses();
     }
   }
@@ -145,6 +205,16 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
     await _refreshAllStatuses();
   }
 
+  Future<void> _setBatteryOptimization(bool enabled) async {
+    HapticFeedback.selectionClick();
+    if (enabled) {
+      await _requestBatteryOptimization();
+    } else {
+      await PlatformPermissions.openBatteryOptimizationSettings();
+      await _refreshAllStatuses();
+    }
+  }
+
   Future<void> _requestExactAlarms() async {
     HapticFeedback.selectionClick();
     await PlatformPermissions.openExactAlarmSettings();
@@ -152,15 +222,14 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
     await _refreshAllStatuses();
   }
 
-  Future<void> _requestFullScreenIntent() async {
+  Future<void> _setExactAlarms(bool enabled) async {
     HapticFeedback.selectionClick();
-    await PlatformPermissions.requestOverlayPermission();
-    await Future.delayed(const Duration(milliseconds: 500));
-    await _refreshAllStatuses();
+    await _requestExactAlarms();
   }
 
   Future<void> _toggleBackgroundAudio(bool enabled) async {
     HapticFeedback.selectionClick();
+    await context.read<AppState>().setAudioEnabled(enabled);
     setState(() => _backgroundAudioEnabled = enabled);
     if (!enabled) {
       final radio = QuranRadioService.instance;
@@ -194,7 +263,6 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
       isha: true,
       sound: 'adhan',
       vibration: true,
-      prayerTimes: timesMap,
       isArabic: isAr,
     );
 
@@ -206,6 +274,91 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
     );
   }
 
+  Future<void> _enableAllPermissions() async {
+    if (_isEnablingAll || !mounted) return;
+    setState(() => _isEnablingAll = true);
+
+    try {
+      // 1. Request Notifications
+      await _requestNotificationPermission();
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 2. Request Location
+      await _requestLocationPermission();
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 3. Request Battery Optimization
+      await _requestBatteryOptimization();
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 4. Request Exact Alarms
+      await _requestExactAlarms();
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 5. Schedule the prayer alerts so the user leaves onboarding with a
+      //    working pre-prayer reminder + full-screen adhan.
+      await _schedulePrayersNow();
+
+      await _refreshAllStatuses();
+    } catch (_) {
+      await _refreshAllStatuses();
+    }
+
+    if (mounted) {
+      setState(() => _isEnablingAll = false);
+    }
+  }
+
+  /// First-run gate has no route to pop; hide the dead back arrow.
+  /// Settings opens this screen as a pushed route, so back is shown there.
+  bool get _canGoBack =>
+      widget.onFinished != null || Navigator.of(context).canPop();
+
+  /// Completes the onboarding permissions step so the app opens the home
+  /// screen — used by both bottom buttons. Also seeds prayer alerts now that
+  /// first-run permission gates are done (main.dart skipped this on cold start).
+  Future<void> _finish() async {
+    HapticFeedback.lightImpact();
+    final nav = Navigator.of(context);
+    final appState = context.read<AppState>();
+    await appState.completePermissionsSetup();
+    // Fire-and-forget: init may request OS notification permission on iOS;
+    // Android schedules silently. Failures must not block navigation.
+    unawaited(_seedPrayerAlertsAfterSetup(appState));
+    if (widget.onFinished != null) {
+      widget.onFinished!();
+    } else if (nav.canPop()) {
+      nav.pop();
+    }
+  }
+
+  Future<void> _seedPrayerAlertsAfterSetup(AppState appState) async {
+    try {
+      await PrayerAlertService.instance.init();
+      // Only schedule when a location was already saved during this setup
+      // (or a previous run) — never invent coordinates or hit the network here.
+      final saved = appState.storage.getSavedLocation();
+      if (saved == null) return;
+      if (!_notificationsGranted) return;
+      final lat = (saved['lat'] as num?)?.toDouble();
+      final lng = (saved['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) return;
+      await PrayerAlertService.instance.scheduleUpcomingPrayers(
+        lat: lat,
+        lng: lng,
+        isArabic: appState.language == AppLanguage.arabic,
+        daysToSchedule: PrayerAlertService.scheduleWindowDays,
+      );
+    } catch (_) {}
+  }
+
+  /// Primary action: request every permission, then move on to the app.
+  Future<void> _enableAllAndContinue() async {
+    await _enableAllPermissions();
+    if (!mounted) return;
+    await _finish();
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<AppState>().language;
@@ -215,20 +368,24 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
     return Directionality(
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: dark ? const Color(0xFF0D1612) : const Color(0xFFF7FBF9),
+        backgroundColor: dark
+            ? const Color(0xFF0D1612)
+            : const Color(0xFFF7FBF9),
         appBar: AppBar(
           backgroundColor: dark ? const Color(0xFF13221B) : Colors.white,
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(LucideIcons.chevronLeft, size: 22),
-            onPressed: () {
-              if (widget.onFinished != null) {
-                widget.onFinished!();
-              } else {
-                Navigator.of(context).pop();
-              }
-            },
-          ),
+          leading: _canGoBack
+              ? IconButton(
+                  icon: const Icon(LucideIcons.chevronLeft, size: 22),
+                  onPressed: () {
+                    if (widget.onFinished != null) {
+                      widget.onFinished!();
+                    } else {
+                      Navigator.of(context).maybePop();
+                    }
+                  },
+                )
+              : null,
           title: Text(
             isAr ? 'التحكم في الأذونات' : 'Permissions Control',
             style: TextStyle(
@@ -250,12 +407,16 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                 children: [
                   // عنوان قسم الصلاحيات
                   Text(
-                    isAr ? 'الأذونات الأساسية للتطبيق' : 'Essential System Permissions',
+                    isAr
+                        ? 'الأذونات الأساسية للتطبيق'
+                        : 'Essential System Permissions',
                     style: TextStyle(
                       fontFamily: DhikrTheme.arabicFont,
                       fontWeight: FontWeight.w800,
                       fontSize: 14.5,
-                      color: dark ? const Color(0xFF9CA3AF) : const Color(0xFF4B5563),
+                      color: dark
+                          ? const Color(0xFF9CA3AF)
+                          : const Color(0xFF4B5563),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -263,12 +424,27 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                   // ═══ قائمة الصلاحيات الحية ═══
                   _buildPermissionCard(
                     icon: LucideIcons.bell,
-                    title: isAr ? 'إشعارات الأذان والتنبيهات' : 'Azan & Prayer Notifications',
+                    title: isAr
+                        ? 'إشعار اقتراب الصلاة (قبل ١٠ دقائق)'
+                        : 'Pre-Prayer Reminder (10 min)',
                     subtitle: isAr
-                        ? 'إطلاق الأذان وبانر الصلاة في وقت كل فريضة'
-                        : 'Alerts at the exact time of every prayer',
+                        ? 'تنبيه صوتي «اقتربت الصلاة، أقم صلاتك» قبل موعد الأذان بعشر دقائق'
+                        : 'Audio reminder 10 minutes before every prayer',
                     isGranted: _notificationsGranted,
-                    onTap: _requestNotificationPermission,
+                    onChanged: _setNotificationPermission,
+                    dark: dark,
+                  ),
+
+                  _buildPermissionCard(
+                    icon: LucideIcons.megaphone,
+                    title: isAr
+                        ? 'الأذان لكل الصلوات الخمس'
+                        : 'Adhan for All Five Prayers',
+                    subtitle: isAr
+                        ? 'شاشة الأذان الكاملة تفتح تلقائياً في وقت كل فريضة مع الاهتزاز، وتُغلق تلقائياً بعد انتهاء الأذان'
+                        : 'Full-screen Adhan opens automatically at prayer time with vibration',
+                    isGranted: _notificationsGranted,
+                    onChanged: _setNotificationPermission,
                     dark: dark,
                   ),
 
@@ -277,101 +453,153 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                     title: isAr ? 'الموقع الجغرافي (GPS)' : 'Location & GPS',
                     subtitle: _locationGranted
                         ? (isAr
-                            ? 'مفعل • المدينة: ${_currentCity ?? 'موقعي الحالي'}'
-                            : 'Active • City: ${_currentCity ?? 'Current'}')
-                        : (isAr ? 'مطلوب لحساب مواقيت الصلاة واتجاه القبلة' : 'Required to calculate prayer times'),
+                              ? 'مفعل • المدينة: ${_currentCity ?? 'موقعي الحالي'}'
+                              : 'Active • City: ${_currentCity ?? 'Current'}')
+                        : (isAr
+                              ? 'مطلوب لحساب مواقيت الصلاة واتجاه القبلة'
+                              : 'Required to calculate prayer times'),
                     isGranted: _locationGranted,
                     isLoading: _isLocating,
-                    onTap: _requestLocationPermission,
+                    onChanged: _setLocationPermission,
                     dark: dark,
                   ),
 
                   _buildPermissionCard(
                     icon: LucideIcons.batteryCharging,
-                    title: isAr ? 'استثناء تحسين البطارية' : 'Battery Optimization Exemption',
+                    title: isAr
+                        ? 'استثناء تحسين البطارية'
+                        : 'Battery Optimization Exemption',
                     subtitle: isAr
                         ? 'يمنع نظام الهاتف من إيقاف الأذان عند قفل الشاشة'
                         : 'Prevents OS from killing alerts during sleep',
                     isGranted: _batteryExempted,
-                    onTap: _requestBatteryOptimization,
+                    onChanged: _setBatteryOptimization,
                     dark: dark,
                   ),
 
                   _buildPermissionCard(
                     icon: LucideIcons.alarmClock,
-                    title: isAr ? 'المنبهات الدقيقة (Exact Alarms)' : 'Exact Alarms (Alarms & Reminders)',
+                    title: isAr
+                        ? 'المنبهات الدقيقة (Exact Alarms)'
+                        : 'Exact Alarms (Alarms & Reminders)',
                     subtitle: isAr
                         ? 'لضمان انطلاق الأذان في الدقيقة والثانية المحددة'
                         : 'Fires alarm at exact second even in Doze mode',
                     isGranted: _exactAlarmGranted,
-                    onTap: _requestExactAlarms,
-                    dark: dark,
-                  ),
-
-                  _buildPermissionCard(
-                    icon: LucideIcons.maximize2,
-                    title: isAr ? 'شاشة الأذان الكاملة (Lock Screen)' : 'Full Screen Adhan on Lock Screen',
-                    subtitle: isAr
-                        ? 'عرض شاشة الأذان الكبيرة تلقائياً فوق شاشة القفل عند كل صلاة'
-                        : 'Displays full screen Adhan over lockscreen on alarm',
-                    isGranted: _fullScreenIntentGranted,
-                    onTap: _requestFullScreenIntent,
+                    onChanged: _setExactAlarms,
                     dark: dark,
                   ),
 
                   _buildPermissionCard(
                     icon: LucideIcons.radio,
-                    title: isAr ? 'التشغيل في الخلفية' : 'Background Audio Radio',
+                    title: isAr
+                        ? 'التشغيل في الخلفية'
+                        : 'Background Audio Radio',
                     subtitle: isAr
                         ? 'الاستماع لإذاعة القرآن أثناء قفل الشاشة أو تصفح التطبيقات'
                         : 'Keep playing radio while screen is locked',
                     isGranted: _backgroundAudioEnabled,
-                    onTap: () => _toggleBackgroundAudio(!_backgroundAudioEnabled),
+                    onChanged: _toggleBackgroundAudio,
                     dark: dark,
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // زر الحفظ والمتابعة النهائي
+                  // ── زر ١: تفعيل الكل + متابعة ──
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        HapticFeedback.lightImpact();
-                        final nav = Navigator.of(context);
-                        await context.read<AppState>().completePermissionsSetup();
-                        if (widget.onFinished != null) {
-                          widget.onFinished!();
-                        } else {
-                          nav.pop();
-                        }
-                      },
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: _isEnablingAll ? null : _enableAllAndContinue,
+                      icon: _isEnablingAll
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  dark ? Colors.white : Colors.black,
+                                ),
+                              ),
+                            )
+                          : const Icon(Icons.done_all_rounded, size: 20),
+                      label: Text(
+                        isAr
+                            ? 'تفعيل الكل ومتابعة'
+                            : 'Enable All & Continue',
+                        style: const TextStyle(
+                          fontFamily: DhikrTheme.arabicFont,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF163E32),
+                        backgroundColor: DhikrColors.forest,
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: DhikrColors.forest.withValues(
+                          alpha: 0.5,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: 2,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.check_circle_outline_rounded, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.onFinished != null
-                                ? (isAr ? 'حفظ ومتابعة إلى التطبيق' : 'Save & Continue to App')
-                                : (isAr ? 'حفظ والرجوع' : 'Save & Return'),
-                            style: const TextStyle(
-                              fontFamily: DhikrTheme.arabicFont,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ── زر ٢: المتابعة بالمتاح فقط ──
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _finish,
+                      icon: const Icon(Icons.arrow_forward_rounded, size: 20),
+                      label: Text(
+                        isAr
+                            ? 'المتابعة بالمتاح فقط'
+                            : 'Continue with Available Only',
+                        style: const TextStyle(
+                          fontFamily: DhikrTheme.arabicFont,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14.5,
+                        ),
                       ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: dark
+                            ? Colors.white
+                            : const Color(0xFF163E32),
+                        backgroundColor: dark
+                            ? const Color(0xFF1A2E26)
+                            : const Color(0xFFE5F3EE),
+                        side: BorderSide(
+                          color: dark
+                              ? Colors.white24
+                              : DhikrColors.forest.withValues(alpha: 0.3),
+                          width: 1.2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Text(
+                    isAr
+                        ? 'يمكنك تعديل كل إذن لاحقاً من الإعدادات ← التحكم في الأذونات'
+                        : 'You can change every permission later from Settings → Permissions',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: DhikrTheme.arabicFont,
+                      fontSize: 11.5,
+                      height: 1.5,
+                      color: dark
+                          ? const Color(0xFF9CA3AF)
+                          : const Color(0xFF6B7280),
                     ),
                   ),
                 ],
@@ -388,11 +616,11 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
     required String title,
     required String subtitle,
     required bool isGranted,
-    required VoidCallback onTap,
+    required ValueChanged<bool> onChanged,
     required bool dark,
     bool isLoading = false,
   }) {
-    const activeGreen = Color(0xFF10B981);
+    const activeGreen = DhikrColors.forest;
     final borderActive = dark
         ? const Color(0xFF34D399).withValues(alpha: 0.35)
         : const Color(0xFF10B981).withValues(alpha: 0.3);
@@ -422,7 +650,7 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: onTap,
+          onTap: () => onChanged(!isGranted),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
@@ -434,16 +662,16 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                     borderRadius: BorderRadius.circular(14),
                     color: isGranted
                         ? (dark
-                            ? const Color(0xFF064E3B).withValues(alpha: 0.45)
-                            : const Color(0xFFECFDF5))
+                              ? DhikrColors.forestDeep.withValues(alpha: 0.45)
+                              : DhikrColors.sageSoft)
                         : (dark
-                            ? Colors.white.withValues(alpha: 0.05)
-                            : const Color(0xFFF3F4F6)),
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : const Color(0xFFF3F4F6)),
                     border: Border.all(
                       color: isGranted
                           ? (dark
-                              ? const Color(0xFF34D399).withValues(alpha: 0.3)
-                              : const Color(0xFF10B981).withValues(alpha: 0.25))
+                                ? DhikrColors.forestLight.withValues(alpha: 0.3)
+                                : DhikrColors.forest.withValues(alpha: 0.25))
                           : (dark ? Colors.white12 : const Color(0xFFE5E7EB)),
                       width: 1,
                     ),
@@ -452,8 +680,10 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                     icon,
                     size: 20,
                     color: isGranted
-                        ? (dark ? const Color(0xFF34D399) : const Color(0xFF059669))
-                        : (dark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+                        ? (dark ? DhikrColors.sage : DhikrColors.forest)
+                        : (dark
+                              ? const Color(0xFF9CA3AF)
+                              : const Color(0xFF6B7280)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -476,7 +706,9 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                         style: TextStyle(
                           fontFamily: DhikrTheme.arabicFont,
                           fontSize: 11.5,
-                          color: dark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                          color: dark
+                              ? const Color(0xFF9CA3AF)
+                              : const Color(0xFF6B7280),
                           height: 1.3,
                         ),
                       ),
@@ -499,8 +731,10 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                     activeThumbColor: activeGreen,
                     activeTrackColor: activeGreen.withValues(alpha: 0.38),
                     inactiveThumbColor: const Color(0xFF9CA3AF),
-                    inactiveTrackColor: dark ? const Color(0xFF26332C) : const Color(0xFFE5E7EB),
-                    onChanged: (_) => onTap(),
+                    inactiveTrackColor: dark
+                        ? const Color(0xFF26332C)
+                        : const Color(0xFFE5E7EB),
+                    onChanged: onChanged,
                   ),
               ],
             ),

@@ -48,7 +48,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُورَةُ الْبَقَرَةِ ٢٥٥ — Al-Baqarah 255',
     virtue: "مَنْ قَرَأَهَا إِذَا أَصْبَحَ أُجِيرَ مِنَ الْجِنِّ حَتَّى يُمْسِيَ، وَإِذَا أَمْسَى حَتَّى يُصْبِحَ",
     virtueEn: "Whoever recites it in the morning is protected from jinn until evening",
-    audio: 'assets/audio/morning/01.mp3',
     quranAudio: ayatAlKursiAudio,
   ),
   Dhikr(
@@ -62,7 +61,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "حِصْنٌ مِنَ الشَّيْطَانِ وَحِرْزٌ مِنَ السُّوءِ فِي يَوْمِهِ",
     virtueEn: "A shield from Satan and evil throughout the day",
-    audio: 'assets/audio/morning/02.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-77.mp3'],
   ),
   Dhikr(
@@ -76,7 +74,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ التِّرْمِذِيِّ — Sunan at-Tirmidhi',
     virtue: "ذِكْرٌ يَرْبِطُ الْقَلْبَ بِاللَّهِ فِي بَدْءِ النَّهَارِ",
     virtueEn: "Connects the heart to Allah at the start of the day",
-    audio: 'assets/audio/morning/03.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-78.mp3'],
   ),
   Dhikr(
@@ -90,7 +87,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'صَحِيحُ الْبُخَارِيِّ — Sahih al-Bukhari',
     virtue: "سَيِّدُ الِاسْتِغْفَارِ — مَنْ قَالَهُ مُوقِنًا فَمَاتَ مِنْ يَوْمِهِ دَخَلَ الْجَنَّةَ",
     virtueEn: "The master of forgiveness — whoever says it with certainty and dies that day enters Paradise",
-    audio: 'assets/audio/morning/04.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-79.mp3'],
   ),
   Dhikr(
@@ -104,7 +100,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "يَحْفَظُ اللَّهُ بِهِ الْعَبْدَ مِنْ شَرِّ نَفْسِهِ وَالشَّيْطَانِ",
     virtueEn: "Allah protects the servant from the evil of his soul and Satan",
-    audio: 'assets/audio/morning/05.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-85.mp3'],
   ),
   Dhikr(
@@ -118,7 +113,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "مَنْ قَالَهَا سَبْعًا كَفَاهُ اللَّهُ مَا أَهَمَّهُ",
     virtueEn: "Whoever says it seven times, Allah will suffice him in what concerns him",
-    audio: 'assets/audio/morning/06.mp3',
     quranAudio: hasbiyallahuAudio,
   ),
   Dhikr(
@@ -131,7 +125,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد وَالتِّرْمِذِيِّ — Sunan Abi Dawud & at-Tirmidhi',
     virtue: "لَمْ يَضُرَّهُ شَيْءٌ فِي ذَلِكَ الْيَوْمِ",
     virtueEn: "Nothing will harm him on that day",
-    audio: 'assets/audio/morning/07.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-86.mp3'],
   ),
   Dhikr(
@@ -144,7 +137,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "وَجَبَتْ لَهُ الْجَنَّةُ",
     virtueEn: "Paradise becomes obligatory for him",
-    audio: 'assets/audio/morning/08.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-87.mp3'],
   ),
   Dhikr(
@@ -158,7 +150,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'صَحِيحُ الْجَامِعِ — Sahih al-Jami (al-Albani)',
     virtue: "يُصْلِحُ اللَّهُ بِهِ شَأْنَ الْعَبْدِ كُلَّهُ",
     virtueEn: "Allah rectifies all of the servants affairs",
-    audio: 'assets/audio/morning/09.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-88.mp3'],
   ),
   Dhikr(
@@ -172,7 +163,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'مُسْنَدُ الْإِمَامِ أَحْمَد — Musnad Ahmad',
     virtue: "تَجْدِيدٌ لِعَهْدِ الْإِسْلَامِ وَالتَّوْحِيدِ",
     virtueEn: "A renewal of the covenant of Islam and pure monotheism",
-    audio: 'assets/audio/morning/10.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-90.mp3'],
   ),
   Dhikr(
@@ -186,7 +176,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'صَحِيحُ الْبُخَارِيِّ وَمُسْلِم — Sahih al-Bukhari & Muslim',
     virtue: "مَنْ قَالَهَا مِائَةً لَمْ يَأْتِ أَحَدٌ بِأَفْضَلَ مِمَّا جَاءَ بِهِ",
     virtueEn: "Whoever says it 100 times, none will bring better than what he brought",
-    audio: 'assets/audio/morning/11.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-92.mp3'],
   ),
   Dhikr(
@@ -199,7 +188,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "تُكْتَبُ لَهُ بِعَدَدِ الْخَلْقِ وَزِنَةِ الْعَرْشِ",
     virtueEn: "Reward is written for him by the number of creation and weight of the Throne",
-    audio: 'assets/audio/morning/12.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-91.mp3'],
   ),
   Dhikr(
@@ -212,7 +200,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "حِفْظٌ مِنْ كُلِّ شَرِّ مَخْلُوقٍ",
     virtueEn: "Protection from the evil of every created thing",
-    audio: 'assets/audio/morning/13.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-216.mp3'],
   ),
   Dhikr(
@@ -225,7 +212,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "عَافِيَةٌ فِي الْبَدَنِ وَالسَّمْعِ وَالْبَصَرِ",
     virtueEn: "Well-being in body, hearing, and sight",
-    audio: 'assets/audio/morning/14.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-82.mp3'],
   ),
   Dhikr(
@@ -238,7 +224,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "نَجَاةٌ مِنَ الْكُفْرِ وَالْفَقْرِ وَعَذَابِ الْقَبْرِ",
     virtueEn: "Salvation from disbelief, poverty, and the torment of the grave",
-    audio: 'assets/audio/morning/15.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-82.mp3'],
   ),
   Dhikr(
@@ -250,7 +235,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "حُطَّتْ خَطَايَاهُ وَإِنْ كَانَتْ مِثْلَ زَبَدِ الْبَحْرِ",
     virtueEn: "His sins are removed even if like the foam of the sea",
-    audio: 'assets/audio/morning/16.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-91.mp3'],
   ),
   Dhikr(
@@ -263,7 +247,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ التِّرْمِذِيِّ — Sunan at-Tirmidhi',
     virtue: "كَانَ كَعِتْقِ عَشْرِ رِقَابٍ وَكُتِبَتْ لَهُ مِائَةُ حَسَنَةٍ",
     virtueEn: "Like freeing ten slaves; 100 good deeds written for him",
-    audio: 'assets/audio/morning/17.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-92.mp3'],
   ),
   Dhikr(
@@ -277,7 +260,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "سُؤَالُ الْعَافِيَةِ — جَامِعٌ لِخَيْرَيِ الدُّنْيَا وَالْآخِرَةِ",
     virtueEn: "Asking for well-being — gathers the good of this world and the next",
-    audio: 'assets/audio/morning/18.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-84.mp3'],
   ),
   Dhikr(
@@ -291,7 +273,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'صَحِيحُ الْبُخَارِيِّ — Sahih al-Bukhari',
     virtue: "يُذْهِبُ اللَّهُ بِهِ الْهَمَّ وَيَقْضِي الدَّيْنَ",
     virtueEn: "Allah removes anxiety and settles debt through it",
-    audio: 'assets/audio/morning/19.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-121.mp3'],
   ),
   Dhikr(
@@ -305,7 +286,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "حِرْزٌ مِنَ الشَّيْطَانِ وَالشِّرْكِ",
     virtueEn: "A protection from Satan and from associating partners with Allah",
-    audio: 'assets/audio/morning/20.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-85.mp3'],
   ),
   Dhikr(
@@ -318,7 +298,6 @@ const List<Dhikr> morningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "كِفَايَةٌ وَتَوَكُّلٌ — مَنْ قَالَهَا خَرَجَ كَافِيًا",
     virtueEn: "Sufficiency and trust — whoever says it leaves sufficed",
-    audio: 'assets/audio/morning/21.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-16.mp3'],
   ),
 ];
@@ -336,7 +315,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "حِصْنٌ لِلَّيْلِ مِنَ الشَّيْطَانِ وَالْمَكْرُوهِ",
     virtueEn: "A fortress for the night against Satan and harm",
-    audio: 'assets/audio/evening/01.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-77.mp3'],
   ),
   Dhikr(
@@ -350,7 +328,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ التِّرْمِذِيِّ — Sunan at-Tirmidhi',
     virtue: "تَسْلِيمُ الْقَلْبِ لِلَّهِ عِنْدَ الْمَسَاءِ",
     virtueEn: "Surrendering the heart to Allah at evening",
-    audio: 'assets/audio/evening/02.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-78.mp3'],
   ),
   Dhikr(
@@ -364,7 +341,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'صَحِيحُ الْبُخَارِيِّ — Sahih al-Bukhari',
     virtue: "سَيِّدُ الِاسْتِغْفَارِ — مَنْ قَالَهُ مُوقِنًا فَمَاتَ مِنْ لَيْلَتِهِ دَخَلَ الْجَنَّةَ",
     virtueEn: "Master of forgiveness — dies that night enters Paradise",
-    audio: 'assets/audio/evening/03.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-79.mp3'],
   ),
   Dhikr(
@@ -378,7 +354,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "يَحْفَظُ اللَّهُ بِهِ الْعَبْدَ إِذَا أَمْسَى",
     virtueEn: "Allah protects the servant when evening comes",
-    audio: 'assets/audio/evening/04.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-85.mp3'],
   ),
   Dhikr(
@@ -392,7 +367,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "مَنْ قَالَهَا سَبْعًا كَفَاهُ اللَّهُ مَا أَهَمَّهُ فِي لَيْلَتِهِ",
     virtueEn: "Seven times suffices him for his night",
-    audio: 'assets/audio/evening/05.mp3',
     quranAudio: hasbiyallahuAudio,
   ),
   Dhikr(
@@ -405,7 +379,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد وَالتِّرْمِذِيِّ — Sunan Abi Dawud & at-Tirmidhi',
     virtue: "لَمْ يَضُرَّهُ شَيْءٌ فِي تِلْكَ اللَّيْلَةِ",
     virtueEn: "Nothing will harm him that night",
-    audio: 'assets/audio/evening/06.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-86.mp3'],
   ),
   Dhikr(
@@ -418,7 +391,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "وَجَبَتْ لَهُ الْجَنَّةُ",
     virtueEn: "Paradise becomes obligatory for him",
-    audio: 'assets/audio/evening/07.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-87.mp3'],
   ),
   Dhikr(
@@ -430,7 +402,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "حُطَّتْ خَطَايَاهُ وَإِنْ كَانَتْ مِثْلَ زَبَدِ الْبَحْرِ",
     virtueEn: "Sins removed even if like sea foam",
-    audio: 'assets/audio/evening/08.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-91.mp3'],
   ),
   Dhikr(
@@ -443,7 +414,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "حِفْظٌ مِنْ كُلِّ شَرِّ مَخْلُوقٍ فِي اللَّيْلِ",
     virtueEn: "Protection from evil of every creature at night",
-    audio: 'assets/audio/evening/09.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-216.mp3'],
   ),
   Dhikr(
@@ -457,7 +427,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "عَافِيَةٌ وَسَلَامَةٌ فِي اللَّيْلِ",
     virtueEn: "Well-being and safety through the night",
-    audio: 'assets/audio/evening/10.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-82.mp3'],
   ),
   Dhikr(
@@ -470,7 +439,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "نَجَاةٌ مِنَ الْكُفْرِ وَعَذَابِ الْقَبْرِ فِي اللَّيْلِ",
     virtueEn: "Salvation from disbelief and grave torment at night",
-    audio: 'assets/audio/evening/11.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-82.mp3'],
   ),
   Dhikr(
@@ -484,7 +452,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'مُسْنَدُ الْإِمَامِ أَحْمَد — Musnad Ahmad',
     virtue: "تَجْدِيدُ الْفِطْرَةِ عِنْدَ الْمَسَاءِ",
     virtueEn: "Renewing the pure natural disposition at evening",
-    audio: 'assets/audio/evening/12.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-90.mp3'],
   ),
   Dhikr(
@@ -498,7 +465,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ التِّرْمِذِيِّ — Sunan at-Tirmidhi',
     virtue: "كَانَ كَعِتْقِ عَشْرِ رِقَابٍ",
     virtueEn: "Like freeing ten slaves",
-    audio: 'assets/audio/evening/13.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-92.mp3'],
   ),
   Dhikr(
@@ -511,7 +477,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "تُكْتَبُ لَهُ بِعَدَدِ الْخَلْقِ وَزِنَةِ الْعَرْشِ — وَلَوْ فِي اللَّيْلِ",
     virtueEn: "Reward by number of creation and Throne weight — even at night",
-    audio: 'assets/audio/evening/14.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-91.mp3'],
   ),
   Dhikr(
@@ -525,7 +490,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "سُؤَالُ الْعَافِيَةِ الشَّامِلِ فِي اللَّيْلِ",
     virtueEn: "Comprehensive well-being asked for at night",
-    audio: 'assets/audio/evening/15.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-84.mp3'],
   ),
   Dhikr(
@@ -539,7 +503,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'صَحِيحُ الْبُخَارِيِّ — Sahih al-Bukhari',
     virtue: "يُذْهِبُ اللَّهُ بِهِ الْهَمَّ فِي اللَّيْلِ",
     virtueEn: "Allah removes anxiety at night through it",
-    audio: 'assets/audio/evening/16.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-121.mp3'],
   ),
   Dhikr(
@@ -552,7 +515,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "كِفَايَةٌ وَتَوَكُّلٌ عِنْدَ الْمَبِيتِ",
     virtueEn: "Sufficiency and trust when retiring for the night",
-    audio: 'assets/audio/evening/17.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-16.mp3'],
   ),
   Dhikr(
@@ -566,7 +528,6 @@ const List<Dhikr> eveningAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "حِرْزٌ مِنَ الشَّيْطَانِ وَالشِّرْكِ فِي اللَّيْلِ",
     virtueEn: "Protection from Satan and shirk at night",
-    audio: 'assets/audio/evening/18.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-85.mp3'],
   ),
 ];
@@ -585,7 +546,6 @@ const List<Dhikr> ruqyahAdhkar = <Dhikr>[
     source: 'صَحِيحُ الْبُخَارِيِّ — Sahih al-Bukhari',
     virtue: "رُقْيَةٌ نَبَوِيَّةٌ جَامِعَةٌ — كَانَ النَّبِيُّ ﷺ يُعَوِّذُ بِهَا الْحَسَنَ وَالْحُسَيْنَ",
     virtueEn: "Comprehensive prophetic ruqyah — the Prophet ﷺ used it for al-Hasan and al-Husayn",
-    audio: 'assets/audio/ruqyah/01.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-146.mp3'],
   ),
   Dhikr(
@@ -599,7 +559,6 @@ const List<Dhikr> ruqyahAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "رُقْيَةُ جِبْرِيلَ لِلنَّبِيِّ ﷺ — شِفَاءٌ بِإِذْنِ اللَّهِ",
     virtueEn: "Ruqyah of Jibril for the Prophet ﷺ — healing by Allah's permission",
-    audio: 'assets/audio/ruqyah/02.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-147.mp3'],
   ),
   Dhikr(
@@ -613,7 +572,6 @@ const List<Dhikr> ruqyahAdhkar = <Dhikr>[
     source: 'صَحِيحُ مُسْلِم — Sahih Muslim',
     virtue: "حِفْظٌ مِنْ كُلِّ شَرِّ مَخْلُوقٍ وَحِصْنٌ لِلرُّوحِ",
     virtueEn: "Protection from every evil creature and a fortress for the soul",
-    audio: 'assets/audio/ruqyah/03.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-216.mp3'],
   ),
   Dhikr(
@@ -627,7 +585,6 @@ const List<Dhikr> ruqyahAdhkar = <Dhikr>[
     source: 'صَحِيحُ الْبُخَارِيِّ وَمُسْلِم — Sahih al-Bukhari & Muslim',
     virtue: "دُعَاءُ الشِّفَاءِ — كَانَ النَّبِيُّ ﷺ يَمْسَحُ بِهِ عَلَى الْمَرِيضِ",
     virtueEn: "Prayer of healing — the Prophet ﷺ would wipe it over the sick",
-    audio: 'assets/audio/ruqyah/04.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-145.mp3'],
   ),
   Dhikr(
@@ -641,7 +598,6 @@ const List<Dhikr> ruqyahAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد وَالتِّرْمِذِيِّ — Sunan Abi Dawud & Tirmidhi',
     virtue: "تَكْفِي مِنْ كُلِّ شَيْءٍ — حِصْنُ الْمُؤْمِنِ الْحَصِينُ",
     virtueEn: "Suffices against everything — the believer's strong fortress",
-    audio: 'assets/audio/ruqyah/05.mp3',
     quranAudio: [
       'https://server8.mp3quran.net/afs/112.mp3',
       'https://server8.mp3quran.net/afs/113.mp3',
@@ -659,7 +615,6 @@ const List<Dhikr> ruqyahAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد وَالتِّرْمِذِيِّ — Sunan Abi Dawud & Tirmidhi',
     virtue: "لَا يَضُرُّهُ شَيْءٌ — حِرْزٌ فِي يَوْمِهِ وَلَيْلَتِهِ",
     virtueEn: "Nothing will harm him — protection day and night",
-    audio: 'assets/audio/ruqyah/06.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-86.mp3'],
   ),
   Dhikr(
@@ -673,7 +628,6 @@ const List<Dhikr> ruqyahAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد — Sunan Abi Dawud',
     virtue: "مَنْ قَالَهَا سَبْعًا كَفَاهُ اللَّهُ مَا أَهَمَّهُ — تَوَكُّلٌ وَرُقْيَةٌ",
     virtueEn: "Seven times suffices him — trust and ruqyah",
-    audio: 'assets/audio/ruqyah/07.mp3',
     quranAudio: ['https://everyayah.com/data/Alafasy_128kbps/009129.mp3'],
   ),
   Dhikr(
@@ -687,7 +641,6 @@ const List<Dhikr> ruqyahAdhkar = <Dhikr>[
     source: 'سُنَنُ أَبِي دَاوُد وَالتِّرْمِذِيِّ — Sunan Abi Dawud & Tirmidhi',
     virtue: "مَنْ عَادَ مَرِيضًا فَقَالَهَا سَبْعًا إِلَّا عَافَاهُ اللَّهُ",
     virtueEn: "Whoever visits a sick person and says it seven times, Allah heals him",
-    audio: 'assets/audio/ruqyah/08.mp3',
     quranAudio: ['https://quran.tv/wp-content/uploads/quran-tv-hisn-muslim/audio/hisn-exact-148.mp3'],
   ),
 ];

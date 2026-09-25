@@ -12,6 +12,49 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+
+// ── .env loader (zero external deps): reads KEY=VALUE lines ──────────────
+const ENV_FILE = path.join(__dirname, '.env');
+function loadEnvFile() {
+  try {
+    if (!fs.existsSync(ENV_FILE)) return;
+    const lines = fs.readFileSync(ENV_FILE, 'utf-8').split(/\r?\n/);
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const eq = t.indexOf('=');
+      if (eq < 0) continue;
+      const k = t.slice(0, eq).trim();
+      let v = t.slice(eq + 1).trim();
+      if (v.length >= 2 && ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))) {
+        v = v.slice(1, -1);
+      }
+      if (k && !(k in process.env)) process.env[k] = v;
+    }
+  } catch (_) { /* ignore unreadable .env */ }
+}
+loadEnvFile();
+
+// ── Admin key bootstrap: first run auto-creates a strong secret ──────────
+function getAdminKey() {
+  return (process.env.ADMIN_DASHBOARD_KEY || '').trim();
+}
+function ensureAdminKey() {
+  let key = getAdminKey();
+  if (!key) {
+    key = 'adm_' + crypto.randomBytes(24).toString('hex');
+    try {
+      fs.writeFileSync(ENV_FILE, '# Admin dashboard secret — keep private, do not commit\nADMIN_DASHBOARD_KEY=' + key + '\n', 'utf-8');
+      console.log('🔑 No ADMIN_DASHBOARD_KEY found — generated one and saved it to .env');
+    } catch (e) {
+      console.log('🔑 No ADMIN_DASHBOARD_KEY found and .env is not writable — using a temporary in-memory key (login will break on restart).');
+    }
+    process.env.ADMIN_DASHBOARD_KEY = key;
+  }
+  return getAdminKey();
+}
+ensureAdminKey();
 
 const PORT = process.env.PORT || 4000;
 const DB_FILE = path.join(__dirname, 'data.json');
@@ -157,7 +200,7 @@ function initDb() {
   if (!fs.existsSync(DB_FILE)) {
     const initialData = {
       config: {
-        appName: 'ذِكْر — حصن المسلم والقرآن الكريم',
+        appName: 'درة المؤمن',
         appVersion: '1.2.0',
         minSupportedVersion: '1.0.0',
         maintenanceMode: false,
@@ -167,6 +210,35 @@ function initDb() {
         quranRadioEnabled: true,
         forceUpdateUrl: 'https://github.com/'
       },
+      radio: [
+        {
+          id: 'radio_cairo',
+          name: 'إذاعة القرآن الكريم — القاهرة',
+          url: 'https://n07.radiojar.com/8s5u5tpdtwzuv',
+          category: 'live',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 'radio_madina',
+          name: 'إذاعة القرآن الكريم — المدينة المنورة',
+          url: 'https://cdn-globecast.akamaized.net/live/eds/saudi_quran/hls_roku/index.m3u8',
+          category: 'live',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 'radio_sunnah',
+          name: 'السنة النبوية — المدينة المنورة',
+          url: 'https://cdn-globecast.akamaized.net/live/eds/saudi_sunnah/hls_roku/index.m3u8',
+          category: 'live',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ],
       firebase: {
         connected: true,
         projectId: 'dhikr-app-production',
@@ -257,6 +329,42 @@ function initDb() {
         };
         modified = true;
       }
+      if (data.config?.adminKey) {
+        delete data.config.adminKey;
+        modified = true;
+      }
+      if (!data.radio || !Array.isArray(data.radio) || data.radio.length === 0) {
+        data.radio = [
+          {
+            id: 'radio_cairo',
+            name: 'إذاعة القرآن الكريم — القاهرة',
+            url: 'https://n07.radiojar.com/8s5u5tpdtwzuv',
+            category: 'live',
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
+          {
+            id: 'radio_madina',
+            name: 'إذاعة القرآن الكريم — المدينة المنورة',
+            url: 'https://cdn-globecast.akamaized.net/live/eds/saudi_quran/hls_roku/index.m3u8',
+            category: 'live',
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
+          {
+            id: 'radio_sunnah',
+            name: 'السنة النبوية — المدينة المنورة',
+            url: 'https://cdn-globecast.akamaized.net/live/eds/saudi_sunnah/hls_roku/index.m3u8',
+            category: 'live',
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ];
+        modified = true;
+      }
       if (modified) {
         fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
       }
@@ -276,6 +384,96 @@ function readDb() {
 function writeDb(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
 }
+
+const SESSIONS_FILE = path.join(__dirname, 'sessions.json');
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// token -> { token, adminName, createdAt, expiresAt } (persisted to disk)
+let activeTokens = new Map();
+
+function loadSessions() {
+  try {
+    if (!fs.existsSync(SESSIONS_FILE)) return 0;
+    const arr = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf-8'));
+    const now = Date.now();
+    let n = 0;
+    for (const s of (Array.isArray(arr) ? arr : [])) {
+      if (s && typeof s.token === 'string' && s.expiresAt > now) {
+        activeTokens.set(s.token, s);
+        n++;
+      }
+    }
+    return n;
+  } catch (_) {
+    return 0;
+  }
+}
+
+function saveSessions() {
+  try {
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify([...activeTokens.values()], null, 2), 'utf-8');
+  } catch (_) { /* sessions stay in memory */ }
+}
+
+function pruneSessions() {
+  const now = Date.now();
+  let changed = false;
+  for (const [t, s] of activeTokens) {
+    if (!s || s.expiresAt <= now) { activeTokens.delete(t); changed = true; }
+  }
+  if (changed) saveSessions();
+}
+
+const restoredSessions = loadSessions();
+setInterval(pruneSessions, 15 * 60 * 1000).unref();
+
+function tokenOf(req) {
+  const header = req.headers.authorization || '';
+  const m = /^Bearer\s+(.+)$/.exec(header.trim());
+  return m ? m[1].trim() : '';
+}
+
+function sessionOf(req) {
+  const t = tokenOf(req);
+  if (!t) return null;
+  const s = activeTokens.get(t);
+  if (!s) return null;
+  if (s.expiresAt <= Date.now()) { activeTokens.delete(t); saveSessions(); return null; }
+  return s;
+}
+
+function isAuthorized(req) {
+  return sessionOf(req) !== null;
+}
+
+function sendUnauthorized(res) {
+  res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+}
+
+function makeToken() {
+  return 'tok_' + crypto.randomBytes(24).toString('hex');
+}
+
+// ── Login brute-force guard: max 8 failed attempts / IP / 5 minutes ───────
+const loginAttempts = new Map(); // ip -> { fails, firstAt }
+function clientIp(req) {
+  return (req.socket && req.socket.remoteAddress) || 'unknown';
+}
+function loginAllowed(ip) {
+  const now = Date.now();
+  const rec = loginAttempts.get(ip);
+  if (!rec) return true;
+  if (now - rec.firstAt > 5 * 60 * 1000) { loginAttempts.delete(ip); return true; }
+  return rec.fails < 8;
+}
+function loginFailed(ip) {
+  const now = Date.now();
+  const rec = loginAttempts.get(ip) || { fails: 0, firstAt: now };
+  rec.fails += 1;
+  loginAttempts.set(ip, rec);
+}
+function loginReset(ip) { loginAttempts.delete(ip); }
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -375,18 +573,94 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = url.pathname;
 
-  // Static Index
-  if (pathname === '/' || pathname === '/index.html') {
-    const htmlPath = path.join(__dirname, 'index.html');
-    if (fs.existsSync(htmlPath)) {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      return res.end(fs.readFileSync(htmlPath));
-    }
+  // Static Files serving (index.html, fonts, assets, audio)
+  const safeRelPath = path.normalize(pathname).replace(/^(\\.\\.[\/\\])+/, '');
+  const candidatePath = path.join(__dirname, safeRelPath === path.sep || safeRelPath === '.' ? 'index.html' : safeRelPath);
+
+  if (!pathname.startsWith('/api/') && candidatePath.startsWith(__dirname) && fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
+    const ext = path.extname(candidatePath).toLowerCase();
+    const mimeMap = {
+      '.html': 'text/html; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.js': 'application/javascript; charset=utf-8',
+      '.json': 'application/json; charset=utf-8',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+      '.otf': 'font/otf',
+      '.ttf': 'font/ttf',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2',
+      '.mp3': 'audio/mpeg',
+    };
+    res.writeHead(200, { 'Content-Type': mimeMap[ext] || 'application/octet-stream' });
+    return res.end(fs.readFileSync(candidatePath));
   }
 
   // API Router
   if (pathname.startsWith('/api/')) {
     const endpoint = pathname.replace('/api/', '');
+
+    // 0. LOGIN / LOGOUT / ME (Admin Gate)
+    if (endpoint === 'login' && req.method === 'POST') {
+      const ip = clientIp(req);
+      if (!loginAllowed(ip)) {
+        res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({
+          success: false,
+          error: 'Too many login attempts — please wait a few minutes and try again',
+        }));
+      }
+      const body = await parseBody(req);
+      const adminKey = getAdminKey();
+      if (!adminKey) {
+        res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({
+          success: false,
+          error: 'ADMIN_DASHBOARD_KEY is not configured',
+        }));
+      }
+      const given = body && body.key != null ? String(body.key).trim() : '';
+      if (given && given === adminKey) {
+        loginReset(ip);
+        const token = makeToken();
+        const now = Date.now();
+        const adminName = (body.adminName != null && String(body.adminName).trim()) || 'المدير';
+        activeTokens.set(token, { token, adminName, createdAt: now, expiresAt: now + SESSION_TTL_MS });
+        saveSessions();
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({
+          success: true,
+          token,
+          adminName,
+          expiresAt: now + SESSION_TTL_MS,
+          message: 'تم تسجيل الدخول بنجاح'
+        }));
+      }
+      loginFailed(ip);
+      res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ success: false, error: 'Invalid admin key' }));
+    }
+
+    if (endpoint === 'logout' && req.method === 'POST') {
+      const t = tokenOf(req);
+      if (t) { activeTokens.delete(t); saveSessions(); }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ success: true }));
+    }
+
+    // Lightweight session check used by the dashboard on every load.
+    if (endpoint === 'me' && req.method === 'GET') {
+      const s = sessionOf(req);
+      if (!s) return sendUnauthorized(res);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ success: true, adminName: s.adminName, expiresAt: s.expiresAt }));
+    }
+
+    if (!isAuthorized(req)) return sendUnauthorized(res);
 
     // 1. STATS
     if (endpoint === 'stats' && req.method === 'GET') {
@@ -545,6 +819,79 @@ const server = http.createServer(async (req, res) => {
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ success: true, message: 'Dhikr deleted successfully' }));
+      }
+    }
+
+    // 2.5 RADIO STATIONS MANAGEMENT (Full CRUD)
+    if (endpoint === 'radio' || endpoint.startsWith('radio/')) {
+      const db = readDb();
+      db.radio = db.radio || [];
+
+      // GET /api/radio
+      if (req.method === 'GET') {
+        let list = [...db.radio];
+        const activeOnly = url.searchParams.get('active') === 'true';
+        if (activeOnly) list = list.filter(r => r.isActive !== false);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ total: list.length, radio: list }));
+      }
+
+      // POST /api/radio (Create)
+      if (req.method === 'POST') {
+        const body = await parseBody(req);
+        if (!body.name || !body.url) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'name and url are required' }));
+        }
+        const newStation = {
+          id: body.id || `radio_${Date.now()}`,
+          name: body.name.trim(),
+          url: body.url.trim(),
+          category: body.category || 'live',
+          isActive: body.isActive === true || body.isActive === 'true',
+          thumbnail: body.thumbnail || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        db.radio.unshift(newStation);
+        writeDb(db);
+        res.writeHead(201, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ success: true, station: newStation }));
+      }
+
+      // PUT /api/radio (Update)
+      if (req.method === 'PUT') {
+        const body = await parseBody(req);
+        const stationId = body.id || endpoint.split('/')[1];
+        const idx = db.radio.findIndex(r => r.id === stationId);
+        if (idx === -1) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Station not found' }));
+        }
+        db.radio[idx] = {
+          ...db.radio[idx],
+          ...body,
+          isActive: body.isActive !== undefined
+            ? (body.isActive === true || body.isActive === 'true')
+            : db.radio[idx].isActive,
+          updatedAt: new Date().toISOString()
+        };
+        writeDb(db);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ success: true, station: db.radio[idx] }));
+      }
+
+      // DELETE /api/radio
+      if (req.method === 'DELETE') {
+        const stationId = url.searchParams.get('id') || endpoint.split('/')[1];
+        if (!stationId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'ID parameter required' }));
+        }
+        db.radio = db.radio.filter(r => r.id !== stationId);
+        writeDb(db);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ success: true, message: 'Station deleted successfully' }));
       }
     }
 
@@ -756,6 +1103,7 @@ server.listen(PORT, () => {
   console.log(`🕌 Comprehensive DHIKR Admin Control Panel API Active!`);
   console.log(`📡 URL: http://localhost:${PORT}`);
   console.log(`📊 API Base: http://localhost:${PORT}/api`);
+  console.log(`🔐 Admin key: configured (${getAdminKey().length} chars) — sessions restored: ${restoredSessions}`);
   console.log(`⚡ Adhkar CRUD, Audio & AI OCR API Active!`);
   console.log(`====================================================`);
 });

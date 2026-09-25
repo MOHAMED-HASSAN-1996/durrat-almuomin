@@ -93,7 +93,7 @@ class _ChannelVideoListState extends State<ChannelVideoList> {
   bool get _hasVideos => !_failed && _loading == false && _videos.isNotEmpty;
 
   String get _uploadsPlaylistUrl =>
-      'https://www.youtube.com/playlist?list=UU${widget.channelId}';
+      'https://www.youtube.com/playlist?list=${uploadsPlaylistIdFor(widget.channelId)}';
 
   @override
   Widget build(BuildContext context) {
@@ -429,6 +429,8 @@ class _ChannelVideoListState extends State<ChannelVideoList> {
                     child: Image.network(
                       video.thumbnailUrl,
                       fit: BoxFit.cover,
+                      cacheWidth: 320,
+                      filterQuality: FilterQuality.low,
                       loadingBuilder: (context, child, progress) {
                         if (progress == null) return child;
                         return Container(

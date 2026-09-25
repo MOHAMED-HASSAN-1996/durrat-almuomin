@@ -7,16 +7,16 @@ import 'package:provider/provider.dart';
 import 'l10n/strings.dart';
 import 'screens/home_screen.dart';
 import 'screens/jawami_dhikr_screen.dart';
+import 'screens/maintenance_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/permissions_control_screen.dart';
 import 'screens/prayer_times_screen.dart';
 import 'screens/quran_radio_screen.dart';
 import 'screens/reading_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/setup_permissions_screen.dart';
 import 'screens/tasbih_screen.dart';
-import 'screens/adhan_alert_screen.dart';
-import 'services/adhan_alert.dart';
 import 'services/prayer_alert_service.dart';
+import 'services/remote_content_service.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
 import 'types/adhkar.dart';
@@ -35,49 +35,6 @@ class DhikrApp extends StatefulWidget {
 
 class _DhikrAppState extends State<DhikrApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
-  StreamSubscription<AdhanAlert>? _adhanSubscription;
-  bool _isShowingAdhan = false;
-
-  @override
-  void initState() {
-    super.initState();
-    PrayerAlertService.onVolumeButtonPressed = _dismissAdhanAlert;
-    _adhanSubscription = PrayerAlertService.instance.alertStream.listen(
-      _openAdhanAlert,
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final alert = PrayerAlertService.instance.takePendingAlert();
-      if (alert != null) _openAdhanAlert(alert);
-    });
-  }
-
-  void _openAdhanAlert(AdhanAlert alert) {
-    if (_isShowingAdhan) return;
-    final navigator = _navigatorKey.currentState;
-    if (navigator == null) return;
-    _isShowingAdhan = true;
-    navigator
-        .push(
-          MaterialPageRoute(
-            builder: (_) => AdhanAlertScreen(alert: alert),
-            fullscreenDialog: true,
-          ),
-        )
-        .whenComplete(() => _isShowingAdhan = false);
-  }
-
-  void _dismissAdhanAlert() {
-    if (!_isShowingAdhan) return;
-    final navigator = _navigatorKey.currentState;
-    if (navigator?.canPop() == true) navigator!.pop();
-  }
-
-  @override
-  void dispose() {
-    _adhanSubscription?.cancel();
-    PrayerAlertService.onVolumeButtonPressed = null;
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,33 +91,38 @@ class _Gate extends StatefulWidget {
 class _GateState extends State<_Gate> {
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    return ListenableBuilder(
+      listenable: RemoteContentService.instance,
+      builder: (context, _) {
+        if (RemoteContentService.instance.isMaintenanceMode) {
+          return const MaintenanceScreen();
+        }
 
-    if (!appState.loaded) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF10B981)),
-        ),
-      );
-    }
+        final appState = context.watch<AppState>();
 
-    if (!appState.hasCompletedOnboarding) {
-      return OnboardingScreen(
-        onFinished: (l) async {
-          await appState.completeOnboarding(l);
-        },
-      );
-    }
+        if (!appState.loaded) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFF10B981)),
+            ),
+          );
+        }
 
-    if (!appState.hasCompletedPermissionsSetup) {
-      return SetupPermissionsScreen(
-        onFinished: () async {
-          await appState.completePermissionsSetup();
-        },
-      );
-    }
+        if (!appState.hasCompletedOnboarding) {
+          return OnboardingScreen(
+            onFinished: (l) async {
+              await appState.completeOnboarding(l);
+            },
+          );
+        }
 
-    return const _MainScaffold();
+        if (!appState.hasCompletedPermissionsSetup) {
+          return const PermissionsControlScreen();
+        }
+
+        return const _MainScaffold();
+      },
+    );
   }
 }
 
@@ -192,6 +154,10 @@ class _MainScaffoldState extends State<_MainScaffold>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       context.read<AppState>().checkDayRollover();
+      // A past adhan the user never stopped is cleared as soon as the app comes
+      // back, so the shade keeps only today's azans while the current one is
+      // left completely alone.
+      unawaited(PrayerAlertService.instance.cleanupStaleAdhanNotifications());
     }
   }
 

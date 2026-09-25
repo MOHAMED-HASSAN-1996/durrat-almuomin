@@ -1,287 +1,450 @@
 import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/loved_one.dart';
 
+import '../models/loved_one.dart';
+import 'firebase_auth_service.dart';
+
+/// Shared prayer-request community backed by Firestore.
+///
+/// Local storage remains only as an offline cache. Counters and interactions
+/// are written atomically in Firestore so users cannot overwrite each other.
 class LovedOnesService {
   LovedOnesService._();
   static final LovedOnesService instance = LovedOnesService._();
 
-  static const _storageKey = 'adhkar.loved_ones_v1';
-  static const _userActivityKey = 'adhkar.loved_ones_user_activity';
+  static const _storageKey = 'adhkar.loved_ones_v2_cache';
+  static const _activityKey = 'adhkar.loved_ones_user_activity';
   static const _myCreatedIdsKey = 'adhkar.loved_ones_my_created_ids';
-  static const _hiddenOrReportedIdsKey = 'adhkar.loved_ones_hidden_reported_ids';
+  static const _hiddenIdsKey = 'adhkar.loved_ones_hidden_reported_ids';
+  static const _pageSize = 100;
 
   final List<LovedOneItem> _items = [];
   bool _loaded = false;
   DateTime? _lastCommentTime;
+  FirebaseFirestore? _firestore;
+  String? _uid;
 
   List<LovedOneItem> get items => List.unmodifiable(_items);
 
+  Future<bool> _connect() async {
+    try {
+      await FirebaseAuthService.instance.initialize();
+      final user = await FirebaseAuthService.instance.signInAnonymously();
+      _firestore = FirebaseFirestore.instance;
+      _uid = user.uid;
+      return true;
+    } catch (e) {
+      debugPrint('Loved ones cloud connection unavailable: $e');
+      return false;
+    }
+  }
+
+  CollectionReference<Map<String, dynamic>> get _requests =>
+      _firestore!.collection('prayer_requests');
+
   Future<List<LovedOneItem>> loadLovedOnes() async {
     if (_loaded) return items;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey);
-      if (raw != null && raw.isNotEmpty) {
-        final list = jsonDecode(raw) as List;
-        _items.clear();
-        for (final item in list) {
-          if (item is Map<String, dynamic>) {
-            _items.add(LovedOneItem.fromMap(item));
-          } else if (item is Map) {
-            _items.add(LovedOneItem.fromMap(Map<String, dynamic>.from(item)));
-          }
-        }
-        final myIds = prefs.getStringList(_myCreatedIdsKey) ?? [];
-        final reported = prefs.getStringList(_hiddenOrReportedIdsKey) ?? [];
-        // Auto-cleanup expired community items (>30 days) and hidden/reported items
-        _items.removeWhere((e) => (e.isExpired && !myIds.contains(e.id)) || reported.contains(e.id));
-      }
-
-      // Seed inspiring community prayer requests if list is empty
-      if (_items.isEmpty) {
-        _items.addAll([
-          LovedOneItem(
-            id: 'community_1',
-            name: 'والدتي الغالية (طلب شفاء وعافية)',
-            relation: 'أم لأحد المصلين',
-            category: LovedOneCategory.sick,
-            customDua: 'اللهم يا شافي يا معافي اشفِ أمي شفاءً لا يغادر سقماً، وارفع عنها الألم، واجعل ما أصابها طهوراً ورفعة لدرجاتها يا رحمن يا رحيم.',
-            fatihaCount: 142,
-            loveCount: 389,
-            createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-          ),
-          LovedOneItem(
-            id: 'community_2',
-            name: 'والدي الحبيب (رحمة ومغفرة)',
-            relation: 'أب متوفى',
-            category: LovedOneCategory.deceased,
-            customDua: 'اللهم أنزل على قبر أبي الضياء والنور والفسحة والسرور، وافسح له في قبره مد بصره، واجمعه مع النبيين والصديقين والشهداء في الفردوس الأعلى.',
-            fatihaCount: 265,
-            loveCount: 512,
-            createdAt: DateTime.now().subtract(const Duration(hours: 7)),
-          ),
-          LovedOneItem(
-            id: 'community_3',
-            name: 'أهلنا والمستضعفون في فلسطين والسودان',
-            relation: 'إخواننا في العقيدة',
-            category: LovedOneCategory.need,
-            customDua: 'اللهم كن لأهلنا المستضعفين عوناً ونصيراً، وفرج كربهم، واجبر كسرهم، واطعم جائعهم، واشف جريحهم، وارحم شهداءهم، واكتب لهم النصر والتمكين.',
-            fatihaCount: 538,
-            loveCount: 1204,
-            createdAt: DateTime.now().subtract(const Duration(hours: 12)),
-          ),
-          LovedOneItem(
-            id: 'community_4',
-            name: 'طالب علم يرجو التوفيق في الامتحانات',
-            relation: 'أخ في الله',
-            category: LovedOneCategory.need,
-            customDua: 'اللهم لا سهل إلا ما جعلته سهلاً، وأنت تجعل الحزن إذا شئت سهلاً، اللهم يسّر له امتحاناته وسدد خطاه وافتح عليه فتوح العارفين.',
-            fatihaCount: 88,
-            loveCount: 245,
-            createdAt: DateTime.now().subtract(const Duration(days: 1)),
-          ),
-        ]);
-        await _persist();
-      }
-    } catch (e) {
-      debugPrint('Error loading loved ones: $e');
-    }
     _loaded = true;
+    final connected = await _connect();
+    if (connected) {
+      try {
+        final snap = await _requests
+            .where('status', isEqualTo: 'active')
+            .where('expiresAt', isGreaterThan: Timestamp.now())
+            .orderBy('expiresAt', descending: false)
+            .orderBy('createdAt', descending: true)
+            .limit(_pageSize)
+            .get();
+        _items
+          ..clear()
+          ..addAll(snap.docs.map(_fromDocument).where((item) => !item.isExpired));
+        await _persistLocal();
+        await _restoreLocalIds();
+        return items;
+      } catch (e) {
+        debugPrint('Loved ones cloud load failed: $e');
+      }
+    }
+    await _loadLocal();
     return items;
   }
 
-  Future<void> _persist() async {
+  LovedOneItem _fromDocument(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = Map<String, dynamic>.from(doc.data());
+    data['id'] = doc.id;
+    final created = data['createdAt'];
+    if (created is Timestamp) {
+      data['createdAt'] = created.toDate().toIso8601String();
+    }
+    data['imagePath'] = data['imagePath'] ?? data['imageUrl'];
+    return LovedOneItem.fromMap(data);
+  }
+
+  Map<String, dynamic> _toDocument(LovedOneItem item) {
+    final now = Timestamp.fromDate(item.createdAt);
+    return {
+      'ownerId': _uid,
+      'name': item.name,
+      'relation': item.relation,
+      'category': item.category.name,
+      'customDua': item.customDua,
+      'imageUrl': item.imagePath != null && item.imagePath!.startsWith('http')
+          ? item.imagePath
+          : null,
+      'imagePath': item.imagePath != null && item.imagePath!.startsWith('http')
+          ? item.imagePath
+          : null,
+      'fatihaCount': item.fatihaCount,
+      'loveCount': item.loveCount,
+      'authorName': item.authorName,
+      'authorPhoto': item.authorPhoto,
+      'createdAt': now,
+      'expiresAt': Timestamp.fromDate(
+        item.createdAt.add(const Duration(days: 30)),
+      ),
+      'status': 'active',
+    };
+  }
+
+  Future<void> _loadLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final data = jsonEncode(_items.map((e) => e.toMap()).toList());
-      await prefs.setString(_storageKey, data);
+      final raw = prefs.getString(_storageKey);
+      if (raw == null) return;
+      final list = jsonDecode(raw) as List<dynamic>;
+      _items
+        ..clear()
+        ..addAll(list.whereType<Map>().map(
+              (e) => LovedOneItem.fromMap(Map<String, dynamic>.from(e)),
+            ));
+      await _restoreLocalIds();
+      _items.removeWhere((item) => item.isExpired);
     } catch (e) {
-      debugPrint('Error persisting loved ones: $e');
+      debugPrint('Loved ones local load failed: $e');
     }
+  }
+
+  Future<void> _persistLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _storageKey,
+        jsonEncode(_items.map((item) => item.toMap()).toList()),
+      );
+    } catch (e) {
+      debugPrint('Loved ones local cache failed: $e');
+    }
+  }
+
+  Future<void> _restoreLocalIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hidden = prefs.getStringList(_hiddenIdsKey) ?? [];
+    _items.removeWhere((item) => hidden.contains(item.id));
   }
 
   Future<void> addLovedOne(LovedOneItem item) async {
     await loadLovedOnes();
+    if (_firestore != null) {
+      final ref = await _requests.add(_toDocument(item));
+      item = LovedOneItem(
+        id: ref.id,
+        name: item.name,
+        relation: item.relation,
+        category: item.category,
+        imagePath: item.imagePath,
+        customDua: item.customDua,
+        fatihaCount: item.fatihaCount,
+        loveCount: item.loveCount,
+        comments: item.comments,
+        createdAt: item.createdAt,
+        authorName: item.authorName,
+        authorPhoto: item.authorPhoto,
+      );
+    }
     _items.insert(0, item);
-    await _persist();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final myIds = prefs.getStringList(_myCreatedIdsKey) ?? [];
-      if (!myIds.contains(item.id)) {
-        myIds.add(item.id);
-        await prefs.setStringList(_myCreatedIdsKey, myIds);
-      }
-    } catch (_) {}
+    await _persistLocal();
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList(_myCreatedIdsKey) ?? [];
+    if (!ids.contains(item.id)) {
+      ids.add(item.id);
+      await prefs.setStringList(_myCreatedIdsKey, ids);
+    }
   }
 
   Future<List<String>> getMyCreatedIds() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getStringList(_myCreatedIdsKey) ?? [];
-    } catch (_) {
-      return [];
-    }
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_myCreatedIdsKey) ?? [];
   }
 
   Future<Map<String, int>> getUserSpiritualStats() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final ameen = prefs.getInt('${_userActivityKey}_ameen') ?? 0;
-      final fatiha = prefs.getInt('${_userActivityKey}_fatiha') ?? 0;
-      final myIds = prefs.getStringList(_myCreatedIdsKey) ?? [];
-      return {
-        'ameen': ameen,
-        'fatiha': fatiha,
-        'myPosts': myIds.length,
-      };
-    } catch (_) {
-      return {'ameen': 0, 'fatiha': 0, 'myPosts': 0};
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'ameen': prefs.getInt('${_activityKey}_ameen') ?? 0,
+      'fatiha': prefs.getInt('${_activityKey}_fatiha') ?? 0,
+      'myPosts': (prefs.getStringList(_myCreatedIdsKey) ?? []).length,
+    };
+  }
+
+  Future<void> _record(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final fullKey = '${_activityKey}_$key';
+    await prefs.setInt(fullKey, (prefs.getInt(fullKey) ?? 0) + 1);
+  }
+
+  Future<void> recordUserAmeen() => _record('ameen');
+  Future<void> recordUserFatiha() => _record('fatiha');
+
+  Future<void> _unrecord(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final fullKey = '${_activityKey}_$key';
+    final current = prefs.getInt(fullKey) ?? 0;
+    await prefs.setInt(fullKey, current <= 0 ? 0 : current - 1);
+  }
+
+  Future<void> unrecordUserAmeen() => _unrecord('ameen');
+  Future<void> unrecordUserFatiha() => _unrecord('fatiha');
+
+  /// التراجع عن تفاعل سابق (حذف تفاعل المستخدم وإنقاص العداد).
+  Future<int> retractInteraction(String id, String type) async {
+    await loadLovedOnes();
+    if (_firestore == null || _uid == null) return _localRetract(id, type);
+    final interaction = _requests.doc(id).collection('interactions').doc(_uid);
+    final request = _requests.doc(id);
+    final countField = type == 'fatiha' ? 'fatihaCount' : 'loveCount';
+    final result = await FirebaseFirestore.instance.runTransaction((tx) async {
+      final interactionSnap = await tx.get(interaction);
+      final requestSnap = await tx.get(request);
+      if (!requestSnap.exists) return 0;
+      final data = requestSnap.data() ?? {};
+      final current = (data[countField] as num?)?.toInt() ?? 0;
+      if (!interactionSnap.exists) return current;
+      tx.delete(interaction);
+      tx.update(request, {countField: FieldValue.increment(-1)});
+      return current <= 0 ? 0 : current - 1;
+    });
+    if (type == 'fatiha') {
+      await unrecordUserFatiha();
+    } else {
+      await unrecordUserAmeen();
     }
+    final index = _items.indexWhere((e) => e.id == id);
+    if (index != -1) {
+      if (type == 'fatiha') {
+        _items[index].fatihaCount = result;
+      } else {
+        _items[index].loveCount = result;
+      }
+      await _persistLocal();
+    }
+    return result;
   }
 
-  Future<void> recordUserAmeen() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cur = prefs.getInt('${_userActivityKey}_ameen') ?? 0;
-      await prefs.setInt('${_userActivityKey}_ameen', cur + 1);
-    } catch (_) {}
+  Future<int> _localRetract(String id, String type) async {
+    final index = _items.indexWhere((e) => e.id == id);
+    if (index == -1) return 0;
+    if (type == 'fatiha') {
+      _items[index].fatihaCount =
+          _items[index].fatihaCount <= 0 ? 0 : _items[index].fatihaCount - 1;
+      await unrecordUserFatiha();
+    } else {
+      _items[index].loveCount =
+          _items[index].loveCount <= 0 ? 0 : _items[index].loveCount - 1;
+      await unrecordUserAmeen();
+    }
+    await _persistLocal();
+    return type == 'fatiha' ? _items[index].fatihaCount : _items[index].loveCount;
   }
 
-  Future<void> recordUserFatiha() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cur = prefs.getInt('${_userActivityKey}_fatiha') ?? 0;
-      await prefs.setInt('${_userActivityKey}_fatiha', cur + 1);
-    } catch (_) {}
-  }
+  Future<int> retractFatiha(String id) => retractInteraction(id, 'fatiha');
+  Future<int> retractAmeen(String id) => retractInteraction(id, 'ameen');
 
   Future<void> updateLovedOne(LovedOneItem item) async {
     await loadLovedOnes();
-    final idx = _items.indexWhere((e) => e.id == item.id);
-    if (idx != -1) {
-      _items[idx] = item;
-      await _persist();
+    if (_firestore != null && _uid != null) {
+      final doc = await _requests.doc(item.id).get();
+      if (doc.exists && doc.data()?['ownerId'] == _uid) {
+        await doc.reference.update(_toDocument(item));
+      }
     }
+    final index = _items.indexWhere((e) => e.id == item.id);
+    if (index != -1) _items[index] = item;
+    await _persistLocal();
   }
 
   Future<void> deleteLovedOne(String id) async {
     await loadLovedOnes();
+    if (_firestore != null && _uid != null) {
+      final doc = _requests.doc(id);
+      final snap = await doc.get();
+      if (snap.exists && snap.data()?['ownerId'] == _uid) {
+        await doc.update({
+          'status': 'deleted',
+          'deletedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
     _items.removeWhere((e) => e.id == id);
-    await _persist();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final myIds = prefs.getStringList(_myCreatedIdsKey) ?? [];
-      myIds.remove(id);
-      await prefs.setStringList(_myCreatedIdsKey, myIds);
-    } catch (_) {}
+    await _persistLocal();
   }
 
-  Future<int> incrementFatiha(String id) async {
+  Future<int> _incrementInteraction(String id, String type) async {
     await loadLovedOnes();
-    await recordUserFatiha();
-    final idx = _items.indexWhere((e) => e.id == id);
-    if (idx != -1) {
-      _items[idx].fatihaCount++;
-      await _persist();
-      return _items[idx].fatihaCount;
+    if (_firestore == null || _uid == null) return _localIncrement(id, type);
+    final interaction = _requests.doc(id).collection('interactions').doc(_uid);
+    final request = _requests.doc(id);
+    final countField = type == 'fatiha' ? 'fatihaCount' : 'loveCount';
+    final result = await FirebaseFirestore.instance.runTransaction((tx) async {
+      final interactionSnap = await tx.get(interaction);
+      final requestSnap = await tx.get(request);
+      if (!requestSnap.exists) return 0;
+      final data = requestSnap.data() ?? {};
+      final current = (data[countField] as num?)?.toInt() ?? 0;
+      if (interactionSnap.exists) return current;
+      tx.set(interaction, {'type': type, 'createdAt': FieldValue.serverTimestamp()});
+      tx.update(request, {countField: FieldValue.increment(1)});
+      return current + 1;
+    });
+    if (type == 'fatiha') {
+      await recordUserFatiha();
+    } else {
+      await recordUserAmeen();
     }
-    return 0;
+    final index = _items.indexWhere((e) => e.id == id);
+    if (index != -1) {
+      if (type == 'fatiha') {
+        _items[index].fatihaCount = result;
+      } else {
+        _items[index].loveCount = result;
+      }
+      await _persistLocal();
+    }
+    return result;
   }
 
-  Future<int> toggleHeart(String id) async {
-    await loadLovedOnes();
-    await recordUserAmeen();
-    final idx = _items.indexWhere((e) => e.id == id);
-    if (idx != -1) {
-      _items[idx].loveCount++;
-      await _persist();
-      return _items[idx].loveCount;
+  Future<int> _localIncrement(String id, String type) async {
+    final index = _items.indexWhere((e) => e.id == id);
+    if (index == -1) return 0;
+    if (type == 'fatiha') {
+      _items[index].fatihaCount++;
+      await recordUserFatiha();
+    } else {
+      _items[index].loveCount++;
+      await recordUserAmeen();
     }
-    return 0;
+    await _persistLocal();
+    return type == 'fatiha' ? _items[index].fatihaCount : _items[index].loveCount;
   }
 
-  /// Alias for [toggleHeart] — increments the love/heart count
+  Future<int> incrementFatiha(String id) => _incrementInteraction(id, 'fatiha');
+  Future<int> toggleHeart(String id) => _incrementInteraction(id, 'ameen');
   Future<int> incrementLove(String id) => toggleHeart(id);
 
   Future<void> addComment(String id, String comment) async {
-    if (comment.trim().isEmpty) return;
+    final text = comment.trim();
+    if (text.isEmpty || isCommentInCooldown) return;
     await loadLovedOnes();
-    final idx = _items.indexWhere((e) => e.id == id);
-    if (idx != -1) {
-      _items[idx].comments.insert(0, comment.trim());
-      _lastCommentTime = DateTime.now();
-      await _persist();
+    if (_firestore != null && _uid != null) {
+      await _requests.doc(id).collection('comments').add({
+        'userId': _uid,
+        'text': text,
+        'createdAt': FieldValue.serverTimestamp(),
+        'status': 'visible',
+      });
     }
+    final index = _items.indexWhere((e) => e.id == id);
+    if (index != -1) {
+      _items[index].comments.insert(0, text);
+      await _persistLocal();
+    }
+    _lastCommentTime = DateTime.now();
   }
 
-  /// Comment cooldown (15s between comments)
-  bool get isCommentInCooldown {
-    if (_lastCommentTime == null) return false;
-    return DateTime.now().difference(_lastCommentTime!).inSeconds < 15;
-  }
-
-  /// Daily prayer creation rate limit (max 2 per day)
-  Future<bool> canAddPrayerToday() async {
+  Future<List<String>> loadComments(String id) async {
+    if (_firestore == null) await _connect();
+    if (_firestore == null) return [];
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final today = DateTime.now().toIso8601String().substring(0, 10);
-      final count = prefs.getInt('adhkar.loved_ones_daily_count_$today') ?? 0;
-      return count < 2;
-    } catch (_) {
-      return true;
+      final snap = await _requests
+          .doc(id)
+          .collection('comments')
+          .where('status', isEqualTo: 'visible')
+          .orderBy('createdAt', descending: true)
+          .limit(100)
+          .get();
+      return snap.docs
+          .map((doc) => (doc.data()['text'] as String?)?.trim() ?? '')
+          .where((text) => text.isNotEmpty)
+          .toList();
+    } catch (e) {
+      debugPrint('Loved ones comments load failed: $e');
+      return [];
     }
+  }
+
+  bool get isCommentInCooldown =>
+      _lastCommentTime != null &&
+      DateTime.now().difference(_lastCommentTime!).inSeconds < 15;
+
+  Future<bool> canAddPrayerToday() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    return (prefs.getInt('adhkar.loved_ones_daily_count_$today') ?? 0) < 2;
   }
 
   Future<void> recordPrayerAddedToday() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final today = DateTime.now().toIso8601String().substring(0, 10);
-      final count = prefs.getInt('adhkar.loved_ones_daily_count_$today') ?? 0;
-      await prefs.setInt('adhkar.loved_ones_daily_count_$today', count + 1);
-    } catch (_) {}
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final key = 'adhkar.loved_ones_daily_count_$today';
+    await prefs.setInt(key, (prefs.getInt(key) ?? 0) + 1);
   }
 
-  /// Report/flag inappropriate prayer request (Google Play UGC compliance)
   Future<void> reportLovedOne({
     required String id,
     required String reason,
     String? details,
   }) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final list = prefs.getStringList(_hiddenOrReportedIdsKey) ?? [];
-      if (!list.contains(id)) {
-        list.add(id);
-        await prefs.setStringList(_hiddenOrReportedIdsKey, list);
-      }
-      _items.removeWhere((e) => e.id == id);
-      await _persist();
-    } catch (e) {
-      debugPrint('Error reporting prayer request: $e');
+    await loadLovedOnes();
+    if (_firestore != null && _uid != null) {
+      await _firestore!.collection('reports').add({
+        'requestId': id,
+        'reporterId': _uid,
+        'reason': reason,
+        'details': details ?? '',
+        'status': 'open',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     }
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList(_hiddenIdsKey) ?? [];
+    if (!ids.contains(id)) ids.add(id);
+    await prefs.setStringList(_hiddenIdsKey, ids);
+    _items.removeWhere((e) => e.id == id);
+    await _persistLocal();
   }
 
-  /// Renew prayer request for another 30 days
   Future<void> renewLovedOne(String id) async {
     await loadLovedOnes();
-    final idx = _items.indexWhere((e) => e.id == id);
-    if (idx != -1) {
-      final old = _items[idx];
-      _items[idx] = LovedOneItem(
-        id: old.id,
-        name: old.name,
-        relation: old.relation,
-        category: old.category,
-        imagePath: old.imagePath,
-        customDua: old.customDua,
-        fatihaCount: old.fatihaCount,
-        loveCount: old.loveCount,
-        comments: old.comments,
-        createdAt: DateTime.now(),
-      );
-      await _persist();
-    }
+    final index = _items.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    final old = _items[index];
+    final renewed = LovedOneItem(
+      id: id,
+      name: old.name,
+      relation: old.relation,
+      category: old.category,
+      imagePath: old.imagePath,
+      customDua: old.customDua,
+      fatihaCount: old.fatihaCount,
+      loveCount: old.loveCount,
+      comments: old.comments,
+      createdAt: DateTime.now(),
+      authorName: old.authorName,
+      authorPhoto: old.authorPhoto,
+    );
+    await updateLovedOne(renewed);
   }
 }

@@ -14,7 +14,7 @@ class AppStrings {
   }
 
   static const Map<String, String> ar = {
-    'app_name': 'دُرَّةُ الْمُؤْمِن',
+    'app_name': 'درة المؤمن',
     'app_subtitle': 'طُمأنينة القلب وذِكرُ الله',
     'hero': 'وردك اليومي، بهدوء وطمأنينة.',
     'morning': 'أذكار الصباح',
@@ -66,7 +66,7 @@ class AppStrings {
     'privacy_text':
         'لا نجمع أي بيانات. كل المعلومات تحفظ محليا على جهازك فقط.',
     'about_text':
-        'تطبيق ذكر — وردك اليومي من أذكار الصباح والمساء، بهدوء وطمأنينة، وبدون إنترنت.',
+        'تطبيق درة المؤمن — وردك اليومي من أذكار الصباح والمساء، بهدوء وطمأنينة، وبدون إنترنت.',
     'content_note':
         'المحتوى مراجع ومعتمد على أصح المصادر. لا نضيف ولا نغير في النصوص الشرعية.',
     'ok': 'حسنا',
@@ -229,7 +229,7 @@ class AppStrings {
     'privacy_text':
         'We do not collect any data. All information is stored locally on your device only.',
     'about_text':
-        'DHIKR — your daily wird of Morning & Evening Adhkar, calmly, without internet.',
+        "Durrat Al-Mu'min — your daily wird of Morning & Evening Adhkar, calmly, without internet.",
     'content_note':
         'Content is reviewed and based on authentic sources. We never add or change the religious texts.',
     'ok': 'OK',

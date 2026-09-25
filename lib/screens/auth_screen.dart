@@ -1,13 +1,19 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../services/admin_sync_service.dart';
 import '../services/firebase_auth_service.dart';
+import '../services/image_upload_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/user_avatar.dart';
+import '../widgets/app_toast.dart';
 
 /// Comprehensive Authentication Screen
 /// Supports Google Sign-In, Email/Password, and Phone Number Registration.
@@ -37,6 +43,8 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passwordController = TextEditingController();
 
   String _countryCode = '+20'; // Default Egypt, also popular KSA +966, UAE +971
+  String? _photoPath;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -45,6 +53,22 @@ class _AuthScreenState extends State<AuthScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickSignupPhoto() async {
+    try {
+      final picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 480,
+        maxHeight: 480,
+        imageQuality: 80,
+      );
+      if (picked != null && mounted) {
+        setState(() => _photoPath = picked.path);
+      }
+    } catch (e) {
+      debugPrint('Signup photo pick error: $e');
+    }
   }
 
   Future<void> _handleGoogleSignIn() async {
@@ -90,7 +114,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _showSuccessDialog(resolvedName);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.show(context, 
         const SnackBar(content: Text('تعذر تسجيل الدخول بـ Google، حاول مجدداً.')),
       );
     } finally {
@@ -138,12 +162,22 @@ class _AuthScreenState extends State<AuthScreen> {
       }
 
       if (mounted) {
-        await context.read<AppState>().saveUserProfile(
-          name: fullName,
-          email: email,
-          phone: phone,
-          authProvider: _isSignUp ? 'email_signup' : 'email_login',
-        );
+        // Preserve existing photo on login; use picked photo on signup
+        final existingPhoto = context.read<AppState>().userProfile?['photo'] ?? '';
+        var photo = _isSignUp ? (_photoPath ?? existingPhoto) : existingPhoto;
+        if (photo.isNotEmpty && !photo.startsWith('http')) {
+          photo = await ImageUploadService.instance.ensureRemote(photo, folder: 'avatars') ??
+              photo;
+        }
+        if (mounted) {
+          await context.read<AppState>().saveUserProfile(
+            name: fullName,
+            email: email,
+            phone: phone,
+            photo: photo,
+            authProvider: _isSignUp ? 'email_signup' : 'email_login',
+          );
+        }
       }
 
       await AdminSyncService.instance.registerOrLoginUser(
@@ -157,7 +191,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _showSuccessDialog(fullName);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.show(context, 
         const SnackBar(content: Text('حدث خطأ أثناء التسجيل، يرجى المحاولة لاحقاً.')),
       );
     } finally {
@@ -278,122 +312,109 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Brand Icon & Header
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: dark ? DhikrColors.darkSurface : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
+                  // Brand Icon & Title (side by side)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: dark ? DhikrColors.darkSurface : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text('🌿', style: TextStyle(fontSize: 32)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _isSignUp
-                        ? (isAr ? 'إنشاء حساب في درة المؤمن' : 'Create Durrat Al-Mu\'min Account')
+                        child: Center(
+                          child: Image.asset(
+                            'assets/images/app_logo_transparent.webp',
+                            width: 44,
+                            height: 44,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+_isSignUp
+                        ? (isAr ? 'إنشاء حساب' : 'Create Account')
                         : (isAr ? 'تسجيل الدخول' : 'Welcome Back'),
-                    style: TextStyle(
-                      fontFamily: DhikrTheme.arabicFont,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: dark ? Colors.white : DhikrColors.charcoal,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isAr
-                        ? 'احفظ ختماتك وأذكارك وابقَ على اتصال بوردك اليومي'
-                        : 'Sync your daily adhkar, quran progress and prayer history',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: DhikrTheme.arabicFont,
-                      fontSize: 13,
-                      color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
-                    ),
+                        style: TextStyle(
+                          fontFamily: DhikrTheme.arabicFont,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: dark ? Colors.white : DhikrColors.charcoal,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
 
-                  // 1. Google Sign-In Button
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: dark ? DhikrColors.darkSurface : Colors.white,
-                      foregroundColor: dark ? Colors.white : Colors.black87,
-                      side: BorderSide(
-                        color: dark ? Colors.white12 : Colors.grey.withValues(alpha: 0.25),
-                      ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      minimumSize: const Size(double.infinity, 52),
-                    ),
-                    onPressed: _loading ? null : _handleGoogleSignIn,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Google Multi-color G Icon representation
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'G',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                                color: Color(0xFF4285F4),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          isAr ? 'المتابعة باستخدام Google' : 'Continue with Google',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Or Divider
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          isAr ? 'أو بالبريد ورقم الهاتف' : 'or with Email & Phone',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.withValues(alpha: 0.8),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
                   // 2. Form Fields
                   if (_isSignUp) ...[
+                    // صورة شخصية اختيارية أثناء التسجيل
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: GestureDetector(
+                        onTap: _pickSignupPhoto,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Stack(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: (dark ? DhikrColors.sage : DhikrColors.forest)
+                                          .withValues(alpha: 0.4),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: UserAvatar(
+                                    photo: _photoPath,
+                                    name: _nameController.text.trim(),
+                                    size: 72,
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF0F3B2C),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt_rounded,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              isAr ? 'صورة شخصية (اختياري)' : 'Profile photo (optional)',
+                              style: TextStyle(
+                                fontFamily: DhikrTheme.arabicFont,
+                                fontSize: 12,
+                                color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     // Full Name
                     TextFormField(
                       controller: _nameController,
@@ -565,6 +586,75 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 20),
+
+                  // Or Divider
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          isAr ? 'أو عبر جوجل' : 'or with Google',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.withValues(alpha: 0.8),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Google Sign-In Button
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: dark ? DhikrColors.darkSurface : Colors.white,
+                      foregroundColor: dark ? Colors.white : Colors.black87,
+                      side: BorderSide(
+                        color: dark ? Colors.white12 : Colors.grey.withValues(alpha: 0.25),
+                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      minimumSize: const Size(double.infinity, 52),
+                    ),
+                    onPressed: _loading ? null : _handleGoogleSignIn,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'G',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: Color(0xFF4285F4),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          isAr ? 'المتابعة باستخدام Google' : 'Continue with Google',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 ],
               ),
             ),

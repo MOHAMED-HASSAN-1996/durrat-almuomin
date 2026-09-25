@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Adhkar</string>
+	<string>درة المؤمن</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -65,6 +65,18 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>يحتاج تطبيق درة المؤمن إلى تحديد موقعك لحساب مواقيت الصلاة بدقة وتحديد اتجاه القبلة بدقة متناهية.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>يحتاج التطبيق لصلاحية الموقع في الخلفية لجدولة تنبيهات الأذان ومواقيت الصلاة وفق موقعك الحالي بدقة.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>يتيح لك التطبيق اختيار صورة من معرض الصور لتعيينها كصورة للملف الشخصي أو لصفحات الأحباء.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>يتيح لك التطبيق التقاط صورة بالكاميرا لتعيينها كصورة للملف الشخصي أو لصفحات الأحباء.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
 	</array>
 </dict>
 </plist>

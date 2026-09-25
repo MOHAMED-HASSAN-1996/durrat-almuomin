@@ -194,9 +194,46 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                   slivers: [
                     // ──── Hero Header ────
                     SliverToBoxAdapter(
-                      child: Container(
-                        margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                      child: Column(
+                        children: [
+                          // Back button above the card (outside) to free space for texts
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => Navigator.pop(context),
+                                  child: Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: dark
+                                          ? DhikrColors.darkSurface
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: emerald.withValues(
+                                            alpha: dark ? 0.35 : 0.18),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      isAr
+                                          ? Icons.arrow_back_ios_new_rounded
+                                          : Icons.arrow_back_ios_new_rounded,
+                                      color: dark
+                                          ? DhikrColors.sage
+                                          : emerald,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                              ],
+                            ),
+                          ),
+                          Container(
+                        margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: dark
@@ -206,7 +243,7 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                             end: Alignment.bottomRight,
                             stops: const [0.0, 0.5, 1.0],
                           ),
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(26),
                           boxShadow: [
                             BoxShadow(
                               color: DhikrColors.forest.withValues(alpha: dark ? 0.4 : 0.35),
@@ -217,26 +254,9 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                         ),
                         child: Column(
                           children: [
-                            // Back button + Title row + Guide & Streak
+                            // Title row (no back button inside — full space for texts)
                             Row(
                               children: [
-                                GestureDetector(
-                                  onTap: () => Navigator.pop(context),
-                                  child: Container(
-                                    width: 38,
-                                    height: 38,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.arrow_back_ios_new_rounded,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,12 +270,16 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                                           color: Colors.white,
                                         ),
                                       ),
+                                      const SizedBox(height: 3),
                                       Text(
-                                        isAr ? 'متابعة الفروض والسنن الرواتب' : 'Track Obligatory & Sunan Prayers',
+                                        isAr
+                                            ? 'متابعة الفرائض والسنن في $monthName $yearStr'
+                                            : 'Obligatory & Sunan in $monthName $yearStr',
                                         style: TextStyle(
                                           fontFamily: DhikrTheme.arabicFont,
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(alpha: 0.7),
+                                          fontSize: 11.5,
+                                          height: 1.5,
+                                          color: Colors.white.withValues(alpha: 0.75),
                                         ),
                                       ),
                                     ],
@@ -317,108 +341,83 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 22),
-                            // Hero Stats Row
+                            const SizedBox(height: 18),
+                            // Monthly progress bar — the headline number, kept
+                            // compact so the daily action stays above the fold.
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                // Radial Progress Circle for Faridah
-                                SizedBox(
-                                  width: 108,
-                                  height: 108,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      // Outer subtle ring
-                                      SizedBox(
-                                        width: 108,
-                                        height: 108,
-                                        child: CircularProgressIndicator(
-                                          value: 1.0,
-                                          strokeWidth: 2,
-                                          backgroundColor: Colors.transparent,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white.withValues(alpha: 0.08),
-                                          ),
-                                        ),
-                                      ),
-                                      // Main progress ring
-                                      SizedBox(
-                                        width: 96,
-                                        height: 96,
-                                        child: CircularProgressIndicator(
-                                          value: faridahPercentage / 100,
-                                          strokeWidth: 9,
-                                          backgroundColor: Colors.white.withValues(alpha: 0.1),
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            faridahPercentage >= 80
-                                                ? goldAccent
-                                                : faridahPercentage >= 50
-                                                    ? const Color(0xFF34D399)
-                                                    : const Color(0xFF60A5FA),
-                                          ),
-                                          strokeCap: StrokeCap.round,
-                                        ),
-                                      ),
-                                      // Inner content
-                                      Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '$faridahPercentage%',
-                                            style: const TextStyle(
-                                              fontFamily: DhikrTheme.arabicFont,
-                                              fontWeight: FontWeight.w900,
-                                              fontSize: 22,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          Text(
-                                            isAr ? 'التزام' : 'Commit',
-                                            style: TextStyle(
-                                              fontFamily: DhikrTheme.arabicFont,
-                                              fontSize: 9.5,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.white.withValues(alpha: 0.65),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                Text(
+                                  '$faridahPercentage%',
+                                  style: const TextStyle(
+                                    fontFamily: DhikrTheme.arabicFont,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 30,
+                                    height: 1,
+                                    color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(width: 18),
-                                // Vertical Hero Stats
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      _buildHeroStat(
-                                        icon: Icons.check_circle_rounded,
-                                        value: '$totalPrayers',
-                                        label: isAr ? 'فروض مكتملة' : 'Obligatory done',
-                                        color: const Color(0xFF34D399),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      _buildHeroStat(
-                                        icon: LucideIcons.sparkles,
-                                        value: '$totalNawafilDone',
-                                        label: isAr ? 'سنن ونوافل مؤداة' : 'Sunan & Nawafil',
-                                        color: const Color(0xFFFBBF24),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      _buildHeroStat(
-                                        icon: Icons.stars_rounded,
-                                        value: '$fullDaysCount',
-                                        label: isAr ? 'أيام تامة (٥/٥ فروض)' : 'Full days (5/5)',
-                                        color: const Color(0xFF818CF8),
-                                      ),
-                                    ],
+                                const SizedBox(width: 8),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 3),
+                                  child: Text(
+                                    isAr
+                                        ? 'التزامك بالفرائض • $totalPrayers من $maxPossiblePrayers'
+                                        : 'Obligatory commitment • $totalPrayers of $maxPossiblePrayers',
+                                    style: TextStyle(
+                                      fontFamily: DhikrTheme.arabicFont,
+                                      fontSize: 11.5,
+                                      color: Colors.white.withValues(alpha: 0.72),
+                                    ),
                                   ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(999),
+                              child: LinearProgressIndicator(
+                                value: faridahPercentage / 100,
+                                minHeight: 8,
+                                backgroundColor: Colors.white.withValues(alpha: 0.12),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  faridahPercentage >= 80
+                                      ? goldAccent
+                                      : faridahPercentage >= 50
+                                          ? const Color(0xFF34D399)
+                                          : const Color(0xFF60A5FA),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                _buildHeroChip(
+                                  icon: Icons.check_circle_rounded,
+                                  value: '$totalPrayers',
+                                  label: isAr ? 'فروض' : 'Prayers',
+                                  color: const Color(0xFF34D399),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildHeroChip(
+                                  icon: LucideIcons.sparkles,
+                                  value: '$totalNawafilDone',
+                                  label: isAr ? 'سنن ونوافل' : 'Sunan',
+                                  color: const Color(0xFFFBBF24),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildHeroChip(
+                                  icon: Icons.stars_rounded,
+                                  value: '$fullDaysCount',
+                                  label: isAr ? 'أيام تامة' : 'Full days',
+                                  color: const Color(0xFF818CF8),
                                 ),
                               ],
                             ),
                           ],
                         ),
+                        ),
+                        ],
                       ),
                     ),
 
@@ -427,174 +426,48 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
-                          // ──── Today Quick Log Card (تسجيل اليوم المباشر) ────
+                          // ── 1. التنفيذ اليومي أولاً: أهم إجراء في الشاشة ──
                           _buildTodayQuickTracker(
                             context: context,
                             appState: appState,
                             isAr: isAr,
                             dark: dark,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 22),
 
-                          // ──── Segmented Tab Filter ────
-                          _buildTabSelector(isAr: isAr, dark: dark),
-                          const SizedBox(height: 18),
-
-                          // ──── Month Navigation Bar ────
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: dark
-                                    ? [const Color(0xFF1A2E26), const Color(0xFF0D1F18)]
-                                    : [const Color(0xFFF0FDF9), const Color(0xFFECFDF5)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: emerald.withValues(alpha: dark ? 0.3 : 0.15),
-                                width: 1.2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: emerald.withValues(alpha: dark ? 0.15 : 0.06),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: _previousMonth,
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: emerald.withValues(alpha: dark ? 0.2 : 0.08),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Icon(
-                                        Icons.chevron_left_rounded,
-                                        size: 26,
-                                        color: dark ? DhikrColors.sage : emerald,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '$monthName $yearStr',
-                                      style: TextStyle(
-                                        fontFamily: DhikrTheme.arabicFont,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 16.5,
-                                        color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
-                                      ),
-                                    ),
-                                    if (isCurrentMonth)
-                                      Container(
-                                        margin: const EdgeInsets.only(top: 3),
-                                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: goldAccent.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          isAr ? 'الشهر الحالي' : 'Current Month',
-                                          style: const TextStyle(
-                                            fontFamily: DhikrTheme.arabicFont,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                            color: goldAccent,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: isCurrentMonth ? null : _nextMonth,
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: isCurrentMonth
-                                            ? Colors.transparent
-                                            : emerald.withValues(alpha: dark ? 0.2 : 0.08),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Icon(
-                                        Icons.chevron_right_rounded,
-                                        size: 26,
-                                        color: isCurrentMonth
-                                            ? (dark ? Colors.white24 : Colors.black26)
-                                            : (dark ? DhikrColors.sage : emerald),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          // ── 2. ملخّص الشهر: نفس الأرقام بلوحة واحدة بدل شبكة ──
+                          _buildSectionHeader(
+                            title: isAr
+                                ? 'ملخّص $monthName'
+                                : '$monthName Summary',
+                            dark: dark,
+                            icon: Icons.insights_rounded,
                           ),
-                          const SizedBox(height: 18),
-
-                          // ──── Metric Cards Grid ────
-                          _buildMetricCardsRow(
+                          const SizedBox(height: 8),
+                          _buildMonthNavigator(
+                            isAr: isAr,
+                            dark: dark,
+                            isCurrentMonth: isCurrentMonth,
+                          ),
+                          const SizedBox(height: 14),
+                          _buildMonthSummary(
                             isAr: isAr,
                             dark: dark,
                             totalPrayers: totalPrayers,
                             totalNawafilDone: totalNawafilDone,
                             faridahPercentage: faridahPercentage,
                             fullDaysCount: fullDaysCount,
+                            maxPossiblePrayers: maxPossiblePrayers,
                             topPrayerName: topPrayerName,
+                            activeDaysCount: activeDaysCount,
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 22),
 
-                          // ──── Faridah Breakdown Section ────
-                          if (_selectedTab == 0 || _selectedTab == 1) ...[
-                            _buildSectionHeader(
-                              title: isAr ? 'أداء الصلوات المفروضة هذا الشهر' : '5 Faridah Breakdown',
-                              dark: dark,
-                              icon: Icons.bar_chart_rounded,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildFaridahBreakdown(
-                              context: context,
-                              prayerCounts: prayerCounts,
-                              activeDaysCount: activeDaysCount,
-                              isAr: isAr,
-                              dark: dark,
-                            ),
-                            const SizedBox(height: 24),
-                          ],
+                          // ── 3. تصفية العرض (الفرائض / السنن) ──
+                          _buildTabSelector(isAr: isAr, dark: dark),
+                          const SizedBox(height: 18),
 
-                          // ──── Nawafil Breakdown Section ────
-                          if (_selectedTab == 0 || _selectedTab == 2) ...[
-                            _buildSectionHeader(
-                              title: isAr ? 'أداء السنن الرواتب والنوافل هذا الشهر' : 'Nawafil & Sunan Breakdown',
-                              dark: dark,
-                              icon: LucideIcons.sparkles,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildNawafilBreakdown(
-                              context: context,
-                              nawafilCounts: nawafilCounts,
-                              activeDaysCount: activeDaysCount,
-                              isAr: isAr,
-                              dark: dark,
-                            ),
-                            const SizedBox(height: 24),
-                          ],
-
-                          // ──── Interactive Calendar Section ────
+                          // ── 4. التقويم: الخريطة البصرية للشهر ──
                           _buildSectionHeader(
                             title: isAr ? 'تقويم النشاط اليومي' : 'Daily Activity Calendar',
                             dark: dark,
@@ -627,7 +500,42 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
                           ),
                           const SizedBox(height: 24),
 
-                          // ──── Motivational Ayah & Hadith ────
+                          // ── 5. تفصيل الأداء (يتبدّل حسب التبويب المختار) ──
+                          if (_selectedTab == 0 || _selectedTab == 1) ...[
+                            _buildSectionHeader(
+                              title: isAr ? 'أداء الصلوات المفروضة هذا الشهر' : '5 Faridah Breakdown',
+                              dark: dark,
+                              icon: Icons.bar_chart_rounded,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildFaridahBreakdown(
+                              context: context,
+                              prayerCounts: prayerCounts,
+                              activeDaysCount: activeDaysCount,
+                              isAr: isAr,
+                              dark: dark,
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          if (_selectedTab == 0 || _selectedTab == 2) ...[
+                            _buildSectionHeader(
+                              title: isAr ? 'أداء السنن الرواتب والنوافل هذا الشهر' : 'Nawafil & Sunan Breakdown',
+                              dark: dark,
+                              icon: LucideIcons.sparkles,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildNawafilBreakdown(
+                              context: context,
+                              nawafilCounts: nawafilCounts,
+                              activeDaysCount: activeDaysCount,
+                              isAr: isAr,
+                              dark: dark,
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // ── 6. التحفيز في النهاية ──
                           _buildMotivationalCard(isAr: isAr, dark: dark),
                         ]),
                       ),
@@ -1003,86 +911,265 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // METRIC CARDS ROW
+  // MONTH NAVIGATOR (اختيار الشهر)
   // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildMetricCardsRow({
+  Widget _buildMonthNavigator({
+    required bool isAr,
+    required bool dark,
+    required bool isCurrentMonth,
+  }) {
+    const emerald = Color(0xFF0F766E);
+    const goldAccent = Color(0xFFD97706);
+    final monthName = isAr
+        ? _arabicMonths[_selectedMonth.month - 1]
+        : _englishMonths[_selectedMonth.month - 1];
+
+    Widget arrow({
+      required IconData icon,
+      required VoidCallback? onTap,
+    }) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: onTap == null
+                  ? Colors.transparent
+                  : emerald.withValues(alpha: dark ? 0.2 : 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: onTap == null
+                  ? (dark ? Colors.white24 : Colors.black26)
+                  : (dark ? DhikrColors.sage : emerald),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: dark
+              ? [const Color(0xFF1A2E26), const Color(0xFF0D1F18)]
+              : [const Color(0xFFF0FDF9), const Color(0xFFECFDF5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: emerald.withValues(alpha: dark ? 0.3 : 0.15),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: emerald.withValues(alpha: dark ? 0.15 : 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          arrow(icon: Icons.chevron_left_rounded, onTap: _previousMonth),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$monthName ${_selectedMonth.year}',
+                style: TextStyle(
+                  fontFamily: DhikrTheme.arabicFont,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15.5,
+                  color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+                ),
+              ),
+              if (isCurrentMonth) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: goldAccent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    isAr ? 'الحالي' : 'Current',
+                    style: const TextStyle(
+                      fontFamily: DhikrTheme.arabicFont,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: goldAccent,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          arrow(
+            icon: Icons.chevron_right_rounded,
+            onTap: isCurrentMonth ? null : _nextMonth,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // MONTH SUMMARY (لوحة أرقام الشهر في صف واحد)
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildMonthSummary({
     required bool isAr,
     required bool dark,
     required int totalPrayers,
     required int totalNawafilDone,
     required int faridahPercentage,
     required int fullDaysCount,
+    required int maxPossiblePrayers,
+    required int activeDaysCount,
     required String topPrayerName,
   }) {
     const emerald = Color(0xFF0F766E);
-    const goldAccent = Color(0xFFD97706);
+    final nawafilTarget = activeDaysCount * allNawafilList.length;
 
-    return Column(
-      children: [
-        Row(
+    Widget cell({
+      required IconData icon,
+      required String value,
+      required String label,
+      Color? color,
+    }) {
+      final accent = color ?? emerald;
+      return Expanded(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: _buildMetricCard(
-                title: isAr ? 'الفرائض المؤداة' : 'Faridah Prayers',
-                value: '$totalPrayers',
-                unit: isAr ? 'فريضة مؤداة' : 'prayers done',
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: dark ? 0.22 : 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 15, color: accent),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                height: 1,
+                color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      decoration: BoxDecoration(
+        color: dark ? DhikrColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: emerald.withValues(alpha: dark ? 0.28 : 0.15),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (dark ? Colors.black : emerald).withValues(alpha: dark ? 0.28 : 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              cell(
+                icon: Icons.percent_rounded,
+                value: '$faridahPercentage%',
+                label: isAr ? 'التزام الفرائض' : 'Commitment',
+                color: faridahPercentage >= 80
+                    ? const Color(0xFFD97706)
+                    : emerald,
+              ),
+              cell(
                 icon: Icons.check_circle_rounded,
-                accentColor: emerald,
-                dark: dark,
-                gradientColors: dark
-                    ? [const Color(0xFF0D2B24), const Color(0xFF0A1F1A)]
-                    : [const Color(0xFFF0FDF9), const Color(0xFFCCFBF1)],
+                value: '$totalPrayers/$maxPossiblePrayers',
+                label: isAr ? 'فروض مؤداة' : 'Prayers done',
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                title: isAr ? 'السنن والنوافل' : 'Sunan & Nawafil',
-                value: '$totalNawafilDone',
-                unit: isAr ? 'نافلة وسُنّة' : 'nawafil completed',
+              cell(
                 icon: LucideIcons.sparkles,
-                accentColor: goldAccent,
-                dark: dark,
-                gradientColors: dark
-                    ? [const Color(0xFF2D1F0E), const Color(0xFF1A1207)]
-                    : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)],
+                value: '$totalNawafilDone/$nawafilTarget',
+                label: isAr ? 'سنن ونوافل' : 'Sunan done',
+                color: const Color(0xFFD97706),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                title: isAr ? 'أيام مكتملة (٥/٥)' : 'Full Days (5/5)',
-                value: '$fullDaysCount',
-                unit: isAr ? 'أيام مباركة' : 'complete days',
+              cell(
                 icon: Icons.stars_rounded,
-                accentColor: const Color(0xFF818CF8),
-                dark: dark,
-                gradientColors: dark
-                    ? [const Color(0xFF1E1B4B), const Color(0xFF15133A)]
-                    : [const Color(0xFFEEF2FF), const Color(0xFFE0E7FF)],
+                value: '$fullDaysCount',
+                label: isAr ? 'أيام تامة' : 'Full days',
+                color: const Color(0xFF6366F1),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                title: isAr ? 'أكثر فريضة التزمت بها' : 'Top Prayer',
-                value: topPrayerName,
-                unit: isAr ? 'الأعلى استمراراً' : 'most consistent',
-                icon: Icons.mosque_rounded,
-                accentColor: const Color(0xFF0284C7),
-                dark: dark,
-                gradientColors: dark
-                    ? [const Color(0xFF0C2940), const Color(0xFF081C2D)]
-                    : [const Color(0xFFF0F9FF), const Color(0xFFE0F2FE)],
+            ],
+          ),
+          if (totalPrayers > 0) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: emerald.withValues(alpha: dark ? 0.16 : 0.06),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.mosque_rounded, size: 15, color: emerald),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isAr
+                          ? 'أكثر فريضة التزمت بها: $topPrayerName'
+                          : 'Most consistent prayer: $topPrayerName',
+                      style: TextStyle(
+                        fontFamily: DhikrTheme.arabicFont,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1748,50 +1835,54 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
   // ══════════════════════════════════════════════════════════════════════════
   // HELPER WIDGETS
   // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildHeroStat({
+  /// Compact monthly-stat chip used inside the hero card.
+  ///
+  /// Three of these replace the old vertical stat column + the duplicated
+  /// metric-card grid: one number, one label, no repetition.
+  Widget _buildHeroChip({
     required IconData icon,
     required String value,
     required String label,
     required Color color,
   }) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Icon(icon, size: 16, color: color),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontFamily: DhikrTheme.arabicFont,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15.5,
-                  color: Colors.white,
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: color),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontWeight: FontWeight.w900,
+                fontSize: 14.5,
+                color: Colors.white,
               ),
-              Text(
-                label,
-                style: TextStyle(
-                  fontFamily: DhikrTheme.arabicFont,
-                  fontSize: 10.5,
-                  color: Colors.white.withValues(alpha: 0.65),
-                ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: DhikrTheme.arabicFont,
+                fontSize: 10,
+                color: Colors.white.withValues(alpha: 0.68),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -1825,83 +1916,6 @@ class _PrayerCommitmentScreenState extends State<PrayerCommitmentScreen>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildMetricCard({
-    required String title,
-    required String value,
-    required String unit,
-    required IconData icon,
-    required Color accentColor,
-    required bool dark,
-    required List<Color> gradientColors,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: accentColor.withValues(alpha: 0.25),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withValues(alpha: dark ? 0.18 : 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: dark ? 0.25 : 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 17, color: accentColor),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontWeight: FontWeight.w900,
-              fontSize: 22,
-              color: dark ? DhikrColors.darkText : DhikrColors.charcoal,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            style: TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-              color: dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft,
-            ),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            unit,
-            style: TextStyle(
-              fontFamily: DhikrTheme.arabicFont,
-              fontSize: 9.5,
-              color: dark
-                  ? DhikrColors.darkMuted.withValues(alpha: 0.7)
-                  : DhikrColors.charcoalSoft.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

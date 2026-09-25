@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../data/content_validation.dart';
+import '../services/adhkar_remote_service.dart';
 import '../services/storage.dart';
 import '../types/adhkar.dart';
 
@@ -22,15 +23,17 @@ class AppState extends ChangeNotifier {
   ThemeModeSetting get themeMode => _settings.themeMode;
   bool get audioEnabled => _settings.audioEnabled;
   bool get hasChosenLanguage => _settings.hasChosenLanguage;
-  
+
   // Cache onboarding status to avoid repeated storage reads
   bool? _cachedHasCompletedOnboarding;
-  bool get hasCompletedOnboarding => _cachedHasCompletedOnboarding ?? _storage.hasCompletedOnboarding();
-  
+  bool get hasCompletedOnboarding =>
+      _cachedHasCompletedOnboarding ?? _storage.hasCompletedOnboarding();
+
   bool? _cachedHasCompletedPermissionsSetup;
   bool get hasCompletedPermissionsSetup =>
-      _cachedHasCompletedPermissionsSetup ?? _storage.hasCompletedPermissionsSetup();
-  
+      _cachedHasCompletedPermissionsSetup ??
+      _storage.hasCompletedPermissionsSetup();
+
   DhikrStorage get storage => _storage;
 
   /// Today's progress maps (dhikrId -> repetitions completed) per category.
@@ -40,7 +43,8 @@ class AppState extends ChangeNotifier {
 
   Map<String, String>? _userProfile;
   Map<String, String>? get userProfile => _userProfile;
-  bool get isLoggedIn => _userProfile != null && (_userProfile!['name']?.isNotEmpty ?? false);
+  bool get isLoggedIn =>
+      _userProfile != null && (_userProfile!['name']?.isNotEmpty ?? false);
 
   Set<String> _todayPrayerTasks = {};
   Set<String> get todayPrayerTasks => Set.unmodifiable(_todayPrayerTasks);
@@ -52,7 +56,8 @@ class AppState extends ChangeNotifier {
   Set<String> _todayNawafilTasks = {};
   Set<String> get todayNawafilTasks => Set.unmodifiable(_todayNawafilTasks);
   int get completedNawafilTasksCount => _todayNawafilTasks.length;
-  bool isNawafilTaskCompleted(String keyId) => _todayNawafilTasks.contains(keyId);
+  bool isNawafilTaskCompleted(String keyId) =>
+      _todayNawafilTasks.contains(keyId);
 
   Future<void> toggleNawafilTask(String keyId) async {
     final todayIso = DhikrStorage.localTodayIso();
@@ -113,9 +118,10 @@ class AppState extends ChangeNotifier {
     await _storage.init();
     _settings = _storage.getSettings();
     _userProfile = _storage.getUserProfile();
-    
+
     // Force re-onboarding if app was updated (version mismatch)
-    const currentVersion = 3; // Increment this with each major update
+    const currentVersion =
+        4; // Re-run onboarding and permissions after the adhan reliability update.
     final savedVersion = _storage.getSavedAppVersion();
     if (savedVersion < currentVersion) {
       // New install or app updated - clear old onboarding state
@@ -137,9 +143,20 @@ class AppState extends ChangeNotifier {
 
     // Cache onboarding and permissions status
     _cachedHasCompletedOnboarding = _storage.hasCompletedOnboarding();
-    _cachedHasCompletedPermissionsSetup = _storage.hasCompletedPermissionsSetup();
-    
+    _cachedHasCompletedPermissionsSetup = _storage
+        .hasCompletedPermissionsSetup();
+
+    // Remote adhkar feed (admin dashboard). Non-blocking: screens keep
+    // working on built-in content until the first remote snapshot lands.
+    AdhkarRemoteService.instance.addListener(_onRemoteAdhkar);
+    unawaited(AdhkarRemoteService.instance.restore());
+
     _loaded = true;
+    notifyListeners();
+  }
+
+  void _onRemoteAdhkar() {
+    if (!_loaded) return;
     notifyListeners();
   }
 
@@ -238,7 +255,15 @@ class AppState extends ChangeNotifier {
   }
 
   /// The Dhikr list for a category (validated, malformed items dropped).
-  List<Dhikr> adhkarFor(DhikrCategory category) => getBuiltInAdhkar(category);
+  /// Prefers the admin-managed remote feed when enabled; always falls back
+  /// to the built-in lists offline or on any sync failure.
+  List<Dhikr> adhkarFor(DhikrCategory category) {
+    try {
+      return AdhkarRemoteService.instance.adhkarFor(category);
+    } catch (_) {
+      return getBuiltInAdhkar(category);
+    }
+  }
 
   /// Current repetition count for a specific dhikr id.
   int countFor(DhikrCategory category, String dhikrId) {
@@ -270,6 +295,17 @@ class AppState extends ChangeNotifier {
     }
     final current = countFor(category, dhikrId);
     final next = current >= target.repeat ? target.repeat : current + 1;
+    _todayProgress[category]![dhikrId] = next;
+    unawaited(_storage.saveDhikrProgress(category, _todayProgress[category]!));
+    notifyListeners();
+    return next;
+  }
+
+  /// Decrements the counter for a dhikr (undo last tap), floored at zero.
+  /// Returns the new count.
+  int decrement(DhikrCategory category, String dhikrId) {
+    final current = countFor(category, dhikrId);
+    final next = current <= 0 ? 0 : current - 1;
     _todayProgress[category]![dhikrId] = next;
     unawaited(_storage.saveDhikrProgress(category, _todayProgress[category]!));
     notifyListeners();
@@ -416,6 +452,7 @@ class AppState extends ChangeNotifier {
     required String cityEn,
     String? countryAr,
     String? countryEn,
+    String? countryCode,
   }) async {
     await _storage.saveLocation(
       lat: lat,
@@ -424,10 +461,10 @@ class AppState extends ChangeNotifier {
       cityEn: cityEn,
       countryAr: countryAr,
       countryEn: countryEn,
+      countryCode: countryCode,
     );
     notifyListeners();
   }
-
 
   /// Clears user profile on sign out or delete account.
   Future<void> clearUserProfile() async {

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../services/arabic_text_utils.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 
 /// شاشة جوامع الذكر، صلاة الاستخارة، أدعية الأنبياء، والأدعية القرآنية الشاملة
 class JawamiDhikrScreen extends StatefulWidget {
@@ -17,7 +19,6 @@ class JawamiDhikrScreen extends StatefulWidget {
 class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
   String _searchQuery = '';
   String _selectedCategory = 'all';
-  double _fontSize = 20.0;
 
   // قائمة الأذكار والأدعية الشاملة مبوبة حسب التصنيف
   static const List<Map<String, String>> _jawamiList = [
@@ -275,18 +276,6 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
               fontSize: 18,
             ),
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.format_size_rounded),
-              tooltip: isAr ? 'تكبير الخط' : 'Adjust Font Size',
-              onPressed: () {
-                setState(() {
-                  _fontSize = _fontSize >= 26.0 ? 18.0 : _fontSize + 2.0;
-                });
-              },
-            ),
-            const SizedBox(width: 8),
-          ],
         ),
         body: SafeArea(
           child: Center(
@@ -410,30 +399,13 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    // شارة التصنيف والعنوان
+                                    // العنوان + نسخ
                                     Row(
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: emerald.withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(10),
-                                            border: Border.all(color: emerald.withValues(alpha: 0.3)),
-                                          ),
-                                          child: Text(
-                                            item['categoryNameAr'] ?? 'ذكر',
-                                            style: const TextStyle(
-                                              fontFamily: DhikrTheme.arabicFont,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: emerald,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            item['title'] ?? '',
+                                            ArabicTextUtils.stripTashkeel(
+                                                item['title'] ?? ''),
                                             style: TextStyle(
                                               fontFamily: DhikrTheme.arabicFont,
                                               fontWeight: FontWeight.w800,
@@ -447,10 +419,11 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
                                           color: dark ? Colors.white60 : Colors.black45,
                                           tooltip: isAr ? 'نسخ الدعاء' : 'Copy',
                                           onPressed: () {
+                                            HapticFeedback.selectionClick();
                                             Clipboard.setData(ClipboardData(
                                               text: '${item['title']}\n\n${item['arabic']}\n\nالمصدر: ${item['source']}',
                                             ));
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            AppToast.show(context, 
                                               SnackBar(
                                                 content: Text(isAr ? 'تم نسخ الدعاء بنجاح' : 'Copied to clipboard'),
                                                 duration: const Duration(seconds: 2),
@@ -461,17 +434,18 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
                                       ],
                                     ),
 
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 10),
 
-                                    // متن الدعاء بالتشكيل
+                                    // متن الدعاء بدون تشكيل — محاذاة يمين لتفادي فراغات الـ justify
                                     Text(
-                                      item['arabic'] ?? '',
-                                      textAlign: TextAlign.justify,
+                                      ArabicTextUtils.stripTashkeel(
+                                          item['arabic'] ?? ''),
+                                      textAlign: isAr ? TextAlign.right : TextAlign.left,
                                       style: TextStyle(
                                         fontFamily: DhikrTheme.arabicFont,
-                                        fontSize: _fontSize,
+                                        fontSize: 18,
                                         fontWeight: FontWeight.w600,
-                                        height: 1.85,
+                                        height: 1.9,
                                         color: dark ? Colors.white : const Color(0xFF1B241E),
                                       ),
                                     ),
@@ -489,12 +463,13 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: Text(
-                                              item['virtue']!,
+                                              ArabicTextUtils.stripTashkeel(
+                                                  item['virtue']!),
                                               style: TextStyle(
                                                 fontFamily: DhikrTheme.arabicFont,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w500,
-                                                height: 1.5,
+                                                height: 1.6,
                                                 color: dark ? Colors.white70 : const Color(0xFF4A5550),
                                               ),
                                             ),
@@ -519,6 +494,31 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
                                           ),
                                         ),
                                       ],
+                                    ),
+
+                                    // شارة التصنيف في آخر الكارت تحت
+                                    const SizedBox(height: 12),
+                                    Align(
+                                      alignment: isAr
+                                          ? Alignment.centerRight
+                                          : Alignment.centerLeft,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: emerald.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: emerald.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Text(
+                                          item['categoryNameAr'] ?? 'ذكر',
+                                          style: const TextStyle(
+                                            fontFamily: DhikrTheme.arabicFont,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: emerald,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),

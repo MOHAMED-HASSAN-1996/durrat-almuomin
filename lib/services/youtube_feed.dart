@@ -29,26 +29,62 @@ class ChannelFeed {
 const _feedUrlTemplate = 'https://www.youtube.com/feeds/videos.xml?channel_id=';
 const _proxyUrlTemplate = 'https://api.allorigins.win/raw?url=';
 
+/// كاش خفيف داخل الجلسة: يمنع إعادة جلب نفس القناة مع كل rebuild
+/// (سبب رئيسي للبطء والوميض)، ويسمح بعرض آخر بيانات ناجحة عند انقطاع الشبكة.
+final Map<String, _CachedFeed> _feedMemoryCache = {};
+
+class _CachedFeed {
+  final ChannelFeed feed;
+  final DateTime fetchedAt;
+  _CachedFeed(this.feed, this.fetchedAt);
+}
+
+const _feedCacheTtl = Duration(hours: 6);
+
 /// يجلب أحدث مقاطع القناة من خلاصة يوتيوب العامة (بدون API key).
 ///
 /// على أندرويد/آيفون يعمل الطلب المباشر. على الويب يمنع المتصفح الطلب
 /// المباشر بـ CORS، لذلك نقع محاولةً أخيرة إلى بروكسي عام. إذا فشل كلاهما
 /// تُرمى استثناء ويعرض الواجهة مشغّل القناة المدمج كبديل.
+///
+/// ملاحظة حقوق النشر: هذه الخلاصة عامة من يوتيوب، والتشغيل يتم دائماً
+/// عبر مشغّل يوتيوب الرسمي المدمج مع ذكر القناة ورابطها — لا تنزيل
+/// ولا إعادة رفع ولا إخفاء لشعار يوتيوب.
 Future<ChannelFeed> fetchChannelFeed(String channelId) async {
-  final direct = Uri.parse('$_feedUrlTemplate$channelId');
+  final now = DateTime.now();
+  final cached = _feedMemoryCache[channelId.trim()];
+  if (cached != null && now.difference(cached.fetchedAt) < _feedCacheTtl) {
+    return cached.feed;
+  }
+
+  final direct = Uri.parse('$_feedUrlTemplate${channelId.trim()}');
 
   String body;
   try {
-    body = (await http.get(direct).timeout(const Duration(seconds: 12))).body;
+    final res =
+        await http.get(direct).timeout(const Duration(seconds: 6));
+    if (res.statusCode != 200 || res.body.isEmpty) {
+      throw Exception('feed http ${res.statusCode}');
+    }
+    body = res.body;
   } catch (_) {
     final proxied = Uri.parse(
       '$_proxyUrlTemplate${Uri.encodeComponent(direct.toString())}',
     );
-    final res = await http.get(proxied).timeout(const Duration(seconds: 15));
-    if (res.statusCode != 200) {
+    final res = await http.get(proxied).timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200 || res.body.isEmpty) {
+      // عند الفشل اعرض آخر كاش معروف بدل شاشة فارغة تماماً.
+      if (cached != null) return cached.feed;
       throw Exception('feed proxy http ${res.statusCode}');
     }
     body = res.body;
+  }
+
+  // صفحة خطأ HTML (حظر/شبكة) ليست XML صالحاً — اعتبرها فشلاً واضحاً.
+  final trimmed = body.trimLeft();
+  if (!trimmed.startsWith('<')) {
+    if (cached != null) return cached.feed;
+    throw Exception('feed invalid body');
   }
 
   final doc = XmlDocument.parse(body);
@@ -57,7 +93,8 @@ Future<ChannelFeed> fetchChannelFeed(String channelId) async {
   final channelTitle = _childText(root, 'title') ?? '';
 
   final videos = <YoutubeVideoInfo>[];
-  for (final entry in root.findElements('entry')) {
+  for (final entry in root.children.whereType<XmlElement>().where(
+      (e) => e.name.local == 'entry')) {
     final videoId = _childText(entry, 'videoId');
     if (videoId == null || videoId.isEmpty) continue;
 
@@ -76,13 +113,21 @@ Future<ChannelFeed> fetchChannelFeed(String channelId) async {
     ));
   }
 
-  return ChannelFeed(channelTitle: channelTitle, videos: videos);
+  final feed = ChannelFeed(channelTitle: channelTitle, videos: videos);
+  _feedMemoryCache[channelId.trim()] = _CachedFeed(feed, now);
+  return feed;
 }
 
-String? _childText(XmlElement parent, String name) {
-  for (final child in parent.findElements(name)) {
-    final text = child.innerText.trim();
-    if (text.isNotEmpty) return text;
+/// يقرأ نص عنصر فرعي بمطابقة الاسم المحلي (local name) بدل الاسم الكامل،
+/// لأن خلاصة يوتيوب تستخدم بادئة النطاق `yt:` (مثال: `<yt:videoId>`)،
+/// ومطابقة الاسم الكامل فقط كانت تُرجع قائمة فارغة دائماً — وهو سبب
+/// ظهور «تعذّر جلب المقاطع» حتى مع اتصال سليم.
+String? _childText(XmlElement parent, String localName) {
+  for (final child in parent.children.whereType<XmlElement>()) {
+    if (child.name.local == localName) {
+      final text = child.innerText.trim();
+      if (text.isNotEmpty) return text;
+    }
   }
   return null;
 }

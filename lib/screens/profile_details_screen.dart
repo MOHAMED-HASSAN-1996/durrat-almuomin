@@ -5,9 +5,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../services/image_upload_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 
 class ProfileDetailsScreen extends StatefulWidget {
   const ProfileDetailsScreen({super.key});
@@ -48,16 +50,22 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
       if (picked != null) {
         if (!mounted) return;
         setState(() => _photoPath = picked.path);
+        var photo = await ImageUploadService.instance.ensureRemote(
+              picked.path,
+              folder: 'avatars',
+            ) ??
+            picked.path;
         final currentProfile = appState.userProfile;
         await appState.saveUserProfile(
           name: _nameController.text.trim().isEmpty ? (currentProfile?['name'] ?? 'مستخدم') : _nameController.text.trim(),
           email: _emailController.text.trim(),
           phone: _phoneController.text.trim().isEmpty ? 'غير مسجل' : _phoneController.text.trim(),
-          photo: picked.path,
+          photo: photo,
           authProvider: currentProfile?['authProvider'] ?? 'email',
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          setState(() => _photoPath = photo);
+          AppToast.show(context, 
             const SnackBar(
               content: Text('تم تحديث صورتك الشخصية بنجاح ✨', style: TextStyle(fontFamily: DhikrTheme.arabicFont)),
               backgroundColor: Color(0xFF0F3B2C),
@@ -77,8 +85,9 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         final dark = Theme.of(ctx).brightness == Brightness.dark;
+        final isAr = Provider.of<AppState>(ctx, listen: false).language == AppLanguage.arabic;
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
             decoration: BoxDecoration(
@@ -176,7 +185,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
 
     if (mounted) {
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.show(context, 
         const SnackBar(
           content: Text(
             'تم حفظ وتحديث بيانات حسابك بنجاح ✨',
@@ -695,7 +704,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
                                 await context.read<AppState>().deleteAccount();
                                 if (context.mounted) {
                                   Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  AppToast.show(context, 
                                     SnackBar(
                                       content: Text(
                                         isAr ? 'تم حذف حسابك وبياناتك بنجاح' : 'Your account has been deleted successfully',
@@ -708,7 +717,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
                                 }
                               } catch (e) {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  AppToast.show(context, 
                                     SnackBar(
                                       content: Text(
                                         isAr

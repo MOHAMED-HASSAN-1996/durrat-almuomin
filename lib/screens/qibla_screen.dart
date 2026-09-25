@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -10,6 +12,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
+import '../widgets/app_toast.dart';
 
 class QiblaScreen extends StatefulWidget {
   const QiblaScreen({super.key});
@@ -123,7 +126,7 @@ class _QiblaScreenState extends State<QiblaScreen> with TickerProviderStateMixin
         _calibrationProgress = 1.0;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      AppToast.show(context, 
         const SnackBar(
           content: Text(
             '✓ تمت معايرة حساس البوصلة بنجاح بدقة ممتازة',
@@ -177,11 +180,30 @@ class _QiblaScreenState extends State<QiblaScreen> with TickerProviderStateMixin
 
         if (mounted) {
           final storage = context.read<AppState>().storage;
+          String countryAr = '';
+          String countryEn = '';
+          String cc = '';
+          try {
+            final res = await http
+                .get(
+                  Uri.parse(
+                      'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.latitude}&longitude=${pos.longitude}&localityLanguage=ar'),
+                )
+                .timeout(const Duration(seconds: 5));
+            if (res.statusCode == 200) {
+              final data = jsonDecode(res.body) as Map<String, dynamic>;
+              countryAr = (data['countryName'] as String?) ?? '';
+              cc = ((data['countryCode'] as String?) ?? '').trim().toUpperCase();
+            }
+          } catch (_) {}
           await storage.saveLocation(
             lat: pos.latitude,
             lng: pos.longitude,
             cityAr: _cityName,
             cityEn: _cityName,
+            countryAr: countryAr,
+            countryEn: countryEn,
+            countryCode: cc,
           );
         }
       }

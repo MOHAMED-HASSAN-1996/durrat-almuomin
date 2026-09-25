@@ -15,7 +15,6 @@ class RadioAudioHandler extends BaseAudioHandler {
             MediaControl.skipToPrevious,
             if (isPlaying) MediaControl.pause else MediaControl.play,
             MediaControl.skipToNext,
-            MediaControl.stop,
           ],
           systemActions: const {
             MediaAction.seek,
@@ -46,7 +45,7 @@ class RadioAudioHandler extends BaseAudioHandler {
         id: url,
         album: category ?? 'إذاعة القرآن الكريم',
         title: title,
-        artist: 'دُرَّةُ الْمُؤْمِن',
+        artist: 'درة المؤمن',
         artUri: Uri.parse('resource://mipmap/ic_launcher'),
       ),
     );

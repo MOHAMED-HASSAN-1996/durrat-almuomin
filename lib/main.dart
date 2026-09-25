@@ -4,11 +4,13 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'data/content_validation.dart';
 import 'services/home_widget_service.dart';
 import 'services/prayer_alert_service.dart';
+import 'services/remote_content_service.dart';
 import 'services/storage.dart';
 import 'state/app_state.dart';
 import 'types/adhkar.dart';
@@ -31,31 +33,56 @@ Future<void> main() async {
   final appState = AppState(storage: storage);
   await appState.load();
 
-  // Run app immediately
+  // Run app immediately — لا نحجب أول فريم خلف أي تهيئة شبكية.
   runApp(DhikrApp(appState: appState));
 
-  // Initialize notifications & location & widgets in background
+  // تهيئة Supabase في الخلفية بعد أول فريم (كانت تحجب البدء لثوانٍ).
+  Future.microtask(() async {
+    try {
+      await Supabase.initialize(
+        url: 'https://djhdcrwxtyzbtwjcrvwu.supabase.co',
+        publishableKey: 'sb_publishable_gEjbiqpjtbk_i2NqQwuUPQ_taK2ldeo',
+      );
+    } catch (e) {
+      debugPrint('Supabase init failed: $e');
+    }
+    // محتوى الإدارة (بطاقات الرئيسية/الأنمي) من الكاش أولاً ثم Firestore
+    // في الخلفية — لا يحجب الواجهة.
+    try {
+      await RemoteContentService.instance.initialize();
+    } catch (_) {}
+  });
+
+  // First run: do not request notifications, GPS, or IP geolocation here.
+  // Those happen from the onboarding / permissions screens at the right time.
+  final firstRun = !storage.hasCompletedOnboarding() ||
+      !storage.hasCompletedPermissionsSetup();
+
+  // Initialize widgets & (after setup) notifications & location in background
   if (!kIsWeb) {
     Future.microtask(() async {
       try {
+        await HomeWidgetService.instance.syncDefaultDhikr();
+      } catch (_) {}
+
+      if (firstRun) return;
+
+      try {
         await PrayerAlertService.instance.init();
-        var savedLoc = storage.getSavedLocation();
-        if (savedLoc == null) {
-          savedLoc = await _tryAutoLocate(storage);
-        }
+        final savedLoc = storage.getSavedLocation() ??
+            await _tryAutoLocate(storage);
         final lat = (savedLoc?['lat'] as num?)?.toDouble() ?? 33.3152;
         final lng = (savedLoc?['lng'] as num?)?.toDouble() ?? 44.3661;
         final isAr = appState.language == AppLanguage.arabic;
+        // Rolling 30-day seed without a hard limit: each app open pushes the
+        // window forward again (throttled inside the service), so alerts keep
+        // working even if the phone is never touched for weeks.
         PrayerAlertService.instance.scheduleUpcomingPrayers(
           lat: lat,
           lng: lng,
           isArabic: isAr,
-          daysToSchedule: 7,
+          daysToSchedule: PrayerAlertService.scheduleWindowDays,
         );
-      } catch (_) {}
-
-      try {
-        await HomeWidgetService.instance.syncDefaultDhikr();
       } catch (_) {}
     });
   }
@@ -82,20 +109,17 @@ Future<Map<String, dynamic>?> _tryAutoLocate(DhikrStorage storage) async {
   } catch (_) {}
 
   // Fallback: IP-based geolocation (multiple providers for worldwide reliability)
-  // Provider 1: ip-api.com — fast, free, global
+  // Provider 1: freeipapi.com — HTTPS, free, global
   try {
     final res = await http
-        .get(Uri.parse(
-            'http://ip-api.com/json/?fields=status,country,countryCode,city,lat,lon'))
+        .get(Uri.parse('https://freeipapi.com/api/json'))
         .timeout(const Duration(seconds: 4));
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      if (data['status'] == 'success') {
-        final lat = (data['lat'] as num?)?.toDouble();
-        final lon = (data['lon'] as num?)?.toDouble();
-        if (lat != null && lon != null) {
-          return await _resolveAndSave(storage, lat, lon);
-        }
+      final lat = (data['latitude'] as num?)?.toDouble();
+      final lon = (data['longitude'] as num?)?.toDouble();
+      if (lat != null && lon != null) {
+        return await _resolveAndSave(storage, lat, lon);
       }
     }
   } catch (_) {}
@@ -156,6 +180,7 @@ Future<Map<String, dynamic>?> _resolveAndSave(
             (props['state'] as String?) ??
             '';
         final country = (props['country'] as String?) ?? '';
+        final cc = ((props['countrycode'] as String?) ?? '').trim().toUpperCase();
         if (city.isNotEmpty || country.isNotEmpty) {
           await storage.saveLocation(
             lat: lat,
@@ -164,6 +189,7 @@ Future<Map<String, dynamic>?> _resolveAndSave(
             cityEn: city.isNotEmpty ? city : 'Current Location',
             countryAr: country.isNotEmpty ? country : '',
             countryEn: country.isNotEmpty ? country : '',
+            countryCode: cc,
           );
           return storage.getSavedLocation();
         }
@@ -187,6 +213,7 @@ Future<Map<String, dynamic>?> _resolveAndSave(
               ? dataAr['locality'] as String
               : ((dataAr['principalSubdivision'] as String?) ?? ''));
       final countryAr = (dataAr['countryName'] as String?) ?? '';
+      final cc = ((dataAr['countryCode'] as String?) ?? '').trim().toUpperCase();
 
       String cityEn = cityAr;
       String countryEn = countryAr;
@@ -215,6 +242,7 @@ Future<Map<String, dynamic>?> _resolveAndSave(
         cityEn: cityEn.isNotEmpty ? cityEn : 'Current Location',
         countryAr: countryAr,
         countryEn: countryEn,
+        countryCode: cc,
       );
       return storage.getSavedLocation();
     }

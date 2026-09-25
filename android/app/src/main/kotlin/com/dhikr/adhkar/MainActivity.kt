@@ -5,7 +5,11 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.os.VibrationEffect
 import android.provider.Settings
+import android.app.NotificationManager
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -13,6 +17,79 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : AudioServiceActivity() {
     private val CHANNEL = "com.dhikr.adhkar/permissions"
     private var permissionChannel: MethodChannel? = null
+    private var isVibrating = false
+
+    private fun getVibrator(): Vibrator? {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun startStrongVibration() {
+        try {
+            val vibrator = getVibrator() ?: return
+            if (!vibrator.hasVibrator()) return
+            isVibrating = true
+            // Strong alarm vibration: 0ms wait, 1200ms strong pulse, 400ms silence, 1200ms pulse, 400ms silence
+            val pattern = longArrayOf(0, 1200, 400, 1200, 400)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // 255 is maximum motor amplitude
+                val amplitudes = intArrayOf(0, 255, 0, 255, 0)
+                val effect = VibrationEffect.createWaveform(pattern, amplitudes, 0) // repeat continuously
+                vibrator.vibrate(effect)
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(pattern, 0)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun stopStrongVibration() {
+        try {
+            isVibrating = false
+            val vibrator = getVibrator() ?: return
+            vibrator.cancel()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * نبضة اهتزاز قصيرة وقوية لنقرة السبحة الإلكترونية.
+     *
+     * نستخدم الطبقة الأصلية (مو HapticFeedback من فلاتر) لأن قوة الاهتزاز
+     * هناك ثابتة من النظام وما تنفع تزوّدها — هنا نتحكم بالمدة والسعة،
+     * والقوة أعلى من أي نمط جاهز بدون ما تصير مزعجة مثل اهتزاز الأذان.
+     */
+    private fun tapVibration() {
+        try {
+            // ما نتدخّل إذا اهتزاز الأذان شغّال — منقدر نلغيه أو نعيده بالغلط.
+            if (isVibrating) return
+            val vibrator = getVibrator() ?: return
+            if (!vibrator.hasVibrator()) return
+
+            val durationMs = 45L
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val effect = VibrationEffect.createOneShot(durationMs, 255)
+                vibrator.vibrate(effect)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(durationMs)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,6 +148,15 @@ class MainActivity : AudioServiceActivity() {
                         result.success(true)
                     }
                 }
+                "openBatteryOptimizationSettings" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("BATTERY_SETTINGS_ERROR", e.message, null)
+                    }
+                }
                 "canScheduleExactAlarms" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         val alarmManager = getSystemService(Context.ALARM_SERVICE) as? android.app.AlarmManager
@@ -112,6 +198,14 @@ class MainActivity : AudioServiceActivity() {
                         result.error("NOTIF_ERROR", e.message, null)
                     }
                 }
+                "canUseFullScreenIntent" -> {
+                    if (Build.VERSION.SDK_INT >= 34) {
+                        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                        result.success(manager?.canUseFullScreenIntent() ?: false)
+                    } else {
+                        result.success(true)
+                    }
+                }
                 "canDrawOverlays" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         result.success(Settings.canDrawOverlays(this))
@@ -141,6 +235,35 @@ class MainActivity : AudioServiceActivity() {
                         result.success(true)
                     }
                 }
+                "startAdhanVibration" -> {
+                    startStrongVibration()
+                    result.success(true)
+                }
+                "tapVibration" -> {
+                    tapVibration()
+                    result.success(true)
+                }
+                "stopAdhanVibration" -> {
+                    stopStrongVibration()
+                    result.success(true)
+                }
+                "closeAdhanScreen" -> {
+                    stopStrongVibration()
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                            setShowWhenLocked(false)
+                            setTurnScreenOn(false)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            finishAndRemoveTask()
+                        } else {
+                            finish()
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("CLOSE_ERROR", e.message, null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -151,10 +274,16 @@ class MainActivity : AudioServiceActivity() {
     override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
         if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
             keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
+            stopStrongVibration()
             try {
                 permissionChannel?.invokeMethod("volumeButtonPressed", null)
             } catch (_: Exception) {}
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onDestroy() {
+        stopStrongVibration()
+        super.onDestroy()
     }
 }
