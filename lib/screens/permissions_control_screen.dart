@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
+import '../services/location_label.dart';
 import '../services/prayer_alert_service.dart';
 import '../services/prayer_times.dart';
 import '../services/quran_radio.dart';
@@ -35,7 +36,8 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
 
   bool _isLocating = false;
   bool _isEnablingAll = false;
-  String? _currentCity;
+  String? _currentCityAr;
+  String? _currentCityEn;
 
   @override
   void initState() {
@@ -79,8 +81,22 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
     } catch (_) {}
 
     final savedLoc = storage.getSavedLocation();
-    final cityName =
-        (savedLoc?['cityAr'] as String?) ?? (savedLoc?['cityEn'] as String?);
+    final cityAr = ((savedLoc?['cityAr'] as String?) ?? '').trim();
+    final cityEn = ((savedLoc?['cityEn'] as String?) ?? cityAr).trim();
+    final provinceAr = ((savedLoc?['provinceAr'] as String?) ?? '').trim();
+    final provinceEn = ((savedLoc?['provinceEn'] as String?) ?? '').trim();
+    final countryAr = ((savedLoc?['countryAr'] as String?) ?? '').trim();
+    final countryEn = ((savedLoc?['countryEn'] as String?) ?? '').trim();
+    final labelAr = locationLabel(
+      city: cityAr,
+      province: provinceAr,
+      country: countryAr,
+    );
+    final labelEn = locationLabel(
+      city: cityEn,
+      province: provinceEn,
+      country: countryEn,
+    );
 
     if (!mounted) return;
     setState(() {
@@ -88,7 +104,8 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
       _batteryExempted = isBatteryIgnored;
       _exactAlarmGranted = canExact;
       _locationGranted = locGranted;
-      _currentCity = cityName;
+      _currentCityAr = labelAr.isNotEmpty ? labelAr : null;
+      _currentCityEn = labelEn.isNotEmpty ? labelEn : null;
     });
   }
 
@@ -455,8 +472,8 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                     title: isAr ? 'الموقع الجغرافي (GPS)' : 'Location & GPS',
                     subtitle: _locationGranted
                         ? (isAr
-                              ? 'مفعل • المدينة: ${_currentCity ?? 'موقعي الحالي'}'
-                              : 'Active • City: ${_currentCity ?? 'Current'}')
+                              ? 'مفعل • الموقع: ${_currentCityAr ?? 'موقعي الحالي'}'
+                              : 'Active • Location: ${_currentCityEn ?? 'Current'}')
                         : (isAr
                               ? 'مطلوب لحساب مواقيت الصلاة واتجاه القبلة'
                               : 'Required to calculate prayer times'),

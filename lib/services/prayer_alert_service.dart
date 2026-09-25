@@ -353,6 +353,19 @@ class PrayerAlertService {
   /// they are the only ones whose slot may hold a live, protected adhan.
   static const List<int> todayAdhanIds = [101, 102, 103, 104, 105];
 
+  /// Id of the «اقتربت الصلاة» reminder for [dayOffset] days from today
+  /// (0 = today) and prayer index [prayerIndex] (1 = fajr … 5 = isha).
+  ///
+  /// Lives in its own 5000+ block, deliberately disjoint from the adhan ids
+  /// (101..405), the beneficiary reminders (500/501) and the preview (990/991):
+  /// a notification id is a unique key, so reusing one silently *replaces* the
+  /// pending notification. The old `200 + day*10 + index` scheme collided with
+  /// the adhan window (the day-10 adhan sat on today's pre ids, days 11–30 sat
+  /// on pre days 1–20) and with Eid's 501, wiping the reminder out before it
+  /// ever fired.
+  static int _prePrayerId(int dayOffset, int prayerIndex) =>
+      5000 + (dayOffset * 10) + prayerIndex;
+
   /// Notification details for the adhan fired at the exact prayer time.
   ///
   /// إشعار الأذان: يشتغل الصوت مرة واحدة بطول الملف، ثم **يفضل ثابتاً على
@@ -452,6 +465,19 @@ class PrayerAlertService {
       await _notificationsPlugin.cancel(id: id);
     } catch (_) {}
     unawaited(_persistAdhanSlots());
+  }
+
+  /// Cancels the scheduled adhan [id] and releases its slot — used when a
+  /// prayer is switched off. Never touches the adhan that is currently
+  /// sounding (same ownership rule as every other re-schedule path).
+  Future<void> _releaseAdhanSlot(int id) async {
+    await _loadAdhanSlots();
+    if (isAdhanActive(id)) return;
+    _adhanSlots.remove(id);
+    unawaited(_persistAdhanSlots());
+    try {
+      await _notificationsPlugin.cancel(id: id);
+    } catch (_) {}
   }
 
   /// هل هذا الإشعار هو الأذان الشغّال حالياً؟ (ما زال صوته قابلاً للتشغيل).
@@ -677,7 +703,7 @@ class PrayerAlertService {
                 playSound: true,
                 sound: RawResourceAndroidNotificationSound('iqtarabat'),
                 enableVibration: true,
-                vibrationPattern: _adhanVibrationPattern,
+                vibrationPattern: _prePrayerVibrationPattern,
                 enableLights: true,
                 audioAttributesUsage: AudioAttributesUsage.alarm,
               ),
@@ -815,18 +841,26 @@ class PrayerAlertService {
 
       if (time == null) continue;
 
-      // Check if this specific prayer is enabled by user
-      if (userPrefs[key] != true) {
-        continue;
-      }
-
-      // Cancel the stale pre-prayer reminder for this slot. The adhan slot is
-      // released inside the guard below, which refuses to touch an adhan that
-      // is currently sounding.
+      // Cancel the stale pre-prayer reminders for this slot first — both the
+      // current ids (5001..5005) and the legacy `notifId + 100` ones, which
+      // used to collide with the day-10 adhan and never fired. The adhan slot
+      // is released inside the guard below, which refuses to touch an adhan
+      // that is currently sounding.
+      final preNotifId = _prePrayerId(0, notifId - 100);
       try {
         await _notificationsPlugin.cancel(id: notifId + 100);
       } catch (_) {}
+      try {
+        await _notificationsPlugin.cancel(id: preNotifId);
+      } catch (_) {}
 
+      // Check if this specific prayer is enabled by user
+      if (userPrefs[key] != true) {
+        // A prayer switched off must also drop whatever was scheduled for it
+        // earlier — its adhan would otherwise keep firing.
+        await _releaseAdhanSlot(notifId);
+        continue;
+      }
       final labelAr = entry.value.$1;
       final labelEn = entry.value.$2;
 
@@ -914,7 +948,7 @@ class PrayerAlertService {
 
         try {
           await _notificationsPlugin.zonedSchedule(
-            id: notifId + 100,
+            id: preNotifId,
             title: preTitle,
             body: preBody,
             scheduledDate: preTzTime,
@@ -1046,8 +1080,9 @@ class PrayerAlertService {
     ];
 
     // Schedule for day 1 onwards (day 0 is already handled by schedulePrayerNotifications).
-    // The ids are `100 + dayOffset * 10 + prayerIndex`, so the 30-day window
-    // occupies ids 111..305 (adhan) and 211..405 (pre-prayer reminders).
+    // Adhan ids are `100 + dayOffset * 10 + prayerIndex` (111..405); the
+    // «اقتربت الصلاة» ids live in their own block via [_prePrayerId]
+    // (5011..5305), so the two schedules can never overwrite each other.
     for (int dayOffset = 1; dayOffset <= daysToSchedule; dayOffset++) {
       final targetDate = now.add(Duration(days: dayOffset));
       final calculated = PrayerCalculator.calculate(
@@ -1063,16 +1098,27 @@ class PrayerAlertService {
         final labelEn = p.$3;
         final prayerIndex = p.$4;
         final notifId = 100 + (dayOffset * 10) + prayerIndex;
-        final preNotifId = 200 + (dayOffset * 10) + prayerIndex;
+        final preNotifId = _prePrayerId(dayOffset, prayerIndex);
+        // The old scheme (`200 + day*10 + index`) collided with the adhan ids
+        // of days 11–30 and with Eid's 501 — clear those leftovers as well.
+        final legacyPreNotifId = 200 + (dayOffset * 10) + prayerIndex;
 
-        // Cancel the stale pre-prayer reminder for this slot. The adhan slot is
-        // released inside the guard below, which refuses to touch an adhan that
-        // is currently sounding.
+        // Cancel the stale pre-prayer reminders for this slot — current and
+        // legacy ids — before anything else. The adhan slot is released inside
+        // the guard below, which refuses to touch an adhan that is sounding.
         try {
           await _notificationsPlugin.cancel(id: preNotifId);
         } catch (_) {}
+        try {
+          await _notificationsPlugin.cancel(id: legacyPreNotifId);
+        } catch (_) {}
 
-        if (userPrefs[key] != true) continue;
+        if (userPrefs[key] != true) {
+          // A prayer switched off must also drop its scheduled adhans, or the
+          // ones queued by an earlier run keep firing.
+          await _releaseAdhanSlot(notifId);
+          continue;
+        }
 
         final time = times[key];
         if (time == null || !time.isAfter(now)) continue;
@@ -1230,6 +1276,11 @@ class PrayerAlertService {
           await _notificationsPlugin.cancel(
             id: 100 + (dayOffset * 10) + prayer,
           );
+          await _notificationsPlugin.cancel(
+            id: _prePrayerId(dayOffset, prayer),
+          );
+          // Legacy pre-prayer ids (old installs) — kept in the wipe so a
+          // schedule left over from the old scheme is fully cleared.
           await _notificationsPlugin.cancel(
             id: 200 + (dayOffset * 10) + prayer,
           );

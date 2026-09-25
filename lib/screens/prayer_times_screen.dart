@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/strings.dart';
 import '../services/home_widget_service.dart';
+import '../services/location_label.dart';
 import '../services/prayer_alert_service.dart';
 import '../services/prayer_times.dart';
 import '../state/app_state.dart';
@@ -627,6 +628,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       _lng = (saved['lng'] as num?)?.toDouble() ?? _lng;
       _city = (saved['cityAr'] as String?) ?? _city;
       _cityEn = (saved['cityEn'] as String?) ?? _cityEn;
+      _province = (saved['provinceAr'] as String?) ?? _province;
+      _provinceEn = (saved['provinceEn'] as String?) ?? _provinceEn;
       _country = (saved['countryAr'] as String?) ?? _country;
       _countryEn = (saved['countryEn'] as String?) ?? _countryEn;
     }
@@ -860,8 +863,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
               lng: lon,
               cityAr: names.$1.isNotEmpty ? names.$1 : rawCity,
               cityEn: names.$2.isNotEmpty ? names.$2 : rawCity,
-              countryAr: names.$3.isNotEmpty ? names.$3 : rawCountry,
-              countryEn: names.$4.isNotEmpty ? names.$4 : rawCountry,
+              provinceAr: names.$3,
+              provinceEn: names.$4,
+              countryAr: names.$5.isNotEmpty ? names.$5 : rawCountry,
+              countryEn: names.$6.isNotEmpty ? names.$6 : rawCountry,
             );
             return true;
           }
@@ -950,8 +955,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
               lng: lon,
               cityAr: names.$1.isNotEmpty ? names.$1 : rawCity,
               cityEn: names.$2.isNotEmpty ? names.$2 : rawCity,
-              countryAr: names.$3.isNotEmpty ? names.$3 : rawCountry,
-              countryEn: names.$4.isNotEmpty ? names.$4 : rawCountry,
+              provinceAr: names.$3,
+              provinceEn: names.$4,
+              countryAr: names.$5.isNotEmpty ? names.$5 : rawCountry,
+              countryEn: names.$6.isNotEmpty ? names.$6 : rawCountry,
             );
             return true;
           }
@@ -980,8 +987,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
             lng: lon,
             cityAr: names.$1.isNotEmpty ? names.$1 : rawCity,
             cityEn: names.$2.isNotEmpty ? names.$2 : rawCity,
-            countryAr: names.$3.isNotEmpty ? names.$3 : rawCountry,
-            countryEn: names.$4.isNotEmpty ? names.$4 : rawCountry,
+            provinceAr: names.$3,
+            provinceEn: names.$4,
+            countryAr: names.$5.isNotEmpty ? names.$5 : rawCountry,
+            countryEn: names.$6.isNotEmpty ? names.$6 : rawCountry,
           );
           return true;
         }
@@ -1011,8 +1020,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
             lng: lon,
             cityAr: names.$1.isNotEmpty ? names.$1 : rawCity,
             cityEn: names.$2.isNotEmpty ? names.$2 : rawCity,
-            countryAr: names.$3.isNotEmpty ? names.$3 : rawCountry,
-            countryEn: names.$4.isNotEmpty ? names.$4 : rawCountry,
+            provinceAr: names.$3,
+            provinceEn: names.$4,
+            countryAr: names.$5.isNotEmpty ? names.$5 : rawCountry,
+            countryEn: names.$6.isNotEmpty ? names.$6 : rawCountry,
           );
           return true;
         }
@@ -1714,12 +1725,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                                     maxWidth: 250,
                                   ),
                                   child: Text(
-                                    displayProvince.isNotEmpty &&
-                                            displayProvince != displayCity
-                                        ? '$displayCity، $displayProvince'
-                                        : displayCountry.isNotEmpty
-                                            ? '$displayCity، $displayCountry'
-                                            : displayCity,
+                                    locationLabel(
+                                      city: displayCity,
+                                      province: displayProvince,
+                                      country: displayCountry,
+                                    ),
                                     textAlign: TextAlign.center,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,

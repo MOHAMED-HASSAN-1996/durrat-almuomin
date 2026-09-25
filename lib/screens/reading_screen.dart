@@ -90,7 +90,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
     }
   }
 
-  /// التراجع عن آخر ضغطة أُزيل بطلب المستخدم
   Future<void> _next() async {
     HapticFeedback.selectionClick();
     if (_safeIndex < _total - 1) {
@@ -104,9 +103,20 @@ class _ReadingScreenState extends State<ReadingScreen> {
     }
   }
 
+  /// السابق: يرجع الضغطة (ينقص العداد درجة)، وعند الصفر ينتقل للكارت السابق.
   void _previous() {
-    if (_safeIndex <= 0) return;
+    final state = context.read<AppState>();
+    final dhikr = _adhkar[_safeIndex];
+    final current = state.countFor(widget.category, dhikr.id);
     HapticFeedback.lightImpact();
+    if (current > 0) {
+      state.decrement(widget.category, dhikr.id);
+      if (_lastCompletedIndex == _safeIndex) {
+        setState(() => _lastCompletedIndex = null);
+      }
+      return;
+    }
+    if (_safeIndex <= 0) return;
     _goTo(_safeIndex - 1);
   }
 
@@ -114,13 +124,14 @@ class _ReadingScreenState extends State<ReadingScreen> {
   Widget _buildNavRow({
     required AppLanguage lang,
     required bool isDone,
+    required bool canPrevious,
     required bool dark,
   }) {
     final isAr = lang == AppLanguage.arabic;
 
     final prevBtn = Expanded(
       child: OutlinedButton(
-        onPressed: _safeIndex > 0 ? _previous : null,
+        onPressed: canPrevious ? _previous : null,
         style: OutlinedButton.styleFrom(
           foregroundColor: dark ? DhikrColors.sage : DhikrColors.forest,
           side: BorderSide(
@@ -388,12 +399,21 @@ class _ReadingScreenState extends State<ReadingScreen> {
                   ),
                 ),
                 Expanded(
-                  child: GestureDetector(
-                    onTap: _handleCounterTap,
-                    behavior: HitTestBehavior.opaque,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
+                  child: LayoutBuilder(
+                    builder: (context, zone) {
+                      // مساحة الدائرة: 150px + تنفس 40px (20 فوق و20 تحت).
+                      final double rawZone = zone.maxHeight - 190;
+                      final double textMax = rawZone < 60 ? 60 : rawZone;
+                      return Column(
+                        children: [
+                          Container(
+                            constraints: BoxConstraints(maxHeight: textMax),
+                            child: GestureDetector(
+                              onTap: _handleCounterTap,
+                              behavior: HitTestBehavior.opaque,
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Column(
                         children: [
                           const SizedBox(height: 24),
                           Container(
@@ -509,23 +529,30 @@ class _ReadingScreenState extends State<ReadingScreen> {
                       ),
                     ),
                   ),
+                            ),
+                          // ── دائرة العدّاد: في منتصف الفراغ بين النص والأزرار ──
+                          Expanded(
+                            child: Center(
+                              child: DhikrCounter(
+                                size: 150,
+                                current: currentCount,
+                                target: dhikr.repeat,
+                                onTap: _handleCounterTap,
+                                languageLabel:
+                                    _counterA11yLabel(dhikr, currentCount, lang),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (state.audioEnabled) ...[
-                        const SizedBox(height: 4),
-                      ],
-                       DhikrCounter(
-                        size: 150,
-                        current: currentCount,
-                        target: dhikr.repeat,
-                        onTap: _handleCounterTap,
-                        languageLabel: _counterA11yLabel(dhikr, currentCount, lang),
-                      ),
-
                       Padding(
                         key: const ValueKey('next-cta'),
                         padding: const EdgeInsets.only(top: 4),
@@ -562,6 +589,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
                             _buildNavRow(
                               lang: lang,
                               isDone: isDone,
+                              canPrevious: currentCount > 0 || _safeIndex > 0,
                               dark: dark,
                             ),
                           ],

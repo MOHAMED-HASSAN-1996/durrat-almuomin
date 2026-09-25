@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../services/location_label.dart';
 import '../services/loved_ones_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -92,20 +93,37 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final appState = context.read<AppState>();
       final savedLoc = appState.storage.getSavedLocation();
       if (savedLoc != null) {
-        final city = (savedLoc['cityAr'] as String?) ??
-            (savedLoc['city'] as String?) ??
-            '';
+        final cityAr =
+            ((savedLoc['cityAr'] as String?) ??
+                    (savedLoc['city'] as String?) ??
+                    '')
+                .trim();
+        final cityEn = ((savedLoc['cityEn'] as String?) ?? cityAr).trim();
+        final provinceAr = ((savedLoc['provinceAr'] as String?) ?? '').trim();
+        final provinceEn = ((savedLoc['provinceEn'] as String?) ?? '').trim();
+        final countryAr = ((savedLoc['countryAr'] as String?) ?? '').trim();
+        final countryEn = ((savedLoc['countryEn'] as String?) ?? '').trim();
+        final labelAr = locationLabel(
+          city: cityAr,
+          province: provinceAr,
+          country: countryAr,
+        );
+        final labelEn = locationLabel(
+          city: cityEn,
+          province: provinceEn,
+          country: countryEn,
+        );
         items.add(
           NotificationItem(
             id: 'loc',
             type: NotifType.systemLocation,
             titleAr: 'تم ضبط الموقع والقبلة',
             titleEn: 'Location & Qibla ready',
-            subtitleAr: city.isNotEmpty
-                ? 'الموقع الحالي: $city — مواقيت الصلاة والقبلة تعمل الآن'
+            subtitleAr: labelAr.isNotEmpty
+                ? 'الموقع الحالي: $labelAr — مواقيت الصلاة والقبلة تعمل الآن'
                 : 'تم حفظ إحداثيات موقعك لمواقيت الصلاة والقبلة',
-            subtitleEn: city.isNotEmpty
-                ? 'Current location: $city — prayer times & qibla active'
+            subtitleEn: labelEn.isNotEmpty
+                ? 'Current location: $labelEn — prayer times & qibla active'
                 : 'Your coordinates are saved for prayer times & qibla',
             timeAr: 'عند الإعداد',
             timeEn: 'At setup',

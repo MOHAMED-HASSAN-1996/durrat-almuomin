@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/location_label.dart';
 import '../services/remote_content_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -140,9 +141,9 @@ class HomeScreen extends StatelessWidget {
                                   String countryDisplay = isAr
                                       ? 'العراق'
                                       : 'Iraq';
-                                  String locationLabel = isAr
-                                      ? 'بغداد، العراق'
-                                      : 'Baghdad, Iraq';
+                                  String locationText = isAr
+                                      ? 'العراق، بغداد'
+                                      : 'Iraq, Baghdad';
 
                                   if (savedLoc != null) {
                                     final rawAr =
@@ -243,13 +244,11 @@ class HomeScreen extends StatelessWidget {
                                         .replaceAll(' Province', '')
                                         .trim();
 
-                                    locationLabel =
-                                        cleanedProvince.isNotEmpty &&
-                                                cleanedProvince != cityDisplay
-                                            ? '$cityDisplay، $cleanedProvince'
-                                            : countryDisplay.isNotEmpty
-                                                  ? '$cityDisplay، $countryDisplay'
-                                                  : cityDisplay;
+                                    locationText = locationLabel(
+                                      city: cityDisplay,
+                                      province: cleanedProvince,
+                                      country: countryDisplay,
+                                    );
                                   }
 
                                   return Tooltip(
@@ -326,7 +325,7 @@ class HomeScreen extends StatelessWidget {
                                                 maxWidth: 130,
                                               ),
                                               child: Text(
-                                                locationLabel,
+                                                locationText,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 textDirection: isAr

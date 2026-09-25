@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../state/app_state.dart';
@@ -202,22 +203,45 @@ class _NearestMosquesScreenState extends State<NearestMosquesScreen> {
 
         if ((perm == LocationPermission.always || perm == LocationPermission.whileInUse) && serviceEnabled) {
           try {
+            // Only trust the cached device fix when it is genuinely fresh and
+            // accurate — a hours-old position silently wrecks «nearby» results.
             final lastPos = await Geolocator.getLastKnownPosition();
-            if (lastPos != null) {
+            final ts = lastPos?.timestamp;
+            final age = ts == null ? null : DateTime.now().difference(ts).abs();
+            final freshEnough = lastPos != null &&
+                age != null &&
+                age <= const Duration(minutes: 2) &&
+                lastPos.accuracy <= 100;
+            if (freshEnough) {
               lat = lastPos.latitude;
               lng = lastPos.longitude;
             }
           } catch (_) {}
 
           if (lat == null) {
-            final pos = await Geolocator.getCurrentPosition(
-              locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.medium,
-                timeLimit: Duration(seconds: 6),
-              ),
-            );
-            lat = pos.latitude;
-            lng = pos.longitude;
+            // Prefer a precise GPS fix first; fall back to the faster
+            // network fix so a satellite-poor spot never dead-ends here.
+            try {
+              final pos = await Geolocator.getCurrentPosition(
+                locationSettings: const LocationSettings(
+                  accuracy: LocationAccuracy.high,
+                  timeLimit: Duration(seconds: 6),
+                ),
+              );
+              lat = pos.latitude;
+              lng = pos.longitude;
+            } catch (_) {
+              try {
+                final pos = await Geolocator.getCurrentPosition(
+                  locationSettings: const LocationSettings(
+                    accuracy: LocationAccuracy.medium,
+                    timeLimit: Duration(seconds: 6),
+                  ),
+                );
+                lat = pos.latitude;
+                lng = pos.longitude;
+              } catch (_) {}
+            }
           }
         }
       } catch (e) {
@@ -244,6 +268,13 @@ class _NearestMosquesScreenState extends State<NearestMosquesScreen> {
     _userLocation = LatLng(lat, lng);
     _currentCenter = _userLocation;
 
+    // Paint the last successful result immediately (same area only), then
+    // run the quick radius fetch alone — the heavy broad prefetch waits for
+    // it (whenComplete) so the first icons are not starved by a 30km query.
+    // Bind to non-null locals first: `lat`/`lng` stay nullable inside closures.
+    final safeLat = lat;
+    final safeLng = lng;
+
     if (mounted) {
       setState(() {});
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -251,17 +282,17 @@ class _NearestMosquesScreenState extends State<NearestMosquesScreen> {
           _mapController.move(_userLocation!, 14.5);
         } catch (_) {}
       });
-      // Fire both fetches in parallel: quick radius + broad background,
-      // so icons appear as fast as possible with maximum coverage.
-      // mergeWithExisting keeps the broad result when both land at once.
-      unawaited(_fetchNearbyMosques(lat, lng, _searchRadiusKm * 1000, mergeWithExisting: true));
-      unawaited(_prefetchBroadMosques(lat, lng));
+      await _showCachedMosques(safeLat, safeLng);
+      unawaited(_fetchNearbyMosques(safeLat, safeLng, _searchRadiusKm * 1000, mergeWithExisting: true).whenComplete(() {
+        if (mounted) unawaited(_prefetchBroadMosques(safeLat, safeLng));
+      }));
     }
   }
 
   Future<void> _fetchNearbyMosques(
     double lat, double lng, int radiusMeters,
     {bool mergeWithExisting = false}) async {
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final overpassQuery = '''
@@ -323,6 +354,7 @@ out center 400;
           setState(() => _mosques = base.take(i + chunk).toList());
         }
         if (mounted) setState(() => _mosques = base);
+        unawaited(_saveMosqueCache(lat, lng));
       } else {
         throw Exception('All Overpass mirrors failed');
       }
@@ -342,6 +374,74 @@ out center 400;
         cos((lat2 - lat1) * p) / 2 +
         cos(lat1 * p) * cos(lat2 * p) * (1 - cos((lon2 - lon1) * p)) / 2;
     return 12742000 * asin(sqrt(a));
+  }
+
+  static const String _mosqueCacheKey = 'adhkar.mosque_results_v1';
+
+  /// حفظ آخر نتيجة ناجحة (بحد أقصى أقرب 400 مسجد) لعرضها فوراً في المرة
+  /// القادمة بينما يجري الجلب الجديد. [lat]/[lng] هو مركز الجلب نفسه حتى لا
+  /// تُنسب نتائج بحث في مدينة أخرى لموقعك.
+  Future<void> _saveMosqueCache(double lat, double lng) async {
+    try {
+      if (_mosques.isEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _mosqueCacheKey,
+        jsonEncode({
+          'lat': lat,
+          'lng': lng,
+          'r': _searchRadiusKm,
+          't': DateTime.now().millisecondsSinceEpoch,
+          'm': [
+            for (final m in _mosques.take(400))
+              {'i': m.id, 'n': m.name, 'a': m.lat, 'o': m.lng, 's': m.street},
+          ],
+        }),
+      );
+    } catch (_) {}
+  }
+
+  /// عرض النتائج المحفوظة فوراً قبل أول جلب — شرط ألا تكون أقدم من أسبوع
+  /// وألا يكون مركزها أبعد من 30 كم من موقعك الحالي (لا عرض كاش لمدينة أخرى).
+  /// المسافات تُعاد حسابها من موقعك الآن، والجلب الجديد يحل محلها لاحقاً.
+  Future<void> _showCachedMosques(double lat, double lng) async {
+    try {
+      if (_mosques.isNotEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_mosqueCacheKey);
+      if (raw == null || !mounted) return;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final cachedLat = (data['lat'] as num?)?.toDouble();
+      final cachedLng = (data['lng'] as num?)?.toDouble();
+      if (cachedLat == null || cachedLng == null) return;
+      if (_calculateDistanceMeters(cachedLat, cachedLng, lat, lng) > 30000) {
+        return;
+      }
+      final ageMs = DateTime.now().millisecondsSinceEpoch - (data['t'] as int? ?? 0);
+      if (ageMs < 0 || ageMs > 7 * 24 * 60 * 60 * 1000) return;
+      final items = <MosqueItem>[];
+      for (final it in data['m'] as List<dynamic>? ?? <dynamic>[]) {
+        try {
+          final m = it as Map<String, dynamic>;
+          final mLat = (m['a'] as num).toDouble();
+          final mLng = (m['o'] as num).toDouble();
+          items.add(MosqueItem(
+            id: m['i'] as String,
+            name: m['n'] as String,
+            lat: mLat,
+            lng: mLng,
+            distanceMeters: _calculateDistanceMeters(lat, lng, mLat, mLng),
+            street: m['s'] as String?,
+          ));
+        } catch (_) {}
+      }
+      if (items.isEmpty || !mounted) return;
+      items.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
+      setState(() {
+        _mosques = items;
+        _selectedMosque ??= items.first;
+      });
+    } catch (_) {}
   }
 
   void _onSearchChanged(String val) {
@@ -365,28 +465,41 @@ out center 400;
     });
   }
 
+  /// Races all Overpass mirrors at once and returns the first successful
+  /// answer — the old sequential loop paid for every slow mirror's timeout
+  /// before trying the next one.
   Future<dynamic> _postOverpass(String query, {int timeoutSec = 12}) async {
     final endpoints = [
       'https://overpass-api.de/api/interpreter',
       'https://lz4.overpass-api.de/api/interpreter',
       'https://overpass.kumi.systems/api/interpreter',
     ];
+    final completer = Completer<dynamic>();
+    var remaining = endpoints.length;
     for (final endpoint in endpoints) {
-      try {
-        final res = await http.post(
-          Uri.parse(endpoint),
-          headers: {
-            'User-Agent': 'DurratAlMuumin/1.0 (Android; Arabic Adhkar App)',
-            'Accept': 'application/json',
-          },
-          body: {'data': query},
-        ).timeout(Duration(seconds: timeoutSec));
-        if (res.statusCode == 200) {
-          return json.decode(utf8.decode(res.bodyBytes));
-        }
-      } catch (_) {}
+      () async {
+        try {
+          final res = await http
+              .post(
+                Uri.parse(endpoint),
+                headers: {
+                  'User-Agent': 'DurratAlMuumin/1.0 (Android; Arabic Adhkar App)',
+                  'Accept': 'application/json',
+                },
+                body: {'data': query},
+              )
+              .timeout(Duration(seconds: timeoutSec));
+          if (res.statusCode == 200) {
+            final decoded = json.decode(utf8.decode(res.bodyBytes));
+            if (!completer.isCompleted) completer.complete(decoded);
+            return;
+          }
+        } catch (_) {}
+        remaining--;
+        if (remaining == 0 && !completer.isCompleted) completer.complete(null);
+      }();
     }
-    return null;
+    return completer.future;
   }
 
   String _escRegex(String q) {
@@ -563,6 +676,7 @@ out center 800;
     }
     merged.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
     if (mounted) setState(() => _mosques = merged);
+    unawaited(_saveMosqueCache(lat, lng));
   }
 
   void _selectSearchResult(Map<String, dynamic> item) {
@@ -640,8 +754,8 @@ out center 800;
       _mapController.move(target, 15.0);
       if (mounted) {
         _showNotice('تم التحديد بموقعك الحالي بدقة ✓');
+        await _fetchNearbyMosques(pos.latitude, pos.longitude, _searchRadiusKm * 1000);
       }
-      await _fetchNearbyMosques(pos.latitude, pos.longitude, _searchRadiusKm * 1000);
     } catch (_) {
       if (mounted) _showNotice('تعذر قراءة موقع GPS بدقة');
     } finally {

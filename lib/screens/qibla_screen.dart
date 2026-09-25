@@ -9,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
+import '../services/location_label.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
@@ -146,15 +147,30 @@ class _QiblaScreenState extends State<QiblaScreen> with TickerProviderStateMixin
     if (saved != null) {
       final lat = (saved['lat'] as num?)?.toDouble();
       final lng = (saved['lng'] as num?)?.toDouble();
-      final city = (saved['cityAr'] as String?) ?? (saved['cityEn'] as String?);
       if (lat != null && lng != null) {
         setState(() {
           _userLat = lat;
           _userLng = lng;
-          if (city != null) _cityName = city;
+          _cityName = _titleFromLocationMap(saved);
         });
       }
     }
+  }
+
+  /// «المنطقة ثم المدينة» باللغة الحالية من بيانات الموقع المحفوظة.
+  String _titleFromLocationMap(Map<String, dynamic> loc) {
+    final isAr = context.read<AppState>().language == AppLanguage.arabic;
+    String pick(String arKey, String enKey) {
+      final ar = ((loc[arKey] as String?) ?? '').trim();
+      final en = ((loc[enKey] as String?) ?? '').trim();
+      return isAr ? (ar.isNotEmpty ? ar : en) : (en.isNotEmpty ? en : ar);
+    }
+
+    return locationLabel(
+      city: pick('cityAr', 'cityEn'),
+      province: pick('provinceAr', 'provinceEn'),
+      country: pick('countryAr', 'countryEn'),
+    );
   }
 
   Future<void> _refreshGPS() async {
@@ -184,6 +200,8 @@ class _QiblaScreenState extends State<QiblaScreen> with TickerProviderStateMixin
           String countryEn = '';
           String provinceAr = '';
           String provinceEn = '';
+          String cityAr = '';
+          String cityEn = '';
           String cc = '';
           try {
             final res = await http
@@ -196,6 +214,9 @@ class _QiblaScreenState extends State<QiblaScreen> with TickerProviderStateMixin
               final data = jsonDecode(res.body) as Map<String, dynamic>;
               countryAr = (data['countryName'] as String?) ?? '';
               provinceAr = (data['principalSubdivision'] as String?) ?? '';
+              cityAr = ((data['city'] as String?) ?? '').trim().isNotEmpty
+                  ? ((data['city'] as String).trim())
+                  : (((data['locality'] as String?) ?? '').trim());
               cc = ((data['countryCode'] as String?) ?? '').trim().toUpperCase();
             }
           } catch (_) {}
@@ -210,20 +231,49 @@ class _QiblaScreenState extends State<QiblaScreen> with TickerProviderStateMixin
               final data = jsonDecode(res.body) as Map<String, dynamic>;
               countryEn = (data['countryName'] as String?) ?? '';
               provinceEn = (data['principalSubdivision'] as String?) ?? '';
+              cityEn = ((data['city'] as String?) ?? '').trim();
               cc = ((data['countryCode'] as String?) ?? '').trim().toUpperCase();
             }
           } catch (_) {}
+          // المدينة من الـ geocoder مع الحفاظ على المدينة المحفوظة كاحتياط
+          // (بدل كتابة اسم القديم فوقها كما كان سابقًا).
+          final prev = storage.getSavedLocation() ?? const <String, dynamic>{};
+          final prevCityAr = ((prev['cityAr'] as String?) ?? '').trim();
+          final prevCityEn = ((prev['cityEn'] as String?) ?? '').trim();
+          final finalCityAr = cityAr.isNotEmpty
+              ? cityAr
+              : (prevCityAr.isNotEmpty ? prevCityAr : _cityName);
+          final finalCityEn = cityEn.isNotEmpty
+              ? cityEn
+              : (prevCityEn.isNotEmpty ? prevCityEn : _cityName);
           await storage.saveLocation(
             lat: pos.latitude,
             lng: pos.longitude,
-            cityAr: _cityName,
-            cityEn: _cityName,
+            cityAr: finalCityAr,
+            cityEn: finalCityEn,
             provinceAr: provinceAr,
             provinceEn: provinceEn,
             countryAr: countryAr,
             countryEn: countryEn,
             countryCode: cc,
           );
+          if (mounted) {
+            final isAr =
+                context.read<AppState>().language == AppLanguage.arabic;
+            setState(() {
+              _cityName = locationLabel(
+                city: isAr
+                    ? (finalCityAr.isNotEmpty ? finalCityAr : finalCityEn)
+                    : (finalCityEn.isNotEmpty ? finalCityEn : finalCityAr),
+                province: isAr
+                    ? (provinceAr.isNotEmpty ? provinceAr : provinceEn)
+                    : (provinceEn.isNotEmpty ? provinceEn : provinceAr),
+                country: isAr
+                    ? (countryAr.isNotEmpty ? countryAr : countryEn)
+                    : (countryEn.isNotEmpty ? countryEn : countryAr),
+              );
+            });
+          }
         }
       }
     } catch (_) {}
