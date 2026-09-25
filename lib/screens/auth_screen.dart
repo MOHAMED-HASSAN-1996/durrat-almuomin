@@ -422,7 +422,7 @@ class _AuthScreenState extends State<AuthScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             child: Form(
               key: _formKey,
               child: Column(
@@ -469,7 +469,7 @@ _isSignUp
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 14),
 
                   // 2. Form Fields
                   if (_isSignUp) ...[
@@ -530,7 +530,7 @@ _isSignUp
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     // Full Name
                     TextFormField(
                       controller: _nameController,
@@ -551,7 +551,7 @@ _isSignUp
                         return null;
                       },
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                   ],
 
                   // Email
@@ -575,12 +575,30 @@ _isSignUp
                       return null;
                     },
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
 
                   // Phone Number Field (with Country Code)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Phone Number Input
+                      Expanded(
+                        child: TextFormField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: InputDecoration(
+                            labelText: isAr ? 'رقم الهاتف (اختياري)' : 'Phone Number',
+                            prefixIcon: const Icon(Icons.phone_iphone_rounded),
+                            filled: true,
+                            fillColor: dark ? DhikrColors.darkSurface : Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       // Country Code Picker (بحث في كل الدول)
                       Material(
                         color: dark ? DhikrColors.darkSurface : Colors.white,
@@ -622,27 +640,9 @@ _isSignUp
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      // Phone Number Input
-                      Expanded(
-                        child: TextFormField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: InputDecoration(
-                            labelText: isAr ? 'رقم الهاتف (اختياري)' : 'Phone Number',
-                            prefixIcon: const Icon(Icons.phone_iphone_rounded),
-                            filled: true,
-                            fillColor: dark ? DhikrColors.darkSurface : Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
 
                   // Password
                   TextFormField(
@@ -671,7 +671,7 @@ _isSignUp
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   // Submit Button
                   ElevatedButton(
@@ -701,7 +701,7 @@ _isSignUp
                           ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
                   // Toggle Sign Up / Sign In
                   TextButton(
@@ -718,7 +718,7 @@ _isSignUp
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
                   // Or Divider
                   Row(
@@ -739,7 +739,7 @@ _isSignUp
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
                   // Google Sign-In Button
                   OutlinedButton(

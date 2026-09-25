@@ -297,7 +297,7 @@ class _AnimeStoriesScreenState extends State<AnimeStoriesScreen> {
                 style: TextStyle(
                   fontFamily: DhikrTheme.arabicFont,
                   fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   color: isSelected
                       ? Colors.white
                       : (dark ? DhikrColors.darkText : DhikrColors.charcoal),
@@ -305,16 +305,18 @@ class _AnimeStoriesScreenState extends State<AnimeStoriesScreen> {
               ),
               selected: isSelected,
               selectedColor: DhikrColors.forest,
-              backgroundColor: dark
-                  ? DhikrColors.darkSurfaceHigh
-                  : DhikrColors.sageSoft,
+              backgroundColor: dark ? DhikrColors.darkSurface : Colors.white,
+              elevation: 0,
+              pressElevation: 0,
+              side: BorderSide(
+                color: isSelected
+                    ? DhikrColors.forest
+                    : (dark
+                          ? DhikrColors.sageSoft.withValues(alpha: 0.2)
+                          : const Color(0xFFE5E7EB)),
+              ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: isSelected
-                      ? DhikrColors.forest
-                      : DhikrColors.forest.withValues(alpha: dark ? 0.25 : 0.2),
-                ),
+                borderRadius: BorderRadius.circular(20),
               ),
               showCheckmark: false,
               onSelected: (selected) {

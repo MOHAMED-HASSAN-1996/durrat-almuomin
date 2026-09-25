@@ -619,7 +619,20 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
                     children: LovedOneCategory.values.map((cat) {
                       final selected = _selectedCategory == cat;
                       return ChoiceChip(
-                        label: Text(cat.badgeLabelAr),
+                        label: Text(
+                          cat.badgeLabelAr,
+                          style: TextStyle(
+                            fontFamily: DhikrTheme.arabicFont,
+                            fontWeight:
+                                selected ? FontWeight.w800 : FontWeight.w600,
+                            fontSize: 12.5,
+                            color: selected
+                                ? Colors.white
+                                : (dark
+                                      ? DhikrColors.darkText
+                                      : DhikrColors.charcoal),
+                          ),
+                        ),
                         selected: selected,
                         onSelected: (val) {
                           if (val) {
@@ -631,24 +644,23 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
                             });
                           }
                         },
-                        selectedColor: const Color(0xFF0F3B2C).withValues(alpha: 0.15),
-                        labelStyle: TextStyle(
-                          fontFamily: DhikrTheme.arabicFont,
-                          fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                          fontSize: 12.5,
+                        selectedColor: DhikrColors.forest,
+                        backgroundColor:
+                            dark ? DhikrColors.darkSurface : Colors.white,
+                        elevation: 0,
+                        pressElevation: 0,
+                        side: BorderSide(
                           color: selected
-                              ? (dark ? const Color(0xFFC5A059) : const Color(0xFF0F3B2C))
-                              : (dark ? DhikrColors.darkMuted : DhikrColors.charcoalSoft),
+                              ? DhikrColors.forest
+                              : (dark
+                                    ? DhikrColors.sageSoft
+                                        .withValues(alpha: 0.2)
+                                    : const Color(0xFFE5E7EB)),
                         ),
-                        backgroundColor: dark ? const Color(0xFF1A2620) : Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(
-                            color: selected
-                                ? const Color(0xFF0F3B2C)
-                                : Colors.grey.withValues(alpha: 0.15),
-                          ),
+                          borderRadius: BorderRadius.circular(20),
                         ),
+                        showCheckmark: false,
                       );
                     }).toList(),
                   ),

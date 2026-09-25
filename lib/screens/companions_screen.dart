@@ -115,13 +115,6 @@ class _CompanionsScreenState extends State<CompanionsScreen>
               indicator: BoxDecoration(
                 color: DhikrColors.forest,
                 borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: DhikrColors.forest.withValues(alpha: 0.35),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
               ),
               labelColor: Colors.white,
               unselectedLabelColor: dark ? Colors.white70 : Colors.black87,

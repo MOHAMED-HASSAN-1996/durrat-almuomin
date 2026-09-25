@@ -326,20 +326,10 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
                         final cat = _categories[idx];
                         final isSelected = _selectedCategory == cat.key;
                         final count = _categoryCounts[cat.key] ?? 0;
-                        return ChoiceChip(
+return ChoiceChip(
                           label: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                cat.icon,
-                                size: 14,
-                                color: isSelected
-                                    ? Colors.white
-                                    : (dark
-                                          ? Colors.white70
-                                          : Colors.black87),
-                              ),
-                              const SizedBox(width: 6),
                               Text(
                                 isAr ? cat.titleAr : cat.titleEn,
                                 style: TextStyle(
@@ -361,11 +351,12 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
                                     horizontal: 7, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? gold.withValues(alpha: 0.28)
+                                      ? Colors.white.withValues(alpha: 0.22)
                                       : (dark
-                                            ? Colors.white.withValues(
-                                                alpha: 0.08)
-                                            : emerald.withValues(alpha: 0.08)),
+                                          ? DhikrColors.sage
+                                              .withValues(alpha: 0.18)
+                                          : DhikrColors.forest
+                                              .withValues(alpha: 0.08)),
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: Text(
@@ -377,29 +368,29 @@ class _JawamiDhikrScreenState extends State<JawamiDhikrScreen> {
                                     color: isSelected
                                         ? Colors.white
                                         : (dark
-                                              ? Colors.white70
-                                              : emerald),
+                                              ? DhikrColors.sage
+                                              : DhikrColors.forest),
                                   ),
                                 ),
                               ),
                             ],
                           ),
                           selected: isSelected,
-                          selectedColor: emerald,
+                          selectedColor: DhikrColors.forest,
                           backgroundColor:
-                              dark ? const Color(0xFF101C17) : Colors.white,
-                          elevation: isSelected ? 3 : 0,
+                              dark ? DhikrColors.darkSurface : Colors.white,
+                          elevation: 0,
                           pressElevation: 0,
                           side: BorderSide(
                             color: isSelected
-                                ? gold.withValues(alpha: 0.7)
+                                ? DhikrColors.forest
                                 : (dark
-                                      ? Colors.white12
-                                      : DhikrColors.charcoal.withValues(
-                                          alpha: 0.12)),
+                                      ? DhikrColors.sageSoft
+                                          .withValues(alpha: 0.2)
+                                      : const Color(0xFFE5E7EB)),
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           showCheckmark: false,
                           onSelected: (selected) {

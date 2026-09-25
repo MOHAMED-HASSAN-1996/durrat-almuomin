@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../services/prayer_alert_service.dart';
@@ -375,14 +374,14 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: dark
-            ? const Color(0xFF0D1612)
-            : const Color(0xFFF7FBF9),
+            ? DhikrColors.darkBg
+            : DhikrColors.ivory,
         appBar: AppBar(
           backgroundColor: dark ? const Color(0xFF13221B) : Colors.white,
           elevation: 0,
           leading: _canGoBack
               ? IconButton(
-                  icon: const Icon(LucideIcons.chevronLeft, size: 22),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22),
                   onPressed: () {
                     if (widget.onFinished != null) {
                       widget.onFinished!();
@@ -429,7 +428,6 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
 
                   // ═══ قائمة الصلاحيات الحية ═══
                   _buildPermissionCard(
-                    icon: LucideIcons.bell,
                     title: isAr
                         ? 'إشعار اقتراب الصلاة (قبل ١٠ دقائق)'
                         : 'Pre-Prayer Reminder (10 min)',
@@ -442,7 +440,6 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                   ),
 
                   _buildPermissionCard(
-                    icon: LucideIcons.megaphone,
                     title: isAr
                         ? 'الأذان لكل الصلوات الخمس'
                         : 'Adhan for All Five Prayers',
@@ -455,7 +452,6 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                   ),
 
                   _buildPermissionCard(
-                    icon: LucideIcons.mapPin,
                     title: isAr ? 'الموقع الجغرافي (GPS)' : 'Location & GPS',
                     subtitle: _locationGranted
                         ? (isAr
@@ -471,7 +467,6 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                   ),
 
                   _buildPermissionCard(
-                    icon: LucideIcons.batteryCharging,
                     title: isAr
                         ? 'استثناء تحسين البطارية'
                         : 'Battery Optimization Exemption',
@@ -484,7 +479,6 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                   ),
 
                   _buildPermissionCard(
-                    icon: LucideIcons.alarmClock,
                     title: isAr
                         ? 'المنبهات الدقيقة (Exact Alarms)'
                         : 'Exact Alarms (Alarms & Reminders)',
@@ -497,7 +491,6 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
                   ),
 
                   _buildPermissionCard(
-                    icon: LucideIcons.radio,
                     title: isAr
                         ? 'التشغيل في الخلفية'
                         : 'Background Audio Radio',
@@ -618,7 +611,6 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
   }
 
   Widget _buildPermissionCard({
-    required IconData icon,
     required String title,
     required String subtitle,
     required bool isGranted,
@@ -661,38 +653,6 @@ class _PermissionsControlScreenState extends State<PermissionsControlScreen>
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    color: isGranted
-                        ? (dark
-                              ? DhikrColors.forestDeep.withValues(alpha: 0.45)
-                              : DhikrColors.sageSoft)
-                        : (dark
-                              ? Colors.white.withValues(alpha: 0.05)
-                              : const Color(0xFFF3F4F6)),
-                    border: Border.all(
-                      color: isGranted
-                          ? (dark
-                                ? DhikrColors.forestLight.withValues(alpha: 0.3)
-                                : DhikrColors.forest.withValues(alpha: 0.25))
-                          : (dark ? Colors.white12 : const Color(0xFFE5E7EB)),
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: isGranted
-                        ? (dark ? DhikrColors.sage : DhikrColors.forest)
-                        : (dark
-                              ? const Color(0xFF9CA3AF)
-                              : const Color(0xFF6B7280)),
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

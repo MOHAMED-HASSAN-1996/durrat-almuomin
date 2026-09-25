@@ -90,21 +90,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
     }
   }
 
-  /// التراجع عن آخر ضغطة (إنقاص العداد واحد) — للصباح والمساء وبعد الصلاة والرقية
-  void _handleUndoTap() {
-    final state = context.read<AppState>();
-    final dhikr = _adhkar[_safeIndex];
-    final current = state.countFor(widget.category, dhikr.id);
-    if (current <= 0) return;
-    HapticFeedback.lightImpact();
-    state.decrement(widget.category, dhikr.id);
-    if (_lastCompletedIndex == _safeIndex) {
-      setState(() {
-        _lastCompletedIndex = null;
-      });
-    }
-  }
-
+  /// التراجع عن آخر ضغطة أُزيل بطلب المستخدم
   Future<void> _next() async {
     HapticFeedback.selectionClick();
     if (_safeIndex < _total - 1) {
@@ -122,6 +108,86 @@ class _ReadingScreenState extends State<ReadingScreen> {
     if (_safeIndex <= 0) return;
     HapticFeedback.lightImpact();
     _goTo(_safeIndex - 1);
+  }
+
+  /// صف التنقل: RTL → التالي يمين بسهمه ورجوع يسار | LTR → السابق يسار والتالي يمين
+  Widget _buildNavRow({
+    required AppLanguage lang,
+    required bool isDone,
+    required bool dark,
+  }) {
+    final isAr = lang == AppLanguage.arabic;
+
+    final prevBtn = Expanded(
+      child: OutlinedButton(
+        onPressed: _safeIndex > 0 ? _previous : null,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: dark ? DhikrColors.sage : DhikrColors.forest,
+          side: BorderSide(
+            color: (dark ? DhikrColors.sage : DhikrColors.forest)
+                .withValues(alpha: 0.4),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: isAr
+              ? [
+                  Text(AppStrings.t(lang, 'previous')),
+                  const SizedBox(width: 6),
+                  Icon(Icons.arrow_forward_rounded, size: 20),
+                ]
+              : [
+                  Icon(Icons.arrow_back_rounded, size: 20),
+                  const SizedBox(width: 6),
+                  Text(AppStrings.t(lang, 'previous')),
+                ],
+        ),
+      ),
+    );
+
+    final nextBtn = Expanded(
+      child: FilledButton(
+        onPressed: isDone ? _next : null,
+        style: FilledButton.styleFrom(
+          backgroundColor: isDone
+              ? (dark ? DhikrColors.sage : DhikrColors.forest)
+              : (dark ? DhikrColors.darkSurface : DhikrColors.sand),
+          foregroundColor: isDone
+              ? Colors.white
+              : (dark ? DhikrColors.darkMuted : DhikrColors.sandDeep),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: isAr
+              ? [
+                  Icon(Icons.arrow_back_rounded, size: 20),
+                  const SizedBox(width: 6),
+                  Text(AppStrings.t(lang, 'next')),
+                ]
+              : [
+                  Text(AppStrings.t(lang, 'next')),
+                  const SizedBox(width: 6),
+                  Icon(Icons.arrow_forward_rounded, size: 20),
+                ],
+        ),
+      ),
+    );
+
+    return Row(
+      children: [
+        if (isAr) nextBtn else prevBtn,
+        const SizedBox(width: 12),
+        if (isAr) prevBtn else nextBtn,
+      ],
+    );
   }
 
   void _showCompletion() {
@@ -459,33 +525,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
                         onTap: _handleCounterTap,
                         languageLabel: _counterA11yLabel(dhikr, currentCount, lang),
                       ),
-                      if (currentCount > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: TextButton.icon(
-                            onPressed: _handleUndoTap,
-                            icon: Icon(
-                              Icons.undo_rounded,
-                              size: 16,
-                              color: dark
-                                  ? DhikrColors.darkMuted
-                                  : DhikrColors.charcoalSoft,
-                            ),
-                            label: Text(
-                              lang == AppLanguage.arabic
-                                  ? 'تراجع عن آخر ضغطة'
-                                  : 'Undo last tap',
-                              style: TextStyle(
-                                fontFamily: DhikrTheme.arabicFont,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: dark
-                                    ? DhikrColors.darkMuted
-                                    : DhikrColors.charcoalSoft,
-                              ),
-                            ),
-                          ),
-                        ),
+
                       Padding(
                         key: const ValueKey('next-cta'),
                         padding: const EdgeInsets.only(top: 4),
@@ -519,89 +559,10 @@ class _ReadingScreenState extends State<ReadingScreen> {
                               ),
                               const SizedBox(height: 10),
                             ],
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: _safeIndex > 0
-                                        ? _previous
-                                        : null,
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: dark
-                                          ? DhikrColors.sage
-                                          : DhikrColors.forest,
-                                      side: BorderSide(
-                                        color: (dark
-                                                ? DhikrColors.sage
-                                                : DhikrColors.forest)
-                                            .withValues(alpha: 0.4),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 14),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          AppStrings.t(lang, 'previous'),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Icon(
-                                          lang == AppLanguage.arabic
-                                              ? Icons.arrow_forward_rounded
-                                              : Icons.arrow_back_rounded,
-                                          size: 20,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: FilledButton(
-                                    onPressed: isDone ? _next : null,
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: isDone
-                                          ? (dark
-                                              ? DhikrColors.sage
-                                              : DhikrColors.forest)
-                                          : (dark
-                                              ? DhikrColors.darkSurface
-                                              : DhikrColors.sand),
-                                      foregroundColor: isDone
-                                          ? Colors.white
-                                          : (dark
-                                              ? DhikrColors.darkMuted
-                                              : DhikrColors.sandDeep),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 14),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          AppStrings.t(lang, 'next'),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Icon(
-                                          lang == AppLanguage.arabic
-                                              ? Icons.arrow_back_rounded
-                                              : Icons.arrow_forward_rounded,
-                                          size: 20,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            _buildNavRow(
+                              lang: lang,
+                              isDone: isDone,
+                              dark: dark,
                             ),
                           ],
                         ),

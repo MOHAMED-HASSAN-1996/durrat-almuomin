@@ -206,7 +206,7 @@ class _HadithScreenState extends State<HadithScreen> {
                           selected: isSelected,
                           selectedColor: DhikrColors.forest,
                           backgroundColor: dark ? DhikrColors.darkSurface : Colors.white,
-                          elevation: isSelected ? 3 : 0,
+                          elevation: 0,
                           pressElevation: 0,
                           side: BorderSide(
                             color: isSelected

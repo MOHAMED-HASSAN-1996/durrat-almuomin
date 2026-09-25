@@ -2565,8 +2565,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
               Flexible(
                 child: Text(
                   isAr
-                      ? 'اضغط على اسم الصلاة لتسجيل أنها أُقيمت وتُحتسب في التزامك'
-                      : 'Tap a prayer name to mark it as performed',
+                      ? 'اضغط على الصلاة لتسجيل إقامتها'
+                      : 'Tap a prayer to mark as performed',
                   style: TextStyle(
                     fontFamily: DhikrTheme.arabicFont,
                     fontSize: 11.5,
@@ -2590,60 +2590,86 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                     appState.togglePrayerTask(p.$1);
                     HomeWidgetService.instance.syncTracker();
                   },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isDone
-                          ? primaryAccent
-                          : (dark
-                                ? Colors.white.withValues(alpha: 0.04)
-                                : const Color(0xFFF8FAF9)),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isDone
-                            ? primaryAccent
-                            : (dark
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : DhikrColors.charcoal.withValues(
-                                      alpha: 0.08,
-                                    )),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isDone ? LucideIcons.check : p.$4,
-                          size: 16,
+                  child: Stack(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
                           color: isDone
-                              ? Colors.white
+                              ? primaryAccent
                               : (dark
-                                    ? DhikrColors.darkMuted
-                                    : DhikrColors.charcoalSoft),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isAr ? p.$2 : p.$3,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: DhikrTheme.arabicFont,
-                            fontWeight: isDone
-                                ? FontWeight.w800
-                                : FontWeight.w600,
-                            fontSize: 11,
+                                    ? Colors.white.withValues(alpha: 0.04)
+                                    : const Color(0xFFF8FAF9)),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
                             color: isDone
-                                ? Colors.white
+                                ? primaryAccent
                                 : (dark
-                                      ? DhikrColors.darkMuted
-                                      : DhikrColors.charcoalSoft),
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : DhikrColors.charcoal.withValues(
+                                          alpha: 0.08,
+                                        )),
+                            width: 1,
                           ),
                         ),
-                      ],
-                    ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isDone ? LucideIcons.check : p.$4,
+                              size: 16,
+                              color: isDone
+                                  ? Colors.white
+                                  : (dark
+                                        ? DhikrColors.darkMuted
+                                        : DhikrColors.charcoalSoft),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              isAr ? p.$2 : p.$3,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: DhikrTheme.arabicFont,
+                                fontWeight: isDone
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                fontSize: 11,
+                                color: isDone
+                                    ? Colors.white
+                                    : (dark
+                                          ? DhikrColors.darkMuted
+                                          : DhikrColors.charcoalSoft),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Radio صغير 10px في الزاوية العليا
+                      PositionedDirectional(
+                        top: 6,
+                        start: 8,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDone ? Colors.white : Colors.transparent,
+                            border: Border.all(
+                              color: isDone
+                                  ? Colors.white
+                                  : (dark
+                                        ? Colors.white.withValues(alpha: 0.4)
+                                        : DhikrColors.charcoal
+                                            .withValues(alpha: 0.25)),
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
