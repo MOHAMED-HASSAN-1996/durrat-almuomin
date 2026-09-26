@@ -828,9 +828,10 @@ class _UserProfileCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isLoggedIn
-                          ? (isAr ? 'الحساب' : 'Account')
-                          : (isAr ? 'تسجيل المستخدم' : 'User Account'),
+                      // اسم صاحب الحساب فوق الإيميل (مع احتياطي لكلمة «الحساب»)
+                      isLoggedIn && userName.isNotEmpty
+                          ? userName
+                          : (isAr ? 'الحساب' : 'Account'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

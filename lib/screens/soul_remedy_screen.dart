@@ -1496,37 +1496,54 @@ class _SoulRemedyDetailScreenState extends State<SoulRemedyDetailScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        isAr ? r.feelingAr : r.feelingEn,
-                        style: TextStyle(
-                          fontFamily: DhikrTheme.arabicFont,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16.5,
-                          color: dark ? Colors.white : DhikrColors.charcoal,
-                        ),
-                      ),
-                    ),
-                    if (r.subtitleAr.isNotEmpty)
+                // ── الـ chips فوق العنوان (لا بجانبه) ──
+                if (r.subtitleAr.isNotEmpty) ...[
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          r.subtitleAr,
-                          style: TextStyle(
-                            fontFamily: DhikrTheme.arabicFont,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            color: accent,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: accent.withValues(alpha: 0.28),
                           ),
                         ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(LucideIcons.sparkles, size: 11, color: accent),
+                            const SizedBox(width: 5),
+                            Text(
+                              r.subtitleAr,
+                              style: TextStyle(
+                                fontFamily: DhikrTheme.arabicFont,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: accent,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                  ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Text(
+                  isAr ? r.feelingAr : r.feelingEn,
+                  style: TextStyle(
+                    fontFamily: DhikrTheme.arabicFont,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16.5,
+                    color: dark ? Colors.white : DhikrColors.charcoal,
+                  ),
                 ),
                 const SizedBox(height: 5),
                 Text(

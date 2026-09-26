@@ -108,11 +108,13 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
             HapticFeedback.lightImpact();
-            final res = await Navigator.push<bool>(
+            // شاشة الإضافة تُكمل الحفظ الصامت ثم تُغلق بلا نتيجة (res == null)،
+            // لذلك نُعيد تحميل القائمة دائماً حتى يظهر الطلب المنشور فوراً.
+            await Navigator.push<bool>(
               context,
               MaterialPageRoute(builder: (_) => const AddLovedOneScreen()),
             );
-            if (res == true) _load();
+            if (mounted) _load();
           },
           backgroundColor: const Color(0xFF0F3B2C),
           foregroundColor: Colors.white,

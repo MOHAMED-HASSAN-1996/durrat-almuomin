@@ -182,6 +182,21 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
     return false;
   }
 
+  void _toast(String message) {
+    if (!mounted) return;
+    AppToast.show(
+      context,
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontFamily: DhikrTheme.arabicFont),
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     HapticFeedback.mediumImpact();
@@ -192,77 +207,129 @@ class _AddLovedOneScreenState extends State<AddLovedOneScreen> {
     final profile = context.read<AppState>().userProfile;
     setState(() => _isSaving = true);
 
-    // Rate limiting: max 2 prayers per day
-    if (widget.itemToEdit == null) {
-      final canAdd = await LovedOnesService.instance.canAddPrayerToday();
-      if (!canAdd) {
-        if (mounted) {
-          setState(() => _isSaving = false);
-          await _showRateLimitDialog(context);
-        }
+    var saved = false;
+    var published = false;
+    var imageSkipped = false;
+
+    try {
+      // حدود قواعد أمان Firestore: الاسم ≤ ١٢٠ حرفاً والدعاء ≤ ٣٠٠٠ حرف،
+      // وإلا تُرفض الكتابة بصمت وتبقى الشاشة تدور للأبد.
+      final personName = _nameController.text.trim();
+      final duaText = _duaController.text.trim();
+      if (personName.isEmpty || personName.length > 120) {
+        _toast('اسم الشخص المطلوب الدعاء له يجب ألا يزيد عن ١٢٠ حرفاً.');
         return;
       }
-    }
-
-    var remoteImage = _imagePath;
-    if (remoteImage != null && remoteImage.isNotEmpty) {
-      final uploaded =
-          await ImageUploadService.instance.ensureRemote(remoteImage, folder: 'posts');
-      if (uploaded == null) {
-        if (mounted) {
-          setState(() => _isSaving = false);
-          AppToast.show(context, 
-            const SnackBar(
-              content: Text('تعذر رفع الصورة، تحقق من الاتصال وحاول مجدداً.'),
-            ),
-          );
-        }
+      if (duaText.isEmpty || duaText.length > 3000) {
+        _toast('نص الدعاء يجب ألا يزيد عن ٣٠٠٠ حرف.');
         return;
       }
-      remoteImage = uploaded;
-    }
 
-    var authorPhoto = widget.itemToEdit?.authorPhoto ?? (profile?['photo'] ?? '');
-    if (authorPhoto.isNotEmpty && !authorPhoto.startsWith('http')) {
-      authorPhoto =
-          await ImageUploadService.instance.ensureRemote(authorPhoto, folder: 'avatars') ??
+      // Rate limiting: max 2 prayers per day
+      if (widget.itemToEdit == null) {
+        final canAdd = await LovedOnesService.instance.canAddPrayerToday();
+        if (!canAdd) {
+          if (mounted) setState(() => _isSaving = false);
+          if (mounted) await _showRateLimitDialog(context);
+          return;
+        }
+      }
+
+      var remoteImage = _imagePath;
+      if (remoteImage != null && remoteImage.isNotEmpty) {
+        String? uploaded;
+        try {
+          uploaded = await ImageUploadService.instance
+              .ensureRemote(remoteImage, folder: 'posts')
+              .timeout(const Duration(seconds: 30));
+        } catch (e) {
+          debugPrint('Post image upload failed: $e');
+          uploaded = null;
+        }
+        if (uploaded == null) {
+          // الصورة زينة: ننشر الدعاء بدونها بدل تعطيل النشر كلياً.
+          imageSkipped = true;
+          remoteImage = null;
+        } else {
+          remoteImage = uploaded;
+        }
+      }
+
+      var authorPhoto =
+          widget.itemToEdit?.authorPhoto ?? (profile?['photo'] ?? '');
+      if (authorPhoto.isNotEmpty && !authorPhoto.startsWith('http')) {
+        try {
+          authorPhoto = await ImageUploadService.instance
+                  .ensureRemote(authorPhoto, folder: 'avatars')
+                  .timeout(const Duration(seconds: 20)) ??
               authorPhoto;
+        } catch (e) {
+          debugPrint('Avatar upload skipped: $e');
+        }
+      }
+
+      // قاعدة الأمان ترفض اسم المؤلف الفارغ أو الأطول من ٨٠ حرفاً.
+      var authorName =
+          (widget.itemToEdit?.authorName ?? profile?['name'] ?? '').trim();
+      if (authorName.isEmpty) authorName = 'مستخدم درة المؤمن';
+      if (authorName.length > 80) authorName = authorName.substring(0, 80);
+      if (authorPhoto.length > 500) authorPhoto = authorPhoto.substring(0, 500);
+
+      final id = widget.itemToEdit?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString();
+      final item = LovedOneItem(
+        id: id,
+        name: personName,
+        relation: '',
+        category: _selectedCategory,
+        imagePath: remoteImage,
+        customDua: duaText,
+        fatihaCount: widget.itemToEdit?.fatihaCount ?? 0,
+        loveCount: widget.itemToEdit?.loveCount ?? 0,
+        comments: widget.itemToEdit?.comments,
+        createdAt: widget.itemToEdit?.createdAt,
+        authorName: authorName,
+        authorPhoto: authorPhoto,
+      );
+
+      if (widget.itemToEdit != null) {
+        await LovedOnesService.instance.updateLovedOne(item);
+      } else {
+        published = await LovedOnesService.instance.addLovedOne(item);
+        if (published) {
+          await LovedOnesService.instance.recordPrayerAddedToday();
+        }
+      }
+      saved = true;
+    } catch (e) {
+      debugPrint('Prayer request save failed: $e');
+      _toast('تعذر حفظ الطلب الآن، تحقق من اتصال الإنترنت وحاول مجدداً.');
+    } finally {
+      // مهما حدث (نجاح أو رفض من قواعد الأمان) يُطفأ مؤشر التحميل.
+      if (mounted) setState(() => _isSaving = false);
     }
 
-    final id = widget.itemToEdit?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
-    final item = LovedOneItem(
-      id: id,
-      name: _nameController.text.trim(),
-      relation: '',
-      category: _selectedCategory,
-      imagePath: remoteImage,
-      customDua: _duaController.text.trim(),
-      fatihaCount: widget.itemToEdit?.fatihaCount ?? 0,
-      loveCount: widget.itemToEdit?.loveCount ?? 0,
-      comments: widget.itemToEdit?.comments,
-      createdAt: widget.itemToEdit?.createdAt,
-      authorName: widget.itemToEdit?.authorName ?? (profile?['name'] ?? ''),
-      authorPhoto: authorPhoto,
-    );
+    if (!mounted || !saved) return;
 
     if (widget.itemToEdit != null) {
-      await LovedOnesService.instance.updateLovedOne(item);
-    } else {
-      await LovedOnesService.instance.addLovedOne(item);
-      await LovedOnesService.instance.recordPrayerAddedToday();
+      await _showThankYouDialog(context, isEdit: true);
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+      return;
     }
 
-    if (mounted) {
-      setState(() => _isSaving = false);
-      if (widget.itemToEdit != null) {
-        await _showThankYouDialog(context, isEdit: true);
-        if (mounted) {
-          Navigator.pop(context, true);
-        }
-        return;
-      }
-      // وضع الإضافة: حفظ صامت + مسح الحقول والبقاء في الشاشة (بدون أي نتيجة)
+    // وضع الإضافة: تأكيد خفيف للنشر. عند الفشل نُبقي النموذج ممتلئاً
+    // حتى يتمكن المستخدم من إعادة المحاولة دون فقدان نصّه.
+    if (published) {
+      _toast(imageSkipped
+          ? 'تم نشر طلب الدعاء في المجتمع بدون الصورة 🤲'
+          : 'تم نشر طلب الدعاء في المجتمع 🤲');
       _resetForm();
+    } else {
+      _toast(
+        'تم حفظ طلبك على جهازك، وتعذر نشره للسحابة الآن — تحقق من الاتصال واضغط «إضافة إلى قائمة الدعاء» مجدداً.',
+      );
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,18 +27,37 @@ class LovedOnesService {
   DateTime? _lastCommentTime;
   FirebaseFirestore? _firestore;
   String? _uid;
+  Future<bool>? _connectFuture;
 
   List<LovedOneItem> get items => List.unmodifiable(_items);
 
-  Future<bool> _connect() async {
+  /// مهلة قصيرة للاتصال حتى لا تعلق شاشة الإضافة على الشبكة.
+  static const _connectTimeout = Duration(seconds: 10);
+
+  /// مهلة جلب القائمة من السحابة (القراءة فقط، الكتابة لها مهلتها المستقلة).
+  static const _readTimeout = Duration(seconds: 15);
+
+  Future<bool> _connect() {
+    // عملية اتصال واحدة مشتركة (لا تُكرَّر signInAnonymously عند التداخل).
+    if (_firestore != null && _uid != null) return Future.value(true);
+    return _connectFuture ??= _doConnect();
+  }
+
+  Future<bool> _doConnect() async {
     try {
-      await FirebaseAuthService.instance.initialize();
-      final user = await FirebaseAuthService.instance.signInAnonymously();
+      await FirebaseAuthService.instance
+          .initialize()
+          .timeout(_connectTimeout);
+      final user = await FirebaseAuthService.instance
+          .signInAnonymously()
+          .timeout(_connectTimeout);
       _firestore = FirebaseFirestore.instance;
       _uid = user.uid;
       return true;
     } catch (e) {
       debugPrint('Loved ones cloud connection unavailable: $e');
+      // نسمح بمحاولة اتصال جديدة في المرة القادمة.
+      _connectFuture = null;
       return false;
     }
   }
@@ -57,7 +77,8 @@ class LovedOnesService {
             .orderBy('expiresAt', descending: false)
             .orderBy('createdAt', descending: true)
             .limit(_pageSize)
-            .get();
+            .get()
+            .timeout(_readTimeout);
         _items
           ..clear()
           ..addAll(snap.docs.map(_fromDocument).where((item) => !item.isExpired));
@@ -147,12 +168,11 @@ class LovedOnesService {
     _items.removeWhere((item) => hidden.contains(item.id));
   }
 
-  Future<void> addLovedOne(LovedOneItem item) async {
-    await loadLovedOnes();
-    if (_firestore != null) {
-      final ref = await _requests.add(_toDocument(item));
-      item = LovedOneItem(
-        id: ref.id,
+  /// محاولة نشر لم تكتمل بعد (الشبكة بطيئة) — تُعاد بدل إنشاء طلب مكرر.
+  Future<DocumentReference<Map<String, dynamic>>>? _pendingCreate;
+
+  LovedOneItem _withId(LovedOneItem item, String id) => LovedOneItem(
+        id: id,
         name: item.name,
         relation: item.relation,
         category: item.category,
@@ -165,14 +185,67 @@ class LovedOnesService {
         authorName: item.authorName,
         authorPhoto: item.authorPhoto,
       );
+
+  /// حفظ محلي متكرر-آمن: لا يُدخل الطلب مرتين ولا يكرّر معرّفه.
+  Future<void> _storeLocal(LovedOneItem item) async {
+    if (!_items.any((e) => e.id == item.id)) {
+      _items.insert(0, item);
     }
-    _items.insert(0, item);
     await _persistLocal();
     final prefs = await SharedPreferences.getInstance();
     final ids = prefs.getStringList(_myCreatedIdsKey) ?? [];
     if (!ids.contains(item.id)) {
       ids.add(item.id);
       await prefs.setStringList(_myCreatedIdsKey, ids);
+    }
+  }
+
+  /// يضيف طلباً جديداً للدعاء.
+  ///
+  /// يُعيد `true` إذا وصل الطلب فعلياً إلى السحابة، و`false` إذا لم يكتمل
+  /// النشر بعد (لا اتصال أو رفضت قواعد الأمان أو بطيء الرد).
+  Future<bool> addLovedOne(LovedOneItem item) async {
+    if (!_loaded) {
+      // جلب القائمة أولاً حتى لا يضيع الطلب المضاف عند عودة الجلب من السحابة.
+      // (تعمل بمهلة داخلية فلا تعلق شاشة الإضافة.)
+      await loadLovedOnes();
+    } else if (_firestore == null || _uid == null) {
+      await _connect();
+    }
+
+    if (_firestore == null || _uid == null) {
+      await _storeLocal(item);
+      return false;
+    }
+
+    Future<DocumentReference<Map<String, dynamic>>>? pending;
+    try {
+      // إن كانت محاولة سابقة لا تزال في طابور الانتظار نكملها بدل تكرار الطلب.
+      pending = _pendingCreate ??= _requests.add(_toDocument(item));
+
+      // عند وصول الكتابة للسحابة لاحقاً نتبنّى معرّفها ونحفظ محلياً.
+      pending.then((ref) async {
+        if (identical(_pendingCreate, pending)) _pendingCreate = null;
+        await _storeLocal(_withId(item, ref.id));
+      }).catchError((Object e) {
+        debugPrint('Loved ones deferred publish failed: $e');
+        if (identical(_pendingCreate, pending)) _pendingCreate = null;
+      });
+
+      final ref = await pending.timeout(const Duration(seconds: 20));
+      if (identical(_pendingCreate, pending)) _pendingCreate = null;
+      await _storeLocal(_withId(item, ref.id));
+      return true;
+    } on TimeoutException {
+      // الكتابة ما زالت معلّقة: ستظهر تلقائياً في القائمة عند اكتمالها.
+      debugPrint('Loved ones publish still pending after timeout');
+      return false;
+    } catch (e) {
+      // رفضت قواعد الأمان أو خطأ غير متوقع: نحفظ محلياً ونبلّغ الواجهة.
+      debugPrint('Loved ones cloud insert failed: $e');
+      if (identical(_pendingCreate, pending)) _pendingCreate = null;
+      await _storeLocal(item);
+      return false;
     }
   }
 
