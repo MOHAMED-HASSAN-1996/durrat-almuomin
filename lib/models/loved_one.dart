@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 enum LovedOneCategory {
@@ -83,6 +84,31 @@ class LovedOneItem {
   final DateTime createdAt;
   final String authorName;
   final String authorPhoto;
+
+  /// يعيد الصورة المناسبة للمنشور (رابط شبكة / مسار محلي / صورة إسلامية بديلة ثابتة لكل ID).
+  String get resolvedPhoto {
+    final path = imagePath;
+    if (path != null && path.isNotEmpty) {
+      if (path.startsWith('http')) return path;
+      try {
+        final f = File(path);
+        if (f.existsSync()) return path;
+      } catch (_) {}
+    }
+    const photos = [
+      'assets/images/hero_fajr.webp',
+      'assets/images/onboarding_athan.webp',
+      'assets/images/hero_maghrib.webp',
+      'assets/images/onboarding_quran.webp',
+      'assets/images/hero_card_bg.webp',
+      'assets/images/hero_isha.webp',
+      'assets/images/onboarding_adhkar.webp',
+      'assets/images/hero_asr.webp',
+      'assets/images/hero_dhuhr.webp',
+    ];
+    final hash = id.hashCode.abs();
+    return photos[hash % photos.length];
+  }
 
   /// Duration logic (30-day community active window)
   int get daysRemaining {

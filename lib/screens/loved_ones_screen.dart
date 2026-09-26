@@ -14,6 +14,7 @@ import '../widgets/user_avatar.dart';
 import 'add_loved_one_screen.dart';
 import 'loved_one_detail_screen.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/report_dialog.dart';
 
 class LovedOnesScreen extends StatefulWidget {
   const LovedOnesScreen({super.key});
@@ -461,37 +462,66 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
     );
   }
 
-  String _getPostPhoto(LovedOneItem item) {
-    final path = item.imagePath;
-    if (path != null && path.isNotEmpty) {
-      if (path.startsWith('http')) return path;
-      if (File(path).existsSync()) return path;
+  void _onCardMenuAction(
+    BuildContext context,
+    LovedOneItem item,
+    bool isMine,
+    String val,
+  ) async {
+    if (val == 'report') {
+      showLovedOneReportDialog(context, item, onReported: _load);
+    } else if (val == 'renew') {
+      await LovedOnesService.instance.renewLovedOne(item.id);
+      _load();
+      if (context.mounted) {
+        AppToast.show(
+          context,
+          const SnackBar(
+            content: Text(
+              'تم تجديد ظهور طلب الدعاء في المجتمع لـ ٣٠ يوماً إضافية 🤲',
+            ),
+          ),
+        );
+      }
+    } else if (val == 'delete') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text('حذف الدعاء'),
+          content: const Text('هل أنت متأكد من رغبتك في حذف هذا المنشور؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حذف'),
+            ),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        await LovedOnesService.instance.deleteLovedOne(item.id);
+        _load();
+      }
     }
-    const photos = [
-      'assets/images/hero_fajr.webp',
-      'assets/images/onboarding_athan.webp',
-      'assets/images/hero_maghrib.webp',
-      'assets/images/onboarding_quran.webp',
-      'assets/images/hero_card_bg.webp',
-      'assets/images/hero_isha.webp',
-      'assets/images/onboarding_adhkar.webp',
-      'assets/images/hero_asr.webp',
-      'assets/images/hero_dhuhr.webp',
-    ];
-    final hash = item.id.hashCode.abs();
-    return photos[hash % photos.length];
   }
 
   Widget _buildCommunityPrayerCard(BuildContext context, LovedOneItem item, bool dark, bool isMine) {
     final duaText = item.customDua?.isNotEmpty == true
         ? item.customDua!
         : item.category.defaultDuaAr;
-    final postPhoto = _getPostPhoto(item);
-    final hasCustomImage = item.imagePath != null &&
-        item.imagePath!.isNotEmpty &&
-        (item.imagePath!.startsWith('http') ||
-            File(item.imagePath!).existsSync());
+    final postPhoto = item.resolvedPhoto;
     final isNetworkImage = postPhoto.startsWith('http');
+    final isAsset = postPhoto.startsWith('assets/');
 
     return Material(
       color: Colors.transparent,
@@ -616,6 +646,53 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                     ],
                   ),
                 ),
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    LucideIcons.moreVertical,
+                    size: 18,
+                    color: dark ? Colors.white54 : DhikrColors.charcoalSoft,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  color: dark ? const Color(0xFF1E332B) : Colors.white,
+                  onSelected: (val) => _onCardMenuAction(context, item, isMine, val),
+                  itemBuilder: (_) => [
+                    if (isMine && item.isExpired)
+                      const PopupMenuItem(
+                        value: 'renew',
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.rotateCcw, size: 16, color: Colors.amber),
+                            SizedBox(width: 8),
+                            Text('تجديد الطلب', style: TextStyle(fontFamily: DhikrTheme.arabicFont, color: Colors.amber)),
+                          ],
+                        ),
+                      ),
+                    if (!isMine)
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.flag, size: 16, color: Colors.redAccent),
+                            SizedBox(width: 8),
+                            Text('إبلاغ عن محتوى', style: TextStyle(fontFamily: DhikrTheme.arabicFont, color: Colors.redAccent)),
+                          ],
+                        ),
+                      ),
+                    if (isMine)
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.trash2, size: 16, color: Colors.redAccent),
+                            SizedBox(width: 8),
+                            Text('حذف المنشور', style: TextStyle(fontFamily: DhikrTheme.arabicFont, color: Colors.redAccent)),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -640,9 +717,20 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  hasCustomImage
-                      ? (isNetworkImage
-                          ? Image.network(
+                  isNetworkImage
+                      ? Image.network(
+                          postPhoto,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            color: const Color(0xFF0F3B2C),
+                            child: const Center(
+                              child: Icon(LucideIcons.heartHandshake,
+                                  color: Colors.white, size: 40),
+                            ),
+                          ),
+                        )
+                      : (isAsset
+                          ? Image.asset(
                               postPhoto,
                               fit: BoxFit.cover,
                               errorBuilder: (_, _, _) => Container(
@@ -656,17 +744,7 @@ class _LovedOnesScreenState extends State<LovedOnesScreen> {
                           : Image.file(
                               File(postPhoto),
                               fit: BoxFit.cover,
-                            ))
-                      : Image.asset(
-                          postPhoto,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
-                            color: const Color(0xFF0F3B2C),
-                            child: const Center(
-                              child: Icon(LucideIcons.heartHandshake, color: Colors.white, size: 40),
-                            ),
-                          ),
-                        ),
+                            )),
                   // Subtle gradient overlay for photography depth
                   Container(
                     decoration: BoxDecoration(

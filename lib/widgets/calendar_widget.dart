@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/prayer_times_screen.dart';
+import '../services/aladhan_service.dart';
 import '../services/prayer_times.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -659,11 +660,23 @@ class _CalendarWidgetState extends State<CalendarWidget> {
     final savedLoc = storage.getSavedLocation();
     final lat = (savedLoc?['lat'] as num?)?.toDouble() ?? 30.0444;
     final lng = (savedLoc?['lng'] as num?)?.toDouble() ?? 31.2357;
-    final prayerTimes = PrayerCalculator.calculate(
-      date: _now,
-      lat: lat,
-      lng: lng,
-    );
+
+    // استخدام كاش Aladhan إن وُجد فورياً وإلا الحساب المحلي
+    final cachedToday = AladhanService.instance.cachedSync(_now, lat, lng);
+    final prayerTimes = cachedToday != null
+        ? PrayerTimes(
+            fajr: cachedToday['fajr']!,
+            sunrise: cachedToday['sunrise']!,
+            dhuhr: cachedToday['dhuhr']!,
+            asr: cachedToday['asr']!,
+            maghrib: cachedToday['maghrib']!,
+            isha: cachedToday['isha']!,
+          )
+        : PrayerCalculator.calculate(
+            date: _now,
+            lat: lat,
+            lng: lng,
+          );
 
     final prayersList = [
       ('الفجر', 'Fajr', prayerTimes.fajr, LucideIcons.sunrise),
@@ -683,11 +696,22 @@ class _CalendarWidgetState extends State<CalendarWidget> {
     }
     if (nextPrayer == null) {
       final tomorrow = _now.add(const Duration(days: 1));
-      final tmPrayers = PrayerCalculator.calculate(
-        date: tomorrow,
-        lat: lat,
-        lng: lng,
-      );
+      final cachedTm =
+          AladhanService.instance.cachedSync(tomorrow, lat, lng);
+      final tmPrayers = cachedTm != null
+          ? PrayerTimes(
+              fajr: cachedTm['fajr']!,
+              sunrise: cachedTm['sunrise']!,
+              dhuhr: cachedTm['dhuhr']!,
+              asr: cachedTm['asr']!,
+              maghrib: cachedTm['maghrib']!,
+              isha: cachedTm['isha']!,
+            )
+          : PrayerCalculator.calculate(
+              date: tomorrow,
+              lat: lat,
+              lng: lng,
+            );
       nextPrayer = ('الفجر', 'Fajr', tmPrayers.fajr, LucideIcons.sunrise);
     }
 

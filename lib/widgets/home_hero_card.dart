@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/prayer_times_screen.dart';
+import '../services/aladhan_service.dart';
 import '../services/prayer_times.dart';
 import '../services/home_widget_service.dart';
 import '../state/app_state.dart';
@@ -24,6 +25,32 @@ class _HomeHeroCardState extends State<HomeHeroCard> {
   Timer? _ticker;
   DateTime _now = DateTime.now();
   String? _lastWidgetSignature;
+
+  /// مواقيت Aladhan (دقيقة عالمياً) — تُحمَّل مرة لكل (إحداثيات + يوم).
+  Map<String, DateTime>? _apiTimes;
+  String _apiKey = '';
+
+  Future<void> _loadApiTimes({
+    required double lat,
+    required double lng,
+    required String countryEn,
+    required String cityEn,
+  }) async {
+    final today = DateTime.now();
+    final key = '${lat.toStringAsFixed(3)}|${lng.toStringAsFixed(3)}|'
+        '${today.year}-${today.month}-${today.day}';
+    if (key == _apiKey) return;
+    _apiKey = key;
+    final times = await AladhanService.instance.timingsFor(
+      date: today,
+      lat: lat,
+      lng: lng,
+      countryEn: countryEn,
+      cityEn: cityEn,
+    );
+    if (!mounted || times == null) return;
+    setState(() => _apiTimes = times);
+  }
 
   @override
   void initState() {
@@ -49,13 +76,42 @@ class _HomeHeroCardState extends State<HomeHeroCard> {
     final loc = appState.storage.getSavedLocation();
     final lat = (loc?['lat'] as num?)?.toDouble() ?? 33.3152;
     final lng = (loc?['lng'] as num?)?.toDouble() ?? 44.3661;
+    final countryEn = ((loc?['countryEn'] as String?) ?? '').trim();
+    final cityEn = ((loc?['cityEn'] as String?) ?? '').trim();
 
-    // Calculate prayer times
-    final prayerTimes = PrayerCalculator.calculate(
+    // مواقيت Aladhan الدقيقة عالمياً (تُجلب في الخلفية لكل يوم/موقع)،
+    // وإلا نعود للحساب المحلي فوراً حتى لا تفرغ البطاقة.
+    final apiKey = '${lat.toStringAsFixed(3)}|${lng.toStringAsFixed(3)}|'
+        '${_now.year}-${_now.month}-${_now.day}';
+    if (apiKey != _apiKey) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadApiTimes(
+            lat: lat,
+            lng: lng,
+            countryEn: countryEn,
+            cityEn: cityEn,
+          );
+        }
+      });
+    }
+    final localCalc = PrayerCalculator.calculate(
       date: _now,
       lat: lat,
       lng: lng,
     );
+    final remote =
+        _apiTimes ?? AladhanService.instance.cachedSync(_now, lat, lng);
+    final prayerTimes = remote == null
+        ? localCalc
+        : PrayerTimes(
+            fajr: remote['fajr']!,
+            sunrise: remote['sunrise']!,
+            dhuhr: remote['dhuhr']!,
+            asr: remote['asr']!,
+            maghrib: remote['maghrib']!,
+            isha: remote['isha']!,
+          );
 
     // Determine next prayer & remaining duration
     final (nextNameAr, nextNameEn, nextTime, remainingStr, nextKey) =

@@ -295,74 +295,42 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
                   ),
                   child: Column(
                     children: [
-                      // Photo (Square Rounded Card instead of Circle)
+                      // Photo Banner (نفس الصورة والأبعاد الأنيقة كبطاقة القائمة)
                       Container(
-                        width: 160,
-                        height: 160,
+                        height: 220,
+                        width: double.infinity,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: _item.category.color.withValues(alpha: 0.5),
-                            width: 2.5,
-                          ),
+                          borderRadius: BorderRadius.circular(18),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(19.5),
-                          child: _item.imagePath != null &&
-                                  _item.imagePath!.isNotEmpty
-                              ? (_item.imagePath!.startsWith('http')
-                                  ? Image.network(
-                                      _item.imagePath!,
-                                      fit: BoxFit.cover,
-                                      width: 160,
-                                      height: 160,
-                                      errorBuilder: (_, _, _) => Container(
-                                        color: _item.category.color
-                                            .withValues(alpha: 0.12),
-                                        child: Center(
-                                          child: Icon(
-                                            _item.category.icon,
-                                            size: 56,
-                                            color: _item.category.color,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : (File(_item.imagePath!).existsSync()
-                                      ? Image.file(
-                                          File(_item.imagePath!),
-                                          fit: BoxFit.cover,
-                                          width: 160,
-                                          height: 160,
-                                        )
-                                      : Container(
-                                          color: _item.category.color
-                                              .withValues(alpha: 0.12),
-                                          child: Center(
-                                            child: Icon(
-                                              _item.category.icon,
-                                              size: 56,
-                                              color: _item.category.color,
-                                            ),
-                                          ),
-                                        )))
-                              : Container(
-                                  color: _item.category.color.withValues(alpha: 0.12),
-                                  child: Center(
-                                    child: Icon(
-                                      _item.category.icon,
-                                      size: 56,
-                                      color: _item.category.color,
-                                    ),
+                          borderRadius: BorderRadius.circular(18),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              _buildHeaderPhoto(_item.resolvedPhoto),
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black.withValues(alpha: 0.35),
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.55),
+                                    ],
+                                    stops: const [0.0, 0.45, 1.0],
                                   ),
                                 ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -713,6 +681,38 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (_isMine)
+                                    InkWell(
+                                      onTap: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (c) => AlertDialog(
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                            title: const Text('حذف الدعاء'),
+                                            content: const Text('هل تريد إزالة هذا التعليق/الدعاء؟'),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('إلغاء')),
+                                              ElevatedButton(
+                                                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                                                onPressed: () => Navigator.pop(c, true),
+                                                child: const Text('حذف'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          await LovedOnesService.instance.removeComment(_item.id, _item.comments[i]);
+                                          final items = await LovedOnesService.instance.loadLovedOnes();
+                                          final found = items.firstWhere((e) => e.id == _item.id, orElse: () => _item);
+                                          if (mounted) setState(() => _item = found);
+                                        }
+                                      },
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(4),
+                                        child: Icon(LucideIcons.trash2, size: 14, color: Colors.redAccent),
+                                      ),
+                                    ),
                                 ],
                               ),
                             );
@@ -726,6 +726,37 @@ class _LovedOneDetailScreenState extends State<LovedOneDetailScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeaderPhoto(String path) {
+    if (path.startsWith('http')) {
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => Container(
+          color: const Color(0xFF0F3B2C),
+          child: const Center(
+            child: Icon(LucideIcons.heartHandshake, color: Colors.white, size: 40),
+          ),
+        ),
+      );
+    }
+    if (path.startsWith('assets/')) {
+      return Image.asset(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => Container(
+          color: const Color(0xFF0F3B2C),
+          child: const Center(
+            child: Icon(LucideIcons.heartHandshake, color: Colors.white, size: 40),
+          ),
+        ),
+      );
+    }
+    return Image.file(
+      File(path),
+      fit: BoxFit.cover,
     );
   }
 

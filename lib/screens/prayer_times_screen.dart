@@ -10,6 +10,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/strings.dart';
+import '../services/aladhan_service.dart';
 import '../services/home_widget_service.dart';
 import '../services/location_label.dart';
 import '../services/prayer_alert_service.dart';
@@ -38,6 +39,70 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   String _country = 'العراق';
   String _countryEn = 'Iraq';
   String _resolvedCountryCode = '';
+
+  /// بصمة الموقع اللي الشاشة متطبّقة عليها دلوقتي.
+  ///
+  /// أي تغيير في [AppState.locationSignature] جاي من شاشة تانية (الصلاحيات،
+  /// الرئيسية، البوصلة) بيخلّي الشاشة دي تعيد الحساب بدل ما تفضل على
+  /// المكان القديم لحد ما المستخدم يقفلها ويفتحها تاني.
+  String _appliedLocationSignature = '';
+
+  /// true جوه [_applyAndSaveLocation]: الكتابة بتاعتنا هي اللي غيّرت المكان،
+  /// فمش نعيد تطبيقها على الشاشة مرتين.
+  bool _writingLocation = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncLocationFromAppState();
+  }
+
+  /// يسحب الموقع الموحّد من [AppState] ويطبّقه على الشاشة لو اتغيّر.
+  void _syncLocationFromAppState() {
+    if (_writingLocation) return;
+    final appState = context.read<AppState>();
+    final signature = appState.locationSignature;
+    if (signature.isEmpty || signature == _appliedLocationSignature) return;
+    _appliedLocationSignature = signature;
+
+    final loc = appState.location;
+    if (loc == null) return;
+    final lat = (loc['lat'] as num?)?.toDouble();
+    final lng = (loc['lng'] as num?)?.toDouble();
+    if (lat == null || lng == null) return;
+
+    // نفس الإحداثيات: الأسماء بس اللي اتغيّرت (مثل إعادة جلب الاسم بعد
+    // فشل الشبكة)، فحدّث الأسماء من غير إعادة طلب مواقيت الصلاة.
+    if ((lat - _lat).abs() < 1e-7 && (lng - _lng).abs() < 1e-7) {
+      if (!mounted) return;
+      setState(() {
+        _city = (loc['cityAr'] as String?) ?? _city;
+        _cityEn = (loc['cityEn'] as String?) ?? _cityEn;
+        _province = (loc['provinceAr'] as String?) ?? _province;
+        _provinceEn = (loc['provinceEn'] as String?) ?? _provinceEn;
+        _country = (loc['countryAr'] as String?) ?? _country;
+        _countryEn = (loc['countryEn'] as String?) ?? _countryEn;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _lat = lat;
+      _lng = lng;
+      _city = (loc['cityAr'] as String?) ?? _city;
+      _cityEn = (loc['cityEn'] as String?) ?? _cityEn;
+      _province = (loc['provinceAr'] as String?) ?? _province;
+      _provinceEn = (loc['provinceEn'] as String?) ?? _provinceEn;
+      _country = (loc['countryAr'] as String?) ?? _country;
+      _countryEn = (loc['countryEn'] as String?) ?? _countryEn;
+      _locateFailed = false;
+    });
+
+    // المكان اتغيّر من برّه: المواقيت كلّها بتتغيّر، فجيبها من جديد.
+    _apiTimes = null;
+    _fetchApiPrayerTimes();
+  }
 
   bool _locating = false;
   bool _locateFailed = false;
@@ -621,7 +686,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     PrayerAlertService.instance.init();
 
     // 1. First restore saved location & adhan preference from persistent storage
-    final storage = context.read<AppState>().storage;
+    final appState = context.read<AppState>();
+    final storage = appState.storage;
     final saved = storage.getSavedLocation();
     if (saved != null) {
       _lat = (saved['lat'] as num?)?.toDouble() ?? _lat;
@@ -633,6 +699,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       _country = (saved['countryAr'] as String?) ?? _country;
       _countryEn = (saved['countryEn'] as String?) ?? _countryEn;
     }
+    // الموقع اللي قريناه فوق هو نفسه الموحّد، فسجّل بصمته عشان أول
+    // استدعاء لـ didChangeDependencies ما يعتبرهوش تغيير جديد.
+    _appliedLocationSignature = appState.locationSignature;
     _selectedAdhanIndex = storage.getSavedAdhanIndex().clamp(
       0,
       _adhanOptions.length - 1,
@@ -1075,17 +1144,27 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       _locateFailed = false;
     });
 
-    await context.read<AppState>().storage.saveLocation(
-      lat: lat,
-      lng: lng,
-      cityAr: resolvedCityAr,
-      cityEn: resolvedCityEn,
-      provinceAr: resolvedProvinceAr,
-      provinceEn: resolvedProvinceEn,
-      countryAr: resolvedCountryAr,
-      countryEn: resolvedCountryEn,
-      countryCode: _resolvedCountryCode,
-    );
+    // نكتب عبر AppState (مو storage مباشرة) عشان كل الشاشات التانية — الرئيسية
+    // والبوصلة وسجل الالتزام — تعرف إن المكان اتغيّر وتحدّث نفسها فورًا.
+    _writingLocation = true;
+    try {
+      final appState = context.read<AppState>();
+      await appState.saveLocation(
+        lat: lat,
+        lng: lng,
+        cityAr: resolvedCityAr,
+        cityEn: resolvedCityEn,
+        provinceAr: resolvedProvinceAr,
+        provinceEn: resolvedProvinceEn,
+        countryAr: resolvedCountryAr,
+        countryEn: resolvedCountryEn,
+        countryCode: _resolvedCountryCode,
+      );
+      // سجّل البصمة اللي طبّقناها عشان الـ sync ما يشفش تغيير برّه.
+      _appliedLocationSignature = appState.locationSignature;
+    } finally {
+      _writingLocation = false;
+    }
 
     // Refresh API prayer times whenever location changes
     _apiTimes = null;
@@ -1485,85 +1564,38 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     return 3;
   }
 
-  DateTime? _parseApiTiming(String raw, DateTime date) {
-    // Strips trailing timezone like "(EET)" or extra spaces to prevent parse errors
-    final clean = raw.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
-    final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(clean);
-    if (match == null) return null;
-    final h = int.parse(match.group(1)!);
-    final m = int.parse(match.group(2)!);
-    return DateTime(date.year, date.month, date.day, h, m);
-  }
-
-  /// Fetch prayer times from Aladhan API (accurate, uses server-side calculation for all cities)
+  /// جلب مواقيت الصلاة من Aladhan API (‏api.aladhan.com) عبر [AladhanService]
+  /// — طريقة الحساب تلقائية حسب الدولة، والتوقيت مربوط بمنطقة المدينة نفسها
+  /// (meta.timezone) لتصح المواقيت في كل أنحاء العالم، مع كاش أوفلاين و
+  /// احتياطي محلي عند تعذّر الشبكة.
   Future<void> _fetchApiPrayerTimes() async {
     if (_loadingApiTimes) return;
     setState(() => _loadingApiTimes = true);
     try {
-      final method = _detectCalculationMethod(_countryEn, _cityEn);
-      final now = DateTime.now();
-      final timestamp = now.millisecondsSinceEpoch ~/ 1000;
-      final url =
-          'https://api.aladhan.com/v1/timings/$timestamp?latitude=$_lat&longitude=$_lng&method=$method';
-      final res = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 8));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        if (data['code'] == 200) {
-          final timings = data['data']['timings'] as Map<String, dynamic>;
-          final today = DateTime.now();
+      final timesMap = await AladhanService.instance.timingsFor(
+        date: DateTime.now(),
+        lat: _lat,
+        lng: _lng,
+        countryEn: _countryEn,
+        cityEn: _cityEn,
+        method: _detectCalculationMethod(_countryEn, _cityEn),
+      );
 
-          final parsedFajr = _parseApiTiming(timings['Fajr'] as String, today);
-          final parsedSunrise = _parseApiTiming(
-            timings['Sunrise'] as String,
-            today,
-          );
-          final parsedDhuhr = _parseApiTiming(
-            timings['Dhuhr'] as String,
-            today,
-          );
-          final parsedAsr = _parseApiTiming(timings['Asr'] as String, today);
-          final parsedMaghrib = _parseApiTiming(
-            timings['Maghrib'] as String,
-            today,
-          );
-          final parsedIsha = _parseApiTiming(timings['Isha'] as String, today);
+      if (timesMap != null && mounted) {
+        setState(() {
+          _apiTimes = timesMap;
+          _loadingApiTimes = false;
+        });
 
-          if (parsedFajr != null &&
-              parsedDhuhr != null &&
-              parsedAsr != null &&
-              parsedMaghrib != null &&
-              parsedIsha != null) {
-            final timesMap = {
-              'fajr': parsedFajr,
-              'sunrise':
-                  parsedSunrise ?? parsedFajr.add(const Duration(minutes: 90)),
-              'dhuhr': parsedDhuhr,
-              'asr': parsedAsr,
-              'maghrib': parsedMaghrib,
-              'isha': parsedIsha,
-            };
-
-            if (mounted) {
-              setState(() {
-                _apiTimes = timesMap;
-                _loadingApiTimes = false;
-              });
-
-              // Schedule system notifications on Android / iOS
-              final isAr =
-                  context.read<AppState>().language == AppLanguage.arabic;
-              PrayerAlertService.instance.schedulePrayerNotifications(
-                prayerTimes: timesMap,
-                isArabic: isAr,
-                lat: _lat,
-                lng: _lng,
-              );
-              return;
-            }
-          }
-        }
+        // Schedule system notifications on Android / iOS
+        final isAr = context.read<AppState>().language == AppLanguage.arabic;
+        PrayerAlertService.instance.schedulePrayerNotifications(
+          prayerTimes: timesMap,
+          isArabic: isAr,
+          lat: _lat,
+          lng: _lng,
+        );
+        return;
       }
       // Fallback: API failed — schedule using local calculator so alerts still fire
       if (mounted) setState(() => _loadingApiTimes = false);

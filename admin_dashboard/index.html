@@ -1499,7 +1499,11 @@
             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <polygon
               points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg></span><span class="lbl">التقييمات والملاحظات</span><span class="src live">مباشر</span></button>
+          </svg></span><span class="lbl">التقييمات</span><span class="src live">مباشر</span></button>
+      <button class="nav-btn" data-tab="feedback"><span class="ico"><svg viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg></span><span class="lbl">الملاحظات والدعم</span><span class="src live">مباشر</span></button>
 
       <div class="nav-label">النظام</div>
       <button class="nav-btn" data-tab="config"><span class="ico"><svg viewBox="0 0 24 24" fill="none"
@@ -2050,21 +2054,21 @@
         </div>
       </section>
 
-      <!-- RATINGS + FEEDBACK -->
+      <!-- RATINGS -->
       <section id="tab-ratings" class="tab hidden">
         <div class="topbar">
           <div>
-            <h2>التقييمات والملاحظات</h2>
-            <p>آراء المستخدمين في المتجر + ملاحظات الدعم الفني داخل التطبيق.</p>
+            <h2>التقييمات</h2>
+            <p>آراء ونجوم المستخدمين للتطبيق وإمكانية اعتمادها وتمييزها.</p>
           </div>
           <div class="actions"><button class="btn-sm btn-primary" id="refreshRatings">تحديث</button></div>
         </div>
-        <div class="content-grid">
+        <div class="content-grid single-col">
           <div class="panel">
             <div class="panel-h">
-              <h3>التقييمات</h3>
+              <h3>جميع التقييمات المسجلة</h3>
             </div>
-            <div style="overflow:auto;max-height:480px">
+            <div style="overflow:auto;max-height:560px">
               <table>
                 <thead>
                   <tr>
@@ -2082,11 +2086,24 @@
               </table>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- FEEDBACK -->
+      <section id="tab-feedback" class="tab hidden">
+        <div class="topbar">
+          <div>
+            <h2>الملاحظات والدعم الفني</h2>
+            <p>رسائل واقتراحات المستخدمين داخل التطبيق والرد الإداري عليها.</p>
+          </div>
+          <div class="actions"><button class="btn-sm btn-primary" id="refreshFeedback">تحديث</button></div>
+        </div>
+        <div class="content-grid single-col">
           <div class="panel">
             <div class="panel-h">
-              <h3>ملاحظات المستخدمين</h3>
+              <h3>رسائل واقتراحات المستخدمين</h3>
             </div>
-            <div style="overflow:auto;max-height:480px">
+            <div style="overflow:auto;max-height:560px">
               <table>
                 <thead>
                   <tr>
@@ -2386,6 +2403,7 @@
       dua: loadDua,
       reports: loadReports,
       ratings: loadRatings,
+      feedback: loadFeedback,
       config: loadConfig,
     };
 
@@ -3705,12 +3723,11 @@
       });
     }
 
-    /* ── Ratings + Feedback ───────────────────────────── */
+    /* ── Ratings ─────────────────────────────────────── */
     async function loadRatings() {
       try {
-        const [rates, fb] = await Promise.all([safeGet('ratings'), safeGet('feedback')]);
+        const rates = await safeGet('ratings');
         const rList = rates.docs?.map(d => ({ id: d.id, ...d.data() })) || [];
-        const fList = fb.docs?.map(d => ({ id: d.id, ...d.data() })) || [];
         $('#ratingsBody').innerHTML = rList.length ? rList.map(r => `
       <tr>
         <td style="white-space:nowrap;color:#D97706">${'★'.repeat(r.stars || 5)}${'☆'.repeat(5 - (r.stars || 5))}</td>
@@ -3723,15 +3740,6 @@
         </td>
         <td>${r.featured ? '<span class="badge amber">مميز</span>' : '<span class="badge gray">—</span>'}</td>
       </tr>`).join('') : '<tr><td colspan="4" class="empty">لا توجد تقييمات.</td></tr>';
-        $('#feedbackBody').innerHTML = fList.length ? fList.map(f => `
-      <tr>
-        <td><span class="badge blue">${esc(f.category || '—')}</span></td>
-        <td><span class="truncate" title="${esc(f.message || '')}">${esc((f.message || '').slice(0, 90))}</span>
-          <div style="margin-top:6px"><button class="btn-mini" data-reply-fb="${esc(f.id)}">رد الإدارة</button></div>
-        </td>
-        <td>${esc(f.status || '—')}</td>
-        <td class="muted">${esc((f.adminReply || '—').slice(0, 50))}</td>
-      </tr>`).join('') : '<tr><td colspan="4" class="empty">لا توجد ملاحظات.</td></tr>';
 
         $$('[data-approve-rating]').forEach(b => b.addEventListener('click', async () => {
           try {
@@ -3745,6 +3753,27 @@
             toast('تم تحديث التمييز'); loadRatings();
           } catch (e) { toast(e.message, true); }
         }));
+      } catch (e) {
+        toast('تعذّر تحميل التقييمات: ' + e.message, true);
+      }
+    }
+    $('#refreshRatings')?.addEventListener('click', loadRatings);
+
+    /* ── Feedback ─────────────────────────────────────── */
+    async function loadFeedback() {
+      try {
+        const fb = await safeGet('feedback');
+        const fList = fb.docs?.map(d => ({ id: d.id, ...d.data() })) || [];
+        $('#feedbackBody').innerHTML = fList.length ? fList.map(f => `
+      <tr>
+        <td><span class="badge blue">${esc(f.category || '—')}</span></td>
+        <td><span class="truncate" title="${esc(f.message || '')}">${esc((f.message || '').slice(0, 90))}</span>
+          <div style="margin-top:6px"><button class="btn-mini" data-reply-fb="${esc(f.id)}">رد الإدارة</button></div>
+        </td>
+        <td>${esc(f.status || '—')}</td>
+        <td class="muted">${esc((f.adminReply || '—').slice(0, 50))}</td>
+      </tr>`).join('') : '<tr><td colspan="4" class="empty">لا توجد ملاحظات.</td></tr>';
+
         $$('[data-reply-fb]').forEach(b => b.addEventListener('click', () => {
           const item = fList.find(x => x.id === b.dataset.replyFb) || {};
           openModal('رد الإدارة على الملاحظة', `
@@ -3766,15 +3795,15 @@
                 status: $('#m_f_status').value,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
               });
-              toast('تم حفظ الرد ✅'); closeModal(); loadRatings();
+              toast('تم حفظ الرد ✅'); closeModal(); loadFeedback();
             } catch (e) { toast(e.message, true); }
           });
         }));
       } catch (e) {
-        toast('تعذّر تحميل التقييمات: ' + e.message, true);
+        toast('تعذّر تحميل الملاحظات: ' + e.message, true);
       }
     }
-    $('#refreshRatings')?.addEventListener('click', loadRatings);
+    $('#refreshFeedback')?.addEventListener('click', loadFeedback);
 
     /* ── Config ───────────────────────────────────────── */
     const HOME_CARD_DEFS = [

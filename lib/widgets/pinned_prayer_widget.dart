@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/prayer_times_screen.dart';
+import '../services/aladhan_service.dart';
 import '../services/prayer_times.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -29,8 +30,16 @@ class _PinnedPrayerWidgetState extends State<PinnedPrayerWidget> {
   bool _isPlayingPreview = false;
 
   // Default coordinates: Cairo (lat: 30.0444, lng: 31.2357)
-  static const double _lat = 30.0444;
-  static const double _lng = 31.2357;
+  // (تُستبدل بإحداثيات الموقع المحفوظ عند أول بناء للودجت)
+  double _lat = 30.0444;
+  double _lng = 31.2357;
+  String _countryEn = '';
+  String _cityEn = '';
+
+  // مواقيت Aladhan الدقيقة عالمياً (كاش + احتياطي محلي)
+  Map<String, DateTime>? _apiToday;
+  Map<String, DateTime>? _apiTomorrow;
+  String _apiKey = '';
 
   late PrayerTimes _todayPrayers;
   late PrayerTimes _tomorrowPrayers;
@@ -48,17 +57,78 @@ class _PinnedPrayerWidgetState extends State<PinnedPrayerWidget> {
     });
   }
 
+  /// يقرأ الموقع المحفوظ مرة لكل (موقع + يوم) ويجلب مواقيت Aladhan في الخلفية.
+  void _syncLocationAndFetch() {
+    final loc = context.read<AppState>().storage.getSavedLocation();
+    final lat = (loc?['lat'] as num?)?.toDouble() ?? _lat;
+    final lng = (loc?['lng'] as num?)?.toDouble() ?? _lng;
+    final countryEn = ((loc?['countryEn'] as String?) ?? '').trim();
+    final cityEn = ((loc?['cityEn'] as String?) ?? '').trim();
+    final now = DateTime.now();
+    final key = '${lat.toStringAsFixed(3)}|${lng.toStringAsFixed(3)}|'
+        '${now.year}-${now.month}-${now.day}|$countryEn';
+    if (key == _apiKey) return;
+    _apiKey = key;
+    _lat = lat;
+    _lng = lng;
+    _countryEn = countryEn;
+    _cityEn = cityEn;
+    _fetchRemote(lat, lng, countryEn, cityEn);
+  }
+
+  Future<void> _fetchRemote(
+    double lat,
+    double lng,
+    String countryEn,
+    String cityEn,
+  ) async {
+    final now = DateTime.now();
+    final today = await AladhanService.instance.timingsFor(
+      date: now,
+      lat: lat,
+      lng: lng,
+      countryEn: countryEn,
+      cityEn: cityEn,
+    );
+    final tomorrow = await AladhanService.instance.timingsFor(
+      date: now.add(const Duration(days: 1)),
+      lat: lat,
+      lng: lng,
+      countryEn: countryEn,
+      cityEn: cityEn,
+    );
+    if (!mounted) return;
+    _apiToday = today;
+    _apiTomorrow = tomorrow;
+    _recalculate();
+    if (mounted) setState(() {});
+  }
+
+  PrayerTimes _merge(Map<String, DateTime>? remote, PrayerTimes fallback) {
+    if (remote == null) return fallback;
+    return PrayerTimes(
+      fajr: remote['fajr']!,
+      sunrise: remote['sunrise']!,
+      dhuhr: remote['dhuhr']!,
+      asr: remote['asr']!,
+      maghrib: remote['maghrib']!,
+      isha: remote['isha']!,
+    );
+  }
+
   void _recalculate() {
     final now = DateTime.now();
-    _todayPrayers = PrayerCalculator.calculate(
-      date: now,
-      lat: _lat,
-      lng: _lng,
+    _todayPrayers = _merge(
+      _apiToday,
+      PrayerCalculator.calculate(date: now, lat: _lat, lng: _lng),
     );
-    _tomorrowPrayers = PrayerCalculator.calculate(
-      date: now.add(const Duration(days: 1)),
-      lat: _lat,
-      lng: _lng,
+    _tomorrowPrayers = _merge(
+      _apiTomorrow,
+      PrayerCalculator.calculate(
+        date: now.add(const Duration(days: 1)),
+        lat: _lat,
+        lng: _lng,
+      ),
     );
   }
 
@@ -140,6 +210,7 @@ class _PinnedPrayerWidgetState extends State<PinnedPrayerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    _syncLocationAndFetch();
     final isAr = context.watch<AppState>().language == AppLanguage.arabic;
     final next = _getNextPrayer();
     final remaining = next.time.difference(_now);

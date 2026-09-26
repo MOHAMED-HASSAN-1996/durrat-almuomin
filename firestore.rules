@@ -201,6 +201,15 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // ── User Notifications (إشعارات المستخدمين للتفاعل مع المنشورات) ──
+    match /notifications/{notifId} {
+      allow create: if signedIn()
+        && request.resource.data.targetUserId is string
+        && request.resource.data.targetUserId.size() > 0;
+      allow read, update, delete: if signedIn()
+        && (resource.data.targetUserId == request.auth.uid || isAdmin());
+    }
+
     // ── Admin: full control (fallback, kept last) ───────────────────────
     match /{document=**} {
       allow read, write: if isAdmin();

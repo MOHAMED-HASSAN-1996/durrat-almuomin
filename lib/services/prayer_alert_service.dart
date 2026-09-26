@@ -10,6 +10,7 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../types/adhkar.dart';
+import 'aladhan_service.dart';
 import 'prayer_times.dart';
 import 'storage.dart';
 import 'adhan_alert.dart';
@@ -138,6 +139,33 @@ class PlatformPermissions {
       return res ?? false;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// الانحراف المغناطيسي عند نقطة ما (بالدرجات، موجب = شرق).
+  ///
+  /// البوصلة (magnetometer) بتقرأ الشمال **المغناطيسي**، بينما زاوية القبلة
+  /// محسوبة من الشمال **الحقيقي** — الفرق بينهم هو الانحراف، ومن غير تصحيحه
+  /// السهم بيغلط ٥-١٥ درجة في مناطق كتير. نظام أندرويد عنده نموذج WMM
+  /// مدمج في `GeomagneticField` فبنستعمله بدل ما نقرّب بمعادلة في Dart.
+  ///
+  /// ترجع `0.0` لو مقدرش نحسبها (iOS/الويب/خطأ) — والبوصلة بتفضل شغالة
+  /// عادي، بس بدون تصحيح.
+  static Future<double> magneticDeclination({
+    required double lat,
+    required double lng,
+    double alt = 0.0,
+  }) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return 0.0;
+    try {
+      final res = await _channel.invokeMethod<double>('getDeclination', {
+        'lat': lat,
+        'lng': lng,
+        'alt': alt,
+      });
+      return res ?? 0.0;
+    } catch (_) {
+      return 0.0;
     }
   }
 
@@ -1089,14 +1117,51 @@ class PrayerAlertService {
     // Adhan ids are `100 + dayOffset * 10 + prayerIndex` (111..405); the
     // «اقتربت الصلاة» ids live in their own block via [_prePrayerId]
     // (5011..5305), so the two schedules can never overwrite each other.
-    for (int dayOffset = 1; dayOffset <= daysToSchedule; dayOffset++) {
-      final targetDate = now.add(Duration(days: dayOffset));
-      final calculated = PrayerCalculator.calculate(
-        date: targetDate,
+    //
+    // نقرأ بيانات الموقع المحفوظ (الدولة/المدينة) لجلب طريقة الحساب الصحيحة
+    // لـ Aladhan، ونحاول جلب تقويم الشهرين الحالي والتالي بنداء واحد وحفظهما
+    // في الكاش ليعمل الجدولة حتى بدون إنترنت لاحقاً.
+    final savedLoc = DhikrStorage().getSavedLocation();
+    final countryEn = ((savedLoc?['countryEn'] as String?) ?? '').trim();
+    final cityEn = ((savedLoc?['cityEn'] as String?) ?? '').trim();
+    try {
+      await AladhanService.instance.warmMonth(
+        year: now.year,
+        month: now.month,
         lat: lat,
         lng: lng,
+        countryEn: countryEn,
+        cityEn: cityEn,
       );
-      final times = calculated.asMap();
+      final nextMonthDate = DateTime(now.year, now.month + 1, 1);
+      await AladhanService.instance.warmMonth(
+        year: nextMonthDate.year,
+        month: nextMonthDate.month,
+        lat: lat,
+        lng: lng,
+        countryEn: countryEn,
+        cityEn: cityEn,
+      );
+    } catch (_) {}
+
+    for (int dayOffset = 1; dayOffset <= daysToSchedule; dayOffset++) {
+      final targetDate = now.add(Duration(days: dayOffset));
+      final remoteTimes = AladhanService.instance.cachedSync(
+        targetDate,
+        lat,
+        lng,
+      );
+      final Map<String, DateTime> times;
+      if (remoteTimes != null) {
+        times = remoteTimes;
+      } else {
+        final calculated = PrayerCalculator.calculate(
+          date: targetDate,
+          lat: lat,
+          lng: lng,
+        );
+        times = calculated.asMap();
+      }
 
       for (final p in prayers) {
         final key = p.$1;
@@ -1488,6 +1553,42 @@ class PrayerAlertService {
       debugPrint('Scheduled Eid al-Adha beneficiary notification at $eidTime');
     } catch (e) {
       debugPrint('Error scheduling Eid notification: $e');
+    }
+  }
+
+  /// إظهار إشعار محلي فوري عند تفاعل مستخدم آخر مع منشور (تعليق دعائي مثلاً)
+  Future<void> showLocalNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    if (kIsWeb) return;
+    await init();
+    try {
+      await _notificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _dhikrChannelId,
+            _dhikrChannelName,
+            channelDescription: _dhikrChannelDescription,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing local notification: $e');
     }
   }
 

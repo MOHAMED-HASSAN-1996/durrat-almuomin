@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/loved_one.dart';
 import 'firebase_auth_service.dart';
+import 'prayer_alert_service.dart';
 
 /// Shared prayer-request community backed by Firestore.
 ///
@@ -430,6 +431,38 @@ class LovedOnesService {
         'createdAt': FieldValue.serverTimestamp(),
         'status': 'visible',
       });
+
+      // إشعار صاحب المنشور: كتابة إشعار في Firestore للمستخدم المستهدف
+      try {
+        final docSnap = await _requests.doc(id).get();
+        if (docSnap.exists) {
+          final data = docSnap.data();
+          final ownerId = data?['ownerId'] as String?;
+          final postName = (data?['name'] as String?) ?? 'منشورك';
+          if (ownerId != null && ownerId.isNotEmpty && ownerId != _uid) {
+            await _firestore!.collection('notifications').add({
+              'targetUserId': ownerId,
+              'actorUserId': _uid,
+              'requestId': id,
+              'type': 'lovedOnesComment',
+              'titleAr': 'دعاء جديد على منشورك 🤲',
+              'bodyAr': 'قام أحد الإخوة بالدعاء لـ $postName: "$text"',
+              'createdAt': FieldValue.serverTimestamp(),
+              'read': false,
+            });
+          } else if (ownerId == _uid) {
+            // صاحب المنشور نفسه علّق على منشوره (أو للاختبار المحلي)
+            // نطلق إشعاراً محلياً فورياً عبر نظام التنبيهات
+            PrayerAlertService.instance.showLocalNotification(
+              id: id.hashCode.abs() % 10000,
+              title: 'دعاء جديد على منشورك 🤲',
+              body: 'دعاء لـ $postName: "$text"',
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to trigger comment notification: $e');
+      }
     }
     final index = _items.indexWhere((e) => e.id == id);
     if (index != -1) {
@@ -437,6 +470,30 @@ class LovedOnesService {
       await _persistLocal();
     }
     _lastCommentTime = DateTime.now();
+  }
+
+  Future<void> removeComment(String id, String commentText) async {
+    await loadLovedOnes();
+    if (_firestore != null) {
+      try {
+        final snap = await _requests
+            .doc(id)
+            .collection('comments')
+            .where('text', isEqualTo: commentText)
+            .limit(1)
+            .get();
+        for (final doc in snap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint('Failed to delete comment from firestore: $e');
+      }
+    }
+    final index = _items.indexWhere((e) => e.id == id);
+    if (index != -1) {
+      _items[index].comments.remove(commentText);
+      await _persistLocal();
+    }
   }
 
   Future<List<String>> loadComments(String id) async {
