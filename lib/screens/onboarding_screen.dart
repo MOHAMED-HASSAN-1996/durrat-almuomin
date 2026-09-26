@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -26,21 +27,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'titleEn': 'The Holy Quran & Reflection',
       'descAr': 'قراءة المصحف العثماني برسم المدينة المنورة، بتنسيق ١٥ سطراً لكل صفحة مع مظاهر مريحة للعين.',
       'descEn': 'Read the Medina Mushaf with standard 15 lines per page and soothing reading themes.',
-      'image': 'assets/images/onboarding_quran.webp',
+      'image': 'assets/images/onboarding_quran main.jpg',
     },
     {
       'titleAr': 'مواقيت الصلاة وإذاعة القرآن',
       'titleEn': 'Prayer Times & Quran Radio',
       'descAr': 'مواقيت صلاة دقيقة بحسب موقعك وبث مباشر لإذاعة القرآن الكريم من القاهرة وكبار القراء على مدار الساعة.',
       'descEn': 'Accurate prayer times according to your location, with 24/7 Cairo Quran Radio and legendary reciters.',
-      'image': 'assets/images/onboarding_athan.webp',
+      'image': 'assets/images/onboarding_athan main 2.jpg',
     },
     {
       'titleAr': 'الأذكار سبيلك إلى الطمأنينة',
       'titleEn': 'Authentic Adhkar & Serenity',
       'descAr': 'أذكار الصباح والمساء والرقية الشرعية وجوامع الكلم مراجعة ومحققة من أصح كتب السنة النبوية الشريفة.',
       'descEn': 'Verified morning and evening adhkar, Ruqyah, and supplications from authenticated Sunnah sources.',
-      'image': 'assets/images/onboarding_adhkar.webp',
+      'image': 'assets/images/onboarding_quran main 2.jpg',
     },
   ];
 
@@ -218,7 +219,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               },
             ),
 
+                        // ─────────────────────────────────────────────────────────
+            // 1.5 BLUR & GRADIENT OVERLAY UNDER TEXTS AND BUTTONS
             // ─────────────────────────────────────────────────────────
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      width: 717,
+                      height: 572,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: const Alignment(-0.00, -1.00),
+                          end: const Alignment(0, 1),
+                          colors: [
+                            Colors.black.withValues(alpha: 0.0),
+                            Colors.black,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+// ─────────────────────────────────────────────────────────
             // 2. TOP BAR OVERLAY (Brand Logo + Title + Lang + Skip)
             // ─────────────────────────────────────────────────────────
             Positioned(
