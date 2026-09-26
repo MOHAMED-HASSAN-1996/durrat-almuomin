@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/strings.dart';
-import '../services/prayer_alert_service.dart';
+import '../services/haptics.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
@@ -51,21 +51,23 @@ class _TasbihScreenState extends State<TasbihScreen> {
   List<String> get _allPhrasesEn => [..._basePhrasesEn, ..._customPhrasesEn];
 
   /// نبضة النقرة: انفجار قوي مُحسوس عبر الطبقة الأصلية عند الإمكان،
-  /// وإلا نرجع لهزة فلاتر القوية + الاهتزاز النظامي حتى ما تفقد النقرة إحساسها.
-  Future<void> _tapHaptic() async {
+  /// وإلا نرجع لفلاتر النظام حتى ما تفقد النقرة إحساسها. [complete] تعطي
+  /// نبضة أوضح عند إتمام الدورة.
+  Future<void> _tapHaptic({bool complete = false}) async {
     if (!_vibrate) return;
-    final handled = await PlatformPermissions.tapVibration();
-    if (!handled) {
-      HapticFeedback.heavyImpact();
+    if (complete) {
+      await Haptics.complete();
+    } else {
+      await Haptics.tap();
     }
   }
 
   void _increment() {
+    final finished = _target > 0 && _count + 1 >= _target;
     setState(() {
       _count++;
       _total++;
-      if (_target > 0 && _count >= _target) {
-        _tapHaptic();
+      if (finished) {
         // auto reset cycle but keep total
         _count = 0;
         AppToast.show(context, 
@@ -76,10 +78,9 @@ class _TasbihScreenState extends State<TasbihScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-      } else {
-        _tapHaptic();
       }
     });
+    _tapHaptic(complete: finished);
   }
 
   void _undo() {

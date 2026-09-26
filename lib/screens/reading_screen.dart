@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../l10n/strings.dart';
 import '../services/arabic_text_utils.dart';
 import '../services/audio.dart';
+import '../services/haptics.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
@@ -79,14 +80,15 @@ class _ReadingScreenState extends State<ReadingScreen> {
       // Already complete — advancing happens only via Next.
       return;
     }
-    // اهتزاز فوري مع كل ضغطة على الدائرة
-    HapticFeedback.mediumImpact();
+    // اهتزاز فوري مع كل ضغطة على الدائرة، ونبضة أوضح عند إتمام الذكر
     final next = state.increment(widget.category, dhikr.id);
     if (next >= dhikr.repeat) {
       setState(() {
         _lastCompletedIndex = _safeIndex;
       });
-      HapticFeedback.heavyImpact();
+      await Haptics.complete();
+    } else {
+      await Haptics.tap();
     }
   }
 

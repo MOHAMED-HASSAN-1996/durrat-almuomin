@@ -120,15 +120,21 @@ class PlatformPermissions {
     }
   }
 
-  /// نبضة اهتزاز قصيرة قوية لنقرة السبحة الإلكترونية.
+  /// نبضة اهتزاز قوية لنقرة العدّ (السبحة الإلكترونية وأذكار الصباح والمساء
+  /// وبعد الصلاة والرقية الشرعية).
   ///
   /// تعتمد على الطبقة الأصلية لأن قوة `HapticFeedback` من فلاتر ثابتة من
   /// النظام وما تنفع تزوّدها. على غير أندرويد ترجع `false` والمستدعي يكمل
   /// بالاهتزاز العادي من فلاتر.
-  static Future<bool> tapVibration() async {
+  ///
+  /// [intensity] 1 = نقرة عدّ عادية، 2 = إتمام العدّ (نبضة أطول).
+  static Future<bool> tapVibration({int intensity = 1}) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
     try {
-      final res = await _channel.invokeMethod<bool>('tapVibration');
+      final res = await _channel.invokeMethod<bool>(
+        'tapVibration',
+        {'intensity': intensity},
+      );
       return res ?? false;
     } catch (_) {
       return false;

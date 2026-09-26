@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../services/haptics.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../types/adhkar.dart';
@@ -1458,8 +1459,8 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen>
                   final isCurrent = _currentLap == lapNum && !isCompleted;
                   return Expanded(
                     child: GestureDetector(
-                      onTap: () {
-                        HapticFeedback.mediumImpact();
+                      onTap: () async {
+                        await Haptics.tap();
                         setState(() => _currentLap = lapNum);
                       },
                       child: Container(
@@ -1642,14 +1643,20 @@ class _HajjUmrahScreenState extends State<HajjUmrahScreen>
             // Next Lap Button
             Expanded(
               child: ElevatedButton(
-                onPressed: () {
-                  HapticFeedback.heavyImpact();
+                onPressed: () async {
+                  // آخر شوط: نبضة الإتمام الأطول عشان يعرف إن السبع خلصوا.
+                  final finishing = _currentLap >= 7;
                   setState(() {
                     _completedLaps.add(_currentLap);
                     if (_currentLap < 7) {
                       _currentLap++;
                     }
                   });
+                  if (finishing) {
+                    await Haptics.complete();
+                  } else {
+                    await Haptics.tap();
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),

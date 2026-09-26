@@ -65,26 +65,46 @@ class MainActivity : AudioServiceActivity() {
     }
 
     /**
-     * نبضة اهتزاز قصيرة وقوية لنقرة السبحة الإلكترونية.
+     * نبضة اهتزاز قوية لنقرة العدّ (السبحة الإلكترونية وأذكار الصباح والمساء
+     * وبعد الصلاة والرقية الشرعية).
      *
      * نستخدم الطبقة الأصلية (مو HapticFeedback من فلاتر) لأن قوة الاهتزاز
-     * هناك ثابتة من النظام وما تنفع تزوّدها — هنا نتحكم بالمدة والسعة،
-     * والقوة أعلى من أي نمط جاهز بدون ما تصير مزعجة مثل اهتزاز الأذان.
+     * هناك ثابتة من النظام وما تنفع تزوّدها — هنا نتحكم بالمدة والسعة.
+     *
+     * ملاحظة مهمة: الإحساس بـ«الثقل» في النقرة يأتي من *مدة* النبضة وعددها،
+     * مو من سعتها لوحدها. النبضة الواحدة القصيرة (45ms) كانت ضعيفة ومحدودة
+     * الإحساس مهما كانت سعتها، فصارت نبضتين متتاليتين بأقصى سعة — نفس الشدة
+     * لكن الإحساس صار واضح. ونبضة الإتمام ثلاث نبضات أطول عشان يعرف
+     * المستخدم إن الذكر خلص من غير ما يشيل إصبعه عن الشاشة.
+     *
+     * @param intensity 1 = نقرة عدّ عادية (نبضتان) — 2 = إتمام العدّ (ثلاث نبضات).
      */
-    private fun tapVibration() {
+    private fun tapVibration(intensity: Int = 1) {
         try {
             // ما نتدخّل إذا اهتزاز الأذان شغّال — منقدر نلغيه أو نعيده بالغلط.
             if (isVibrating) return
             val vibrator = getVibrator() ?: return
             if (!vibrator.hasVibrator()) return
 
-            val durationMs = 45L
+            val timings: LongArray
+            val amplitudes: IntArray
+            if (intensity >= 2) {
+                // إتمام الذكر: ثلاث نبضات متدرّجة الطول عشان تُحسّ «بتمام».
+                timings = longArrayOf(0, 90, 60, 90, 60, 120)
+                amplitudes = intArrayOf(0, 255, 0, 255, 0, 255)
+            } else {
+                // نقرة العدّ: نبضتان متتاليتان بأقصى سعة.
+                timings = longArrayOf(0, 70, 50, 70)
+                amplitudes = intArrayOf(0, 255, 0, 255)
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val effect = VibrationEffect.createOneShot(durationMs, 255)
+                // 255 أقصى سعة للمحرك؛ -1 يعني اهتزاز مرة واحدة بدون تكرار.
+                val effect = VibrationEffect.createWaveform(timings, amplitudes, -1)
                 vibrator.vibrate(effect)
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 @Suppress("DEPRECATION")
-                vibrator.vibrate(durationMs)
+                vibrator.vibrate(timings, -1)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -240,7 +260,7 @@ class MainActivity : AudioServiceActivity() {
                     result.success(true)
                 }
                 "tapVibration" -> {
-                    tapVibration()
+                    tapVibration(call.argument<Int>("intensity") ?: 1)
                     result.success(true)
                 }
                 "stopAdhanVibration" -> {
